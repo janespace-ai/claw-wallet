@@ -1,0 +1,207 @@
+import type { Address, Hex } from "viem";
+import { parseEther, parseUnits } from "viem";
+import { ChainAdapter } from "./chain.js";
+import { signTransaction } from "./keystore.js";
+import type { KeystoreV3 } from "./types.js";
+import { PolicyEngine } from "./policy.js";
+import { ContactsManager } from "./contacts.js";
+import { TransactionHistory } from "./history.js";
+import type { SupportedChain, TxRecord } from "./types.js";
+import { KNOWN_TOKENS } from "./types.js";
+import { validateAddress, validateAmount, validateTokenSymbol } from "./validation.js";
+
+export interface SendParams {
+  to: string;
+  amount: string;
+  token?: string;
+  chain: SupportedChain;
+}
+
+export interface SendResult {
+  hash: Hex;
+  status: "confirmed" | "failed";
+  blockNumber?: bigint;
+  gasUsed?: bigint;
+  revertReason?: string;
+}
+
+export class TransferService {
+  constructor(
+    private chainAdapter: ChainAdapter,
+    private keystore: KeystoreV3,
+    private password: string,
+    private policy: PolicyEngine,
+    private contacts: ContactsManager,
+    private history: TransactionHistory
+  ) {}
+
+  async sendETH(params: SendParams): Promise<SendResult> {
+    validateAmount(params.amount);
+    const to = await this.resolveRecipient(params.to, params.chain);
+    const value = parseEther(params.amount);
+
+    const walletAddress = this.keystore.address;
+    const { wei: balance } = await this.chainAdapter.getBalance(walletAddress, params.chain);
+    const gasEstimate = await this.chainAdapter.estimateGas(
+      { to, value },
+      params.chain
+    );
+
+    if (balance < value + gasEstimate.totalCostWei) {
+      const available = Number(balance) / 1e18;
+      throw new Error(
+        `Insufficient ETH balance. Available: ${available.toFixed(6)} ETH, ` +
+        `needed: ${params.amount} ETH + ~${gasEstimate.totalCostFormatted} ETH gas`
+      );
+    }
+
+    const amountUsd = parseFloat(params.amount);
+    const policyResult = this.policy.checkTransaction(to, amountUsd, "ETH", params.chain);
+    if (!policyResult.allowed) {
+      throw new PolicyBlockedError(policyResult.reason!, policyResult.approvalId);
+    }
+
+    const chain = this.chainAdapter.getChain(params.chain);
+    const signed = await signTransaction(this.keystore, this.password, {
+      to,
+      value,
+      gas: gasEstimate.gas,
+      chainId: chain.id,
+    });
+
+    const receipt = await this.chainAdapter.broadcastTransaction(signed, params.chain);
+
+    const record: TxRecord = {
+      hash: receipt.transactionHash,
+      direction: "sent",
+      from: walletAddress,
+      to,
+      amount: params.amount,
+      token: "ETH",
+      chain: params.chain,
+      status: receipt.status === "success" ? "confirmed" : "failed",
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed,
+      timestamp: Date.now(),
+    };
+    this.history.addRecord(record);
+
+    return {
+      hash: receipt.transactionHash,
+      status: receipt.status === "success" ? "confirmed" : "failed",
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed,
+    };
+  }
+
+  async sendERC20(params: SendParams): Promise<SendResult> {
+    validateAmount(params.amount);
+    if (params.token) validateTokenSymbol(params.token);
+    const to = await this.resolveRecipient(params.to, params.chain);
+    const tokenAddress = this.resolveTokenAddress(params.token!, params.chain);
+
+    const walletAddress = this.keystore.address;
+    const tokenInfo = await this.chainAdapter.getTokenBalance(walletAddress, tokenAddress, params.chain);
+    const amount = parseUnits(params.amount, tokenInfo.decimals);
+
+    if (tokenInfo.raw < amount) {
+      throw new Error(
+        `Insufficient ${tokenInfo.symbol} balance. Available: ${tokenInfo.formatted}, needed: ${params.amount}`
+      );
+    }
+
+    const transferData = this.chainAdapter.buildERC20TransferData(to, amount);
+    const gasEstimate = await this.chainAdapter.estimateGas(
+      { to: tokenAddress, data: transferData },
+      params.chain
+    );
+
+    const { wei: ethBalance } = await this.chainAdapter.getBalance(walletAddress, params.chain);
+    if (ethBalance < gasEstimate.totalCostWei) {
+      throw new Error(
+        `Insufficient ETH for gas. Need ~${gasEstimate.totalCostFormatted} ETH`
+      );
+    }
+
+    const amountUsd = parseFloat(params.amount);
+    const policyResult = this.policy.checkTransaction(to, amountUsd, tokenInfo.symbol, params.chain);
+    if (!policyResult.allowed) {
+      throw new PolicyBlockedError(policyResult.reason!, policyResult.approvalId);
+    }
+
+    const chain = this.chainAdapter.getChain(params.chain);
+    const signed = await signTransaction(this.keystore, this.password, {
+      to: tokenAddress,
+      data: transferData,
+      gas: gasEstimate.gas,
+      chainId: chain.id,
+    });
+
+    const receipt = await this.chainAdapter.broadcastTransaction(signed, params.chain);
+
+    const record: TxRecord = {
+      hash: receipt.transactionHash,
+      direction: "sent",
+      from: walletAddress,
+      to,
+      amount: params.amount,
+      token: tokenInfo.symbol,
+      chain: params.chain,
+      status: receipt.status === "success" ? "confirmed" : "failed",
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed,
+      timestamp: Date.now(),
+    };
+    this.history.addRecord(record);
+
+    return {
+      hash: receipt.transactionHash,
+      status: receipt.status === "success" ? "confirmed" : "failed",
+      blockNumber: receipt.blockNumber,
+      gasUsed: receipt.gasUsed,
+    };
+  }
+
+  async send(params: SendParams): Promise<SendResult> {
+    if (!params.token || params.token.toUpperCase() === "ETH") {
+      return this.sendETH(params);
+    }
+    return this.sendERC20(params);
+  }
+
+  private async resolveRecipient(to: string, chain: SupportedChain): Promise<Address> {
+    if (to.startsWith("0x") && to.length === 42) {
+      return validateAddress(to);
+    }
+
+    const resolved = this.contacts.resolveContact(to, chain);
+    if (resolved) return resolved.address;
+
+    throw new Error(`Cannot resolve recipient "${to}". Not a valid address or known contact.`);
+  }
+
+  private resolveTokenAddress(tokenOrAddress: string, chain: SupportedChain): Address {
+    validateTokenSymbol(tokenOrAddress);
+    if (tokenOrAddress.startsWith("0x") && tokenOrAddress.length === 42) {
+      return validateAddress(tokenOrAddress);
+    }
+
+    const chainTokens = KNOWN_TOKENS[chain];
+    const address = chainTokens?.[tokenOrAddress.toUpperCase()];
+    if (address) return address;
+
+    throw new Error(
+      `Unknown token "${tokenOrAddress}" on ${chain}. Use a contract address instead.`
+    );
+  }
+}
+
+export class PolicyBlockedError extends Error {
+  constructor(
+    message: string,
+    public approvalId?: string
+  ) {
+    super(message);
+    this.name = "PolicyBlockedError";
+  }
+}

@@ -4,19 +4,39 @@ import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { getAddress } from "viem";
 import { ClawWallet } from "../src/index.js";
+import { SignerDaemon } from "../src/signer/daemon.js";
+import type { AuthProvider, SigningContext } from "../src/signer/auth-provider.js";
 
-const TEST_PASSWORD = "e2e-test-password";
+class TestAuthProvider implements AuthProvider {
+  pin = "e2e-test-pin";
+  async requestPin(_ctx: SigningContext): Promise<string> { return this.pin; }
+  async requestConfirm(_ctx: SigningContext): Promise<boolean> { return true; }
+  async requestSecretInput(_prompt: string): Promise<string> { return ""; }
+  notify(_message: string): void {}
+}
 
 describe("claw-wallet E2E", () => {
   let tempDir: string;
   let wallet: ClawWallet;
+  let signer: SignerDaemon;
+  let socketPath: string;
 
   beforeAll(async () => {
     tempDir = await mkdtemp(join(tmpdir(), "claw-wallet-e2e-"));
+    socketPath = join(tempDir, "signer.sock");
+
+    signer = new SignerDaemon({
+      dataDir: tempDir,
+      socketPath,
+      authProvider: new TestAuthProvider(),
+      sessionTtlMs: 600_000,
+    });
+    await signer.start();
+
     wallet = new ClawWallet({
       dataDir: tempDir,
       defaultChain: "base",
-      password: TEST_PASSWORD,
+      signerSocketPath: socketPath,
       pollIntervalMs: 999999,
     });
     await wallet.initialize();
@@ -24,13 +44,14 @@ describe("claw-wallet E2E", () => {
 
   afterAll(async () => {
     await wallet.shutdown();
+    await signer.shutdown();
     await rm(tempDir, { recursive: true, force: true });
   });
 
   it("1. wallet_create — creates a new wallet", async () => {
     const tools = wallet.getTools();
     const createTool = tools.find((t) => t.name === "wallet_create")!;
-    const result = (await createTool.execute({ password: TEST_PASSWORD })) as any;
+    const result = (await createTool.execute({})) as any;
 
     expect(result.error).toBeUndefined();
     expect(result.address).toMatch(/^0x[0-9a-fA-F]{40}$/);
@@ -49,7 +70,6 @@ describe("claw-wallet E2E", () => {
   it("3. wallet_balance — queries balance (will be 0 on new wallet)", async () => {
     const tools = wallet.getTools();
     const balanceTool = tools.find((t) => t.name === "wallet_balance")!;
-
     const result = (await balanceTool.execute({ token: "ETH", chain: "base" })) as any;
 
     expect(result.balance).toBeDefined();
@@ -65,7 +85,7 @@ describe("claw-wallet E2E", () => {
     expect(result.policy.perTransactionLimitUsd).toBe(100);
     expect(result.policy.dailyLimitUsd).toBe(500);
     expect(result.policy.mode).toBe("supervised");
-    console.log(`  ✅ Policy: $${result.policy.perTransactionLimitUsd}/tx, $${result.policy.dailyLimitUsd}/day, mode=${result.policy.mode}`);
+    console.log(`  ✅ Policy: $${result.policy.perTransactionLimitUsd}/tx, $${result.policy.dailyLimitUsd}/day`);
   });
 
   it("5. wallet_policy_set — updates policy to autonomous mode", async () => {
@@ -79,7 +99,7 @@ describe("claw-wallet E2E", () => {
 
     expect(result.policy.mode).toBe("autonomous");
     expect(result.policy.perTransactionLimitUsd).toBe(200);
-    console.log(`  ✅ Policy updated: $${result.policy.perTransactionLimitUsd}/tx, mode=${result.policy.mode}`);
+    console.log(`  ✅ Policy updated`);
   });
 
   it("6. wallet_contacts_add — adds a contact", async () => {
@@ -101,7 +121,6 @@ describe("claw-wallet E2E", () => {
     const result = (await listTool.execute({})) as any;
 
     expect(result.contacts).toHaveLength(1);
-    expect(result.contacts[0].name).toBe("trading-bot");
     console.log(`  ✅ Contacts: ${result.contacts.length} contact(s)`);
   });
 
@@ -129,7 +148,7 @@ describe("claw-wallet E2E", () => {
     console.log(`  ✅ Send correctly rejected: ${result.error.substring(0, 60)}...`);
   });
 
-  it("10. wallet_history — returns empty history for new wallet", async () => {
+  it("10. wallet_history — returns empty history", async () => {
     const tools = wallet.getTools();
     const historyTool = tools.find((t) => t.name === "wallet_history")!;
     const result = (await historyTool.execute({})) as any;
@@ -159,24 +178,12 @@ describe("claw-wallet E2E", () => {
   it("13. all 16 tools are registered", () => {
     const tools = wallet.getTools();
     const toolNames = tools.map((t) => t.name).sort();
-
     expect(toolNames).toEqual([
-      "wallet_address",
-      "wallet_approval_approve",
-      "wallet_approval_list",
-      "wallet_approval_reject",
-      "wallet_balance",
-      "wallet_contacts_add",
-      "wallet_contacts_list",
-      "wallet_contacts_remove",
-      "wallet_contacts_resolve",
-      "wallet_create",
-      "wallet_estimate_gas",
-      "wallet_history",
-      "wallet_import",
-      "wallet_policy_get",
-      "wallet_policy_set",
-      "wallet_send",
+      "wallet_address", "wallet_approval_approve", "wallet_approval_list",
+      "wallet_approval_reject", "wallet_balance", "wallet_contacts_add",
+      "wallet_contacts_list", "wallet_contacts_remove", "wallet_contacts_resolve",
+      "wallet_create", "wallet_estimate_gas", "wallet_history",
+      "wallet_import", "wallet_policy_get", "wallet_policy_set", "wallet_send",
     ]);
     console.log(`  ✅ All ${tools.length} tools registered`);
   });

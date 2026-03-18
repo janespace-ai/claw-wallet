@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Plugin registration
 The system SHALL register all wallet tools with the OpenClaw Plugin/Skill system on load. Tool parameter schemas SHALL NOT contain password or private key fields.
@@ -9,28 +9,6 @@ The system SHALL register all wallet tools with the OpenClaw Plugin/Skill system
 - **AND** `wallet_create` SHALL have zero required parameters
 - **AND** `wallet_import` SHALL accept only an optional `keystoreFile` parameter
 - **AND** no tool SHALL accept `password` or `private_key` parameters
-
-### Requirement: Tool descriptions for LLM
-Each registered tool SHALL have a clear description and parameter schema that enables the LLM to understand when and how to use it.
-
-#### Scenario: LLM selects correct tool
-- **WHEN** user says "check my balance"
-- **THEN** the LLM SHALL select the `wallet_balance` tool based on its description
-
-#### Scenario: LLM provides correct parameters
-- **WHEN** user says "send 50 USDC to 0xABC on Base"
-- **THEN** the LLM SHALL call `wallet_send` with parameters `{ to: "0xABC", amount: "50", token: "USDC", chain: "base" }`
-
-### Requirement: Plugin configuration
-The system SHALL support configuration through OpenClaw's plugin configuration mechanism.
-
-#### Scenario: Configure RPC endpoints
-- **WHEN** user sets custom RPC endpoints in plugin configuration
-- **THEN** the wallet SHALL use those endpoints for blockchain queries
-
-#### Scenario: Configure data directory
-- **WHEN** user sets a custom data directory in plugin configuration
-- **THEN** the wallet SHALL store keystore, contacts, history, and policy files in that directory instead of the default `~/.openclaw/wallet/`
 
 ### Requirement: Plugin lifecycle management
 The system SHALL properly initialize and clean up resources during plugin lifecycle events, including connection to the Signer process.
@@ -46,10 +24,3 @@ The system SHALL properly initialize and clean up resources during plugin lifecy
 #### Scenario: Plugin shutdown
 - **WHEN** the plugin is unloaded
 - **THEN** it SHALL disconnect from the Signer, stop the balance monitor, flush any pending history to disk, and release resources
-
-### Requirement: Error handling for missing wallet
-The system SHALL handle gracefully when wallet operations are called before a wallet is created.
-
-#### Scenario: Operation before wallet setup
-- **WHEN** any wallet tool (except `wallet_create` and `wallet_import`) is called before a wallet is configured
-- **THEN** the system SHALL return a clear error message: "No wallet configured. Use wallet_create or wallet_import first."

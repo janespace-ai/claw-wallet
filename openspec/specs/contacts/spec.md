@@ -51,3 +51,18 @@ The system SHALL allow removing a contact by name.
 #### Scenario: Remove non-existent contact
 - **WHEN** user invokes `wallet_contacts_remove` with a name that doesn't exist
 - **THEN** the system returns an error indicating the contact was not found
+
+### Requirement: Contact name sanitization
+Contact names SHALL be validated for safe characters and length.
+
+#### Scenario: Contact name with path traversal
+- **WHEN** a contact name like "../../etc/passwd" is provided
+- **THEN** the system SHALL sanitize or reject it
+
+#### Scenario: Empty contact name rejected
+- **WHEN** an empty string is provided as contact name
+- **THEN** the system SHALL reject it
+
+#### Scenario: Excessively long name rejected
+- **WHEN** a contact name longer than 100 characters is provided
+- **THEN** the system SHALL reject it

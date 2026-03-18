@@ -1,8 +1,7 @@
 import type { Address, Hex } from "viem";
 import { parseEther, parseUnits } from "viem";
 import { ChainAdapter } from "./chain.js";
-import { signTransaction } from "./keystore.js";
-import type { KeystoreV3 } from "./types.js";
+import { SignerClient } from "./signer/ipc-client.js";
 import { PolicyEngine } from "./policy.js";
 import { ContactsManager } from "./contacts.js";
 import { TransactionHistory } from "./history.js";
@@ -28,8 +27,8 @@ export interface SendResult {
 export class TransferService {
   constructor(
     private chainAdapter: ChainAdapter,
-    private keystore: KeystoreV3,
-    private password: string,
+    private walletAddress: Address,
+    private signerClient: SignerClient,
     private policy: PolicyEngine,
     private contacts: ContactsManager,
     private history: TransactionHistory
@@ -40,8 +39,7 @@ export class TransferService {
     const to = await this.resolveRecipient(params.to, params.chain);
     const value = parseEther(params.amount);
 
-    const walletAddress = this.keystore.address;
-    const { wei: balance } = await this.chainAdapter.getBalance(walletAddress, params.chain);
+    const { wei: balance } = await this.chainAdapter.getBalance(this.walletAddress, params.chain);
     const gasEstimate = await this.chainAdapter.estimateGas(
       { to, value },
       params.chain
@@ -62,19 +60,23 @@ export class TransferService {
     }
 
     const chain = this.chainAdapter.getChain(params.chain);
-    const signed = await signTransaction(this.keystore, this.password, {
+    const result = await this.signerClient.call("sign_transaction", {
       to,
-      value,
-      gas: gasEstimate.gas,
+      value: value.toString(),
+      gas: gasEstimate.gas.toString(),
       chainId: chain.id,
-    });
+      amount: params.amount,
+      amountUsd,
+      token: "ETH",
+      chain: params.chain,
+    }) as { signedTx: Hex };
 
-    const receipt = await this.chainAdapter.broadcastTransaction(signed, params.chain);
+    const receipt = await this.chainAdapter.broadcastTransaction(result.signedTx, params.chain);
 
     const record: TxRecord = {
       hash: receipt.transactionHash,
       direction: "sent",
-      from: walletAddress,
+      from: this.walletAddress,
       to,
       amount: params.amount,
       token: "ETH",
@@ -100,8 +102,7 @@ export class TransferService {
     const to = await this.resolveRecipient(params.to, params.chain);
     const tokenAddress = this.resolveTokenAddress(params.token!, params.chain);
 
-    const walletAddress = this.keystore.address;
-    const tokenInfo = await this.chainAdapter.getTokenBalance(walletAddress, tokenAddress, params.chain);
+    const tokenInfo = await this.chainAdapter.getTokenBalance(this.walletAddress, tokenAddress, params.chain);
     const amount = parseUnits(params.amount, tokenInfo.decimals);
 
     if (tokenInfo.raw < amount) {
@@ -116,7 +117,7 @@ export class TransferService {
       params.chain
     );
 
-    const { wei: ethBalance } = await this.chainAdapter.getBalance(walletAddress, params.chain);
+    const { wei: ethBalance } = await this.chainAdapter.getBalance(this.walletAddress, params.chain);
     if (ethBalance < gasEstimate.totalCostWei) {
       throw new Error(
         `Insufficient ETH for gas. Need ~${gasEstimate.totalCostFormatted} ETH`
@@ -130,19 +131,23 @@ export class TransferService {
     }
 
     const chain = this.chainAdapter.getChain(params.chain);
-    const signed = await signTransaction(this.keystore, this.password, {
+    const result = await this.signerClient.call("sign_transaction", {
       to: tokenAddress,
       data: transferData,
-      gas: gasEstimate.gas,
+      gas: gasEstimate.gas.toString(),
       chainId: chain.id,
-    });
+      amount: params.amount,
+      amountUsd,
+      token: tokenInfo.symbol,
+      chain: params.chain,
+    }) as { signedTx: Hex };
 
-    const receipt = await this.chainAdapter.broadcastTransaction(signed, params.chain);
+    const receipt = await this.chainAdapter.broadcastTransaction(result.signedTx, params.chain);
 
     const record: TxRecord = {
       hash: receipt.transactionHash,
       direction: "sent",
-      from: walletAddress,
+      from: this.walletAddress,
       to,
       amount: params.amount,
       token: tokenInfo.symbol,

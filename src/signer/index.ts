@@ -1,0 +1,11 @@
+export { SignerDaemon, type SignerDaemonOptions } from "./daemon.js";
+export { SignerClient, SignerRpcError } from "./ipc-client.js";
+export { IpcServer } from "./ipc-server.js";
+export { SessionManager } from "./session.js";
+export { AllowanceManager, defaultAllowancePolicy, type AllowancePolicy, type AllowanceCheckResult } from "./allowance.js";
+export { AuditLog, type AuditEntry } from "./audit-log.js";
+export type { AuthProvider, SigningContext } from "./auth-provider.js";
+export { TuiAuthProvider } from "./tui-auth.js";
+export { GuiAuthProvider } from "./gui-auth.js";
+export { WebhookAuthProvider } from "./webhook-auth.js";
+export * from "./ipc-protocol.js";

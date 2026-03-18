@@ -13,6 +13,9 @@
       "require": "./dist/index.cjs"
     }
   },
+  "bin": {
+    "claw-signer": "./bin/claw-signer.ts"
+  },
   "files": [
     "dist"
   ],

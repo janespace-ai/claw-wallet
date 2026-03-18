@@ -1,42 +1,29 @@
-import { encryptKey, saveKeystore } from "../keystore.js";
-import { privateKeyToAccount } from "viem/accounts";
-import type { Hex } from "viem";
 import type { ToolDefinition } from "../types.js";
+import { SignerClient } from "../signer/ipc-client.js";
 
-export function createWalletImportTool(keystorePath: string): ToolDefinition {
+export function createWalletImportTool(signerClient: SignerClient): ToolDefinition {
   return {
     name: "wallet_import",
-    description: "Import an existing wallet using a private key. Encrypts and stores it locally.",
+    description: "Import an existing wallet. Private key and password are entered securely through the Signer process — never exposed to the Agent.",
     parameters: {
       type: "object",
       properties: {
-        private_key: {
+        keystoreFile: {
           type: "string",
-          description: "The private key to import (hex string starting with 0x)",
-        },
-        password: {
-          type: "string",
-          description: "Master password to encrypt the wallet private key",
+          description: "Optional path to an existing Keystore V3 JSON file to import",
         },
       },
-      required: ["private_key", "password"],
+      required: [],
     },
     execute: async (args) => {
-      const privateKey = args.private_key as Hex;
-      const password = args.password as string;
-
       try {
-        privateKeyToAccount(privateKey);
-      } catch {
-        return { error: "Invalid private key format." };
+        const params: Record<string, unknown> = {};
+        if (args.keystoreFile) params.keystoreFile = args.keystoreFile;
+        const result = await signerClient.call("import_wallet", params) as { address: string };
+        return { address: result.address, message: `Wallet imported successfully. Address: ${result.address}` };
+      } catch (err) {
+        return { error: (err as Error).message };
       }
-
-      const keystore = encryptKey(privateKey, password);
-      await saveKeystore(keystore, keystorePath);
-      return {
-        address: keystore.address,
-        message: `Wallet imported successfully. Address: ${keystore.address}`,
-      };
     },
   };
 }

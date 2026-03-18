@@ -40,3 +40,18 @@ The system SHALL provide transaction history for the wallet.
 #### Scenario: Local history cache
 - **WHEN** the system queries transaction history
 - **THEN** it SHALL cache results locally in `history.json` and serve from cache when possible, refreshing from chain/indexer when requested
+
+### Requirement: Malicious RPC response handling
+The system SHALL handle unexpected or malicious RPC responses without crashing or leaking data.
+
+#### Scenario: RPC returns negative balance
+- **WHEN** the RPC node returns a negative balance value
+- **THEN** the system SHALL treat it as 0 or throw a validation error
+
+#### Scenario: RPC returns extremely large balance
+- **WHEN** the RPC returns a balance exceeding total supply (e.g., 2^256 - 1)
+- **THEN** the system SHALL handle the BigInt without overflow
+
+#### Scenario: RPC returns non-numeric balance
+- **WHEN** the RPC returns a string instead of a number for balance
+- **THEN** the system SHALL throw a clear error without exposing internal state

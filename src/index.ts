@@ -4,13 +4,13 @@ import { mkdir } from "node:fs/promises";
 import type { Address } from "viem";
 
 import { ChainAdapter } from "./chain.js";
-import { loadKeystore, keystoreExists, getAddress as getKeystoreAddress } from "./keystore.js";
 import { PolicyEngine } from "./policy.js";
 import { ContactsManager } from "./contacts.js";
 import { TransactionHistory } from "./history.js";
 import { BalanceMonitor } from "./monitor.js";
 import { TransferService } from "./transfer.js";
-import type { KeystoreV3, SupportedChain, WalletConfig, ToolDefinition, ChainConfig } from "./types.js";
+import { SignerClient } from "./signer/ipc-client.js";
+import type { SupportedChain, WalletConfig, ToolDefinition, ChainConfig } from "./types.js";
 
 import { createWalletCreateTool } from "./tools/wallet-create.js";
 import { createWalletImportTool } from "./tools/wallet-import.js";
@@ -29,7 +29,7 @@ export interface ClawWalletOptions {
   dataDir?: string;
   defaultChain?: SupportedChain;
   chains?: Partial<Record<SupportedChain, ChainConfig>>;
-  password?: string;
+  signerSocketPath?: string;
   pollIntervalMs?: number;
   onBalanceChange?: (event: any) => void;
 }
@@ -40,8 +40,8 @@ export class ClawWallet {
   private contacts: ContactsManager;
   private history: TransactionHistory;
   private monitor: BalanceMonitor | null = null;
-  private keystore: KeystoreV3 | null = null;
-  private password: string | null = null;
+  private signerClient: SignerClient;
+  private walletAddress: Address | null = null;
   private dataDir: string;
   private defaultChain: SupportedChain;
   private pollIntervalMs: number;
@@ -51,8 +51,11 @@ export class ClawWallet {
     this.dataDir = options.dataDir || join(homedir(), ".openclaw", "wallet");
     this.defaultChain = options.defaultChain || "base";
     this.pollIntervalMs = options.pollIntervalMs || 30_000;
-    this.password = options.password || null;
     this.onBalanceChange = options.onBalanceChange;
+
+    const socketPath = options.signerSocketPath ||
+      join("/tmp", `claw-signer-${process.getuid?.() ?? 0}.sock`);
+    this.signerClient = new SignerClient(socketPath);
 
     this.chainAdapter = new ChainAdapter(options.chains);
     this.policy = new PolicyEngine(join(this.dataDir, "policy.json"));
@@ -66,10 +69,12 @@ export class ClawWallet {
     await this.contacts.load();
     await this.history.load();
 
-    const ksPath = join(this.dataDir, "keystore.json");
-    if (await keystoreExists(ksPath)) {
-      this.keystore = await loadKeystore(ksPath);
+    try {
+      const result = await this.signerClient.call("get_address") as { address: Address };
+      this.walletAddress = result.address;
       this.startMonitor();
+    } catch {
+      // Signer not running or no wallet yet — that's ok
     }
   }
 
@@ -81,11 +86,10 @@ export class ClawWallet {
   }
 
   private startMonitor(): void {
-    if (!this.keystore || this.monitor) return;
-    const address = getKeystoreAddress(this.keystore);
+    if (!this.walletAddress || this.monitor) return;
     this.monitor = new BalanceMonitor(
       this.chainAdapter,
-      address,
+      this.walletAddress,
       this.chainAdapter.getSupportedChains(),
       this.pollIntervalMs
     );
@@ -103,46 +107,41 @@ export class ClawWallet {
   }
 
   private getAddress(): Address | null {
-    return this.keystore ? getKeystoreAddress(this.keystore) : null;
+    return this.walletAddress;
   }
 
   private getTransferService(): TransferService | null {
-    if (!this.keystore || !this.password) return null;
+    if (!this.walletAddress) return null;
     return new TransferService(
       this.chainAdapter,
-      this.keystore,
-      this.password,
+      this.walletAddress,
+      this.signerClient,
       this.policy,
       this.contacts,
       this.history
     );
   }
 
-  setPassword(password: string): void {
-    this.password = password;
-  }
-
-  async reloadKeystore(): Promise<void> {
-    const ksPath = join(this.dataDir, "keystore.json");
-    if (await keystoreExists(ksPath)) {
-      this.keystore = await loadKeystore(ksPath);
+  async reloadAddress(): Promise<void> {
+    try {
+      const result = await this.signerClient.call("get_address") as { address: Address };
+      this.walletAddress = result.address;
       this.stopMonitor();
       this.startMonitor();
+    } catch {
+      // Signer not available
     }
   }
 
   getTools(): ToolDefinition[] {
-    const ksPath = join(this.dataDir, "keystore.json");
-
-    const walletCreate = createWalletCreateTool(ksPath);
-    const walletImport = createWalletImportTool(ksPath);
+    const walletCreate = createWalletCreateTool(this.signerClient);
+    const walletImport = createWalletImportTool(this.signerClient);
 
     const originalCreateExecute = walletCreate.execute;
     walletCreate.execute = async (args) => {
       const result = await originalCreateExecute(args);
       if (!(result as any).error) {
-        this.password = args.password as string;
-        await this.reloadKeystore();
+        await this.reloadAddress();
       }
       return result;
     };
@@ -151,8 +150,7 @@ export class ClawWallet {
     walletImport.execute = async (args) => {
       const result = await originalImportExecute(args);
       if (!(result as any).error) {
-        this.password = args.password as string;
-        await this.reloadKeystore();
+        await this.reloadAddress();
       }
       return result;
     };
@@ -178,5 +176,7 @@ export { ContactsManager } from "./contacts.js";
 export { TransactionHistory } from "./history.js";
 export { BalanceMonitor } from "./monitor.js";
 export { TransferService, PolicyBlockedError } from "./transfer.js";
+export { SignerClient } from "./signer/ipc-client.js";
+export { SignerDaemon } from "./signer/daemon.js";
 export * from "./keystore.js";
 export type * from "./types.js";

@@ -1,32 +1,4 @@
-### Requirement: Signer daemon process isolation
-The Signer SHALL run as an independent daemon process, completely separate from the Agent/Tool process, and SHALL be the only component that holds keystore files and private key material.
-
-#### Scenario: Signer starts and listens on Unix Socket
-- **WHEN** `claw-signer start` is executed
-- **THEN** the Signer SHALL create a Unix Domain Socket at a well-known path (e.g., `/tmp/claw-signer-<uid>.sock`) with permissions 0600
-
-#### Scenario: Tool process connects to Signer
-- **WHEN** a Tool needs to perform a signing operation
-- **THEN** the Tool SHALL connect to the Signer via Unix Domain Socket and send a JSON-RPC 2.0 request
-
-#### Scenario: Signer not running
-- **WHEN** a Tool attempts to connect and the Signer is not running
-- **THEN** the Tool SHALL return a clear error: "Signer not running. Start with `claw-signer start`"
-
-### Requirement: IPC protocol
-The Signer SHALL communicate via JSON-RPC 2.0 over Unix Domain Socket.
-
-#### Scenario: Valid JSON-RPC request
-- **WHEN** a valid JSON-RPC request is received with a supported method
-- **THEN** the Signer SHALL return a JSON-RPC response with the result
-
-#### Scenario: Unknown method
-- **WHEN** a JSON-RPC request with an unknown method is received
-- **THEN** the Signer SHALL return a JSON-RPC error with code -32601 (Method not found)
-
-#### Scenario: Malformed request
-- **WHEN** a non-JSON or malformed JSON-RPC request is received
-- **THEN** the Signer SHALL return a JSON-RPC error with code -32700 (Parse error) and SHALL NOT crash
+## MODIFIED Requirements
 
 ### Requirement: Wallet creation in Signer
 The Signer SHALL handle wallet creation internally without exposing the password to the Tool process. The Signer SHALL validate password strength before proceeding.
@@ -54,17 +26,6 @@ The Signer SHALL handle wallet import internally, collecting the private key thr
 - **WHEN** the Tool sends `import_wallet` with a `keystoreFile` path
 - **THEN** the Signer SHALL read the file, prompt the user for the old password via AuthProvider, decrypt, prompt for a new password with strength validation and confirmation, re-encrypt, save, and return the address
 
-### Requirement: Transaction signing in Signer
-The Signer SHALL sign transactions internally and return only the signed transaction bytes.
-
-#### Scenario: sign_transaction method
-- **WHEN** the Tool sends `sign_transaction` with transaction parameters (to, value, gas, chainId, data)
-- **THEN** the Signer SHALL evaluate the allowance policy, potentially prompt the user, decrypt the private key, sign, clear the key from memory, and return the signed transaction hex
-
-#### Scenario: Signer is locked
-- **WHEN** `sign_transaction` is called but the Signer is in locked state and the transaction does not match allowance
-- **THEN** the Signer SHALL prompt the user to unlock via the AuthProvider before proceeding
-
 ### Requirement: Session management
 The Signer SHALL cache the derived key in memory to avoid repeated scrypt computations. Large transactions SHALL bypass the session cache.
 
@@ -87,10 +48,3 @@ The Signer SHALL cache the derived key in memory to avoid repeated scrypt comput
 #### Scenario: Level 2 transaction bypasses session
 - **WHEN** a transaction requires Level 2 authorization (exceeds allowance thresholds or targets unknown recipient)
 - **THEN** the Signer SHALL require the user to re-enter the password through the AuthProvider, regardless of whether a session is active
-
-### Requirement: Address query without authentication
-The Signer SHALL return the wallet address without requiring authentication.
-
-#### Scenario: get_address method
-- **WHEN** `get_address` is called
-- **THEN** the Signer SHALL return the address from the keystore file without decrypting the private key

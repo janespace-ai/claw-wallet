@@ -5,13 +5,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { getAddress } from "viem";
 import { ClawWallet } from "../src/index.js";
 import { SignerDaemon } from "../src/signer/daemon.js";
-import type { AuthProvider, SigningContext } from "../src/signer/auth-provider.js";
+import type { AuthProvider, SigningContext, PasswordValidator } from "../src/signer/auth-provider.js";
 
 class TestAuthProvider implements AuthProvider {
-  pin = "e2e-test-pin";
+  pin = "E2eTestP@ss123!";
   async requestPin(_ctx: SigningContext): Promise<string> { return this.pin; }
   async requestConfirm(_ctx: SigningContext): Promise<boolean> { return true; }
   async requestSecretInput(_prompt: string): Promise<string> { return ""; }
+  async requestPasswordWithConfirmation(_ctx: SigningContext, _validator: PasswordValidator): Promise<string> { return this.pin; }
   notify(_message: string): void {}
 }
 

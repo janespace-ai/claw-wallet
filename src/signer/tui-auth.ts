@@ -1,6 +1,6 @@
 import { createInterface } from "node:readline";
 import { createReadStream, createWriteStream } from "node:fs";
-import type { AuthProvider, SigningContext } from "./auth-provider.js";
+import type { AuthProvider, SigningContext, PasswordValidator } from "./auth-provider.js";
 
 export class TuiAuthProvider implements AuthProvider {
   private getTty() {
@@ -63,10 +63,37 @@ export class TuiAuthProvider implements AuthProvider {
     return this.prompt(`\n🔑 ${promptText}: `, true);
   }
 
+  async requestPasswordWithConfirmation(
+    context: SigningContext,
+    validator: PasswordValidator,
+    maxRetries = 3,
+  ): Promise<string> {
+    const desc = this.formatContext(context);
+    for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const password = await this.prompt(`\n🔐 ${desc}\nEnter password: `, true);
+      const result = validator(password);
+      if (!result.valid) {
+        this.notifyDirect(`❌ Password rejected:\n${result.errors.map((e) => `  - ${e}`).join("\n")}`);
+        continue;
+      }
+      const confirm = await this.prompt("Confirm password: ", true);
+      if (password !== confirm) {
+        this.notifyDirect("❌ Passwords do not match");
+        continue;
+      }
+      return password;
+    }
+    throw new Error("Maximum password retries exceeded");
+  }
+
   notify(message: string): void {
+    this.notifyDirect(`📋 ${message}`);
+  }
+
+  private notifyDirect(message: string): void {
     try {
       const { output } = this.getTty();
-      output.write(`\n📋 ${message}\n`);
+      output.write(`\n${message}\n`);
       output.destroy();
     } catch {}
   }

@@ -8,6 +8,8 @@ import { IpcServer } from "./ipc-server.js";
 import { SessionManager } from "./session.js";
 import { AllowanceManager, defaultAllowancePolicy } from "./allowance.js";
 import { AuditLog, type AuditEntry } from "./audit-log.js";
+import { RateLimiter } from "./rate-limiter.js";
+import { validatePasswordStrength } from "./password-strength.js";
 import type { AuthProvider, SigningContext } from "./auth-provider.js";
 import {
   createSuccess,
@@ -40,6 +42,7 @@ export class SignerDaemon {
   private session: SessionManager;
   private allowance: AllowanceManager;
   private auditLog: AuditLog;
+  private rateLimiter: RateLimiter;
   private authProvider: AuthProvider;
   private dataDir: string;
   private keystore: KeystoreV3 | null = null;
@@ -51,6 +54,7 @@ export class SignerDaemon {
     this.session = new SessionManager(options.sessionTtlMs);
     this.allowance = new AllowanceManager(join(this.dataDir, "allowance.json"));
     this.auditLog = new AuditLog(join(this.dataDir, "audit-log.json"));
+    this.rateLimiter = new RateLimiter(this.dataDir);
     this.server = new IpcServer(socketPath, (req) => this.handleRequest(req));
   }
 
@@ -63,6 +67,7 @@ export class SignerDaemon {
     await mkdir(this.dataDir, { recursive: true });
     await this.allowance.load();
     await this.auditLog.load();
+    await this.rateLimiter.load();
 
     const ksPath = join(this.dataDir, "keystore.json");
     if (await keystoreExists(ksPath)) {
@@ -79,6 +84,7 @@ export class SignerDaemon {
     this.session.lock();
     await this.allowance.save();
     await this.auditLog.save();
+    await this.rateLimiter.save();
     await this.server.stop();
   }
 
@@ -129,10 +135,10 @@ export class SignerDaemon {
     }
 
     const ctx: SigningContext = { operation: "create_wallet", level: 2 };
-    const pin = await this.authProvider.requestPin(ctx);
+    const password = await this.requestValidatedPassword(ctx);
 
     const { privateKey, address } = generateWallet();
-    const keystore = encryptKey(privateKey, pin);
+    const keystore = encryptKey(privateKey, password);
     const buf = Buffer.from(privateKey.slice(2), "hex");
     buf.fill(0);
 
@@ -150,11 +156,11 @@ export class SignerDaemon {
     if (keystoreFile) {
       const ctx: SigningContext = { operation: "import_wallet", level: 2 };
       const oldPassword = await this.authProvider.requestSecretInput("Enter old keystore password");
-      const newPin = await this.authProvider.requestPin(ctx);
-
       const existing = await loadKeystore(keystoreFile);
       const privateKey = decryptKey(existing, oldPassword);
-      const newKeystore = encryptKey(privateKey, newPin);
+
+      const newPassword = await this.requestValidatedPassword(ctx);
+      const newKeystore = encryptKey(privateKey, newPassword);
       const buf = Buffer.from(privateKey.slice(2), "hex");
       buf.fill(0);
 
@@ -165,16 +171,16 @@ export class SignerDaemon {
     }
 
     const privateKeyHex = await this.authProvider.requestSecretInput("Enter private key (0x...)");
-    const ctx: SigningContext = { operation: "import_wallet", level: 2 };
-    const pin = await this.authProvider.requestPin(ctx);
-
     try {
       privateKeyToAccount(privateKeyHex as Hex);
     } catch {
       return createError(req.id, RpcErrorCode.INVALID_PARAMS, "Invalid private key format");
     }
 
-    const keystore = encryptKey(privateKeyHex as Hex, pin);
+    const ctx: SigningContext = { operation: "import_wallet", level: 2 };
+    const password = await this.requestValidatedPassword(ctx);
+
+    const keystore = encryptKey(privateKeyHex as Hex, password);
     await saveKeystore(keystore, ksPath);
     this.keystore = keystore;
 
@@ -211,7 +217,7 @@ export class SignerDaemon {
           return createError(req.id, RpcErrorCode.USER_REJECTED, "User rejected transaction");
         }
       } else {
-        const pin = await this.authProvider.requestPin(ctx);
+        const pin = await this.requestPinWithRateLimit(ctx);
         if (!pin) {
           this.auditLog.add({ timestamp: Date.now(), recipient: to, amount: p.amount as string, token, chain: chain as any, authLevel: check.level, result: "rejected", operation: "sign_transaction" });
           return createError(req.id, RpcErrorCode.USER_REJECTED, "User rejected transaction");
@@ -219,7 +225,8 @@ export class SignerDaemon {
       }
     }
 
-    const privateKey = await this.decryptWithSession();
+    const bypassSession = check.level >= 2;
+    const privateKey = await this.decryptWithSession(bypassSession);
     try {
       const account = privateKeyToAccount(privateKey);
       const tx: TransactionSerializable = {
@@ -276,8 +283,25 @@ export class SignerDaemon {
       return createError(req.id, RpcErrorCode.NO_WALLET, "No wallet configured");
     }
 
+    const rateCheck = this.rateLimiter.checkRateLimit();
+    if (!rateCheck.allowed) {
+      return createError(req.id, RpcErrorCode.INVALID_PARAMS, rateCheck.message ?? "Rate limited");
+    }
+
     const ctx: SigningContext = { operation: "unlock", level: 2 };
-    const pin = await this.authProvider.requestPin(ctx);
+    const pin = await this.requestPinWithTimingCheck(ctx);
+
+    try {
+      decryptKey(this.keystore, pin);
+    } catch {
+      const { lockout, failureCount } = await this.rateLimiter.recordFailure();
+      if (lockout) {
+        this.auditLog.add({ timestamp: Date.now(), operation: "unlock", result: "rejected", authLevel: 2, recipient: "" as Address, amount: "", token: "", chain: "base" as any });
+      }
+      return createError(req.id, RpcErrorCode.INVALID_PARAMS, "Invalid password");
+    }
+
+    await this.rateLimiter.recordSuccess();
 
     const { kdfparams } = this.keystore.crypto;
     const salt = Buffer.from(kdfparams.salt, "hex");
@@ -285,13 +309,6 @@ export class SignerDaemon {
       N: kdfparams.n, r: kdfparams.r, p: kdfparams.p,
       maxmem: 256 * 1024 * 1024,
     });
-
-    // Verify the key is correct by attempting decrypt
-    try {
-      decryptKey(this.keystore, pin);
-    } catch {
-      return createError(req.id, RpcErrorCode.INVALID_PARAMS, "Invalid PIN");
-    }
 
     this.session.unlock(derivedKey);
     return createSuccess(req.id, { status: "unlocked", ttlMs: this.session.getTtlMs() });
@@ -311,15 +328,18 @@ export class SignerDaemon {
 
   private async handleSetAllowance(req: JsonRpcRequest): Promise<JsonRpcResponse> {
     const ctx: SigningContext = { operation: "set_allowance", level: 2 };
-    const pin = await this.authProvider.requestPin(ctx);
+    const pin = await this.requestPinWithRateLimit(ctx);
     if (!pin) {
       return createError(req.id, RpcErrorCode.USER_REJECTED, "User rejected allowance change");
     }
 
-    // Verify PIN
     if (this.keystore) {
-      try { decryptKey(this.keystore, pin); } catch {
-        return createError(req.id, RpcErrorCode.INVALID_PARAMS, "Invalid PIN");
+      try {
+        decryptKey(this.keystore, pin);
+        await this.rateLimiter.recordSuccess();
+      } catch {
+        await this.rateLimiter.recordFailure();
+        return createError(req.id, RpcErrorCode.INVALID_PARAMS, "Invalid password");
       }
     }
 
@@ -338,10 +358,45 @@ export class SignerDaemon {
     return createSuccess(req.id, { policy: this.allowance.getPolicy() });
   }
 
-  private async decryptWithSession(): Promise<Hex> {
+  private async requestValidatedPassword(ctx: SigningContext): Promise<string> {
+    return this.authProvider.requestPasswordWithConfirmation(
+      ctx,
+      validatePasswordStrength,
+      3,
+    );
+  }
+
+  private async requestPinWithTimingCheck(ctx: SigningContext): Promise<string> {
+    const start = Date.now();
+    const pin = await this.authProvider.requestPin(ctx);
+    const elapsed = Date.now() - start;
+    if (elapsed < 10) {
+      this.auditLog.add({
+        timestamp: Date.now(),
+        operation: ctx.operation,
+        result: "auto-approved",
+        authLevel: ctx.level,
+        recipient: "" as Address,
+        amount: "",
+        token: "",
+        chain: "base" as any,
+      });
+    }
+    return pin;
+  }
+
+  private async requestPinWithRateLimit(ctx: SigningContext): Promise<string> {
+    const rateCheck = this.rateLimiter.checkRateLimit();
+    if (!rateCheck.allowed) {
+      throw new Error(rateCheck.message ?? "Rate limited");
+    }
+    return this.requestPinWithTimingCheck(ctx);
+  }
+
+  private async decryptWithSession(bypassSession = false): Promise<Hex> {
     if (!this.keystore) throw new Error("No wallet configured");
 
-    if (this.session.isUnlocked()) {
+    if (!bypassSession && this.session.isUnlocked()) {
       const derivedKey = this.session.getDerivedKey()!;
       const { kdfparams, cipherparams } = this.keystore.crypto;
       const iv = Buffer.from(cipherparams.iv, "hex");
@@ -362,11 +417,23 @@ export class SignerDaemon {
       return hex;
     }
 
-    const ctx: SigningContext = { operation: "unlock", level: 2 };
-    const pin = await this.authProvider.requestPin(ctx);
-    const privateKey = decryptKey(this.keystore, pin);
+    const rateCheck = this.rateLimiter.checkRateLimit();
+    if (!rateCheck.allowed) {
+      throw new Error(rateCheck.message ?? "Rate limited");
+    }
 
-    // Cache session for next time
+    const ctx: SigningContext = { operation: "unlock", level: 2 };
+    const pin = await this.requestPinWithTimingCheck(ctx);
+
+    let privateKey: Hex;
+    try {
+      privateKey = decryptKey(this.keystore, pin);
+      await this.rateLimiter.recordSuccess();
+    } catch {
+      await this.rateLimiter.recordFailure();
+      throw new Error("Invalid password");
+    }
+
     const { kdfparams } = this.keystore.crypto;
     const salt = Buffer.from(kdfparams.salt, "hex");
     const derivedKey = scryptSync(pin, salt, kdfparams.dklen, {

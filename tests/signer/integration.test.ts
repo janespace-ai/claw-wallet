@@ -4,11 +4,11 @@ import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { SignerDaemon } from "../../src/signer/daemon.js";
 import { SignerClient } from "../../src/signer/ipc-client.js";
-import type { AuthProvider, SigningContext } from "../../src/signer/auth-provider.js";
+import type { AuthProvider, SigningContext, PasswordValidator } from "../../src/signer/auth-provider.js";
 import type { Address } from "viem";
 
 class MockAuthProvider implements AuthProvider {
-  pin = "test-pin-123";
+  pin = "Str0ngT3stP@ss!";
   confirmResult = true;
   secretInput = "";
   calls: string[] = [];
@@ -27,6 +27,10 @@ class MockAuthProvider implements AuthProvider {
   }
   notify(message: string): void {
     this.calls.push(`notify:${message.slice(0, 30)}`);
+  }
+  async requestPasswordWithConfirmation(_ctx: SigningContext, _validator: PasswordValidator): Promise<string> {
+    this.calls.push("requestPasswordWithConfirmation");
+    return this.pin;
   }
 }
 
@@ -59,7 +63,7 @@ describe("Signer integration", () => {
   it("creates wallet and returns address", async () => {
     const result = await client.call("create_wallet") as { address: string };
     expect(result.address).toMatch(/^0x[0-9a-fA-F]{40}$/);
-    expect(auth.calls).toContain("requestPin");
+    expect(auth.calls).toContain("requestPasswordWithConfirmation");
   });
 
   it("get_address returns address after creation", async () => {
@@ -84,7 +88,7 @@ describe("Signer integration", () => {
     const result = await client.call("import_wallet") as { address: string };
     expect(result.address).toMatch(/^0x[0-9a-fA-F]{40}$/);
     expect(auth.calls).toContain("requestSecretInput");
-    expect(auth.calls).toContain("requestPin");
+    expect(auth.calls).toContain("requestPasswordWithConfirmation");
   });
 
   it("lock and unlock session", async () => {
@@ -107,7 +111,8 @@ describe("Signer integration", () => {
       policy: { maxDailyUsd: 1000, maxPerTxUsd: 200, allowedTokens: ["ETH"], allowedRecipients: [], enabled: true }
     }) as { policy: any };
     expect(result.policy.maxDailyUsd).toBe(1000);
-    expect(auth.calls.filter(c => c === "requestPin").length).toBeGreaterThanOrEqual(2);
+    expect(auth.calls).toContain("requestPasswordWithConfirmation");
+    expect(auth.calls.filter(c => c === "requestPin").length).toBeGreaterThanOrEqual(1);
   });
 
   it("sign_transaction auto-approves within allowance", async () => {

@@ -18,7 +18,11 @@ function getArg(flag: string): string | undefined {
   return idx !== -1 ? args[idx + 1] : undefined;
 }
 
-const authType = getArg("--auth") ?? "tui";
+const authType = getArg("--auth");
+if (!authType) {
+  console.error("Error: --auth is required. Use: tui, gui, or webhook");
+  process.exit(1);
+}
 const socketPath = getArg("--socket-path");
 const ttl = getArg("--ttl");
 const dataDir = getArg("--data-dir") ?? join(homedir(), ".openclaw", "wallet");

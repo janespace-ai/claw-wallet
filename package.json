@@ -39,6 +39,8 @@
     "node": ">=18"
   },
   "dependencies": {
+    "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
     "viem": "^2.47.4"

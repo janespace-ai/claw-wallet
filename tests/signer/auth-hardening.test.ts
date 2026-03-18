@@ -40,6 +40,9 @@ class AuthHardeningMockProvider implements AuthProvider {
   notify(message: string): void {
     this.calls.push(`notify:${message.slice(0, 30)}`);
   }
+  async displaySecretToUser(_title: string, _secret: string): Promise<void> {
+    this.calls.push("displaySecretToUser");
+  }
 }
 
 describe("auth-hardening integration", () => {

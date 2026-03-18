@@ -32,6 +32,9 @@ class MockAuthProvider implements AuthProvider {
     this.calls.push("requestPasswordWithConfirmation");
     return this.pin;
   }
+  async displaySecretToUser(_title: string, _secret: string): Promise<void> {
+    this.calls.push("displaySecretToUser");
+  }
 }
 
 describe("Signer integration", () => {

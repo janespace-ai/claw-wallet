@@ -18,7 +18,7 @@ The Signer SHALL enforce a three-level authorization model for all signing opera
 - **THEN** the Signer SHALL always require Level 2 full approval with password entry, regardless of session state
 
 ### Requirement: AuthProvider interface
-The Signer SHALL interact with users through a pluggable AuthProvider interface, supporting multiple deployment scenarios. Production usage SHALL require an explicit AuthProvider selection.
+The Signer SHALL interact with users through a pluggable AuthProvider interface, supporting multiple deployment scenarios. Production usage SHALL require an explicit AuthProvider selection. The interface SHALL include a method for securely displaying sensitive data to the user without returning it through IPC.
 
 #### Scenario: TUI provider in CLI mode
 - **WHEN** the Signer is configured with `TuiAuthProvider`
@@ -26,7 +26,7 @@ The Signer SHALL interact with users through a pluggable AuthProvider interface,
 
 #### Scenario: GUI provider in desktop mode
 - **WHEN** the Signer is configured with `GuiAuthProvider`
-- **THEN** the Signer SHALL display a native OS dialog for password entry and transaction confirmation
+- **THEN** the Signer SHALL launch a localhost HTTP server and open the system browser to display password entry dialogs and transaction confirmation pages
 
 #### Scenario: Webhook provider in server mode
 - **WHEN** the Signer is configured with `WebhookAuthProvider`
@@ -43,6 +43,10 @@ The Signer SHALL interact with users through a pluggable AuthProvider interface,
 #### Scenario: Suspiciously fast AuthProvider response
 - **WHEN** an AuthProvider's `requestPin` call returns in less than 10ms
 - **THEN** the Signer SHALL write a security warning to the audit log: "AuthProvider responded suspiciously fast — possible test provider in production"
+
+#### Scenario: Display secret to user
+- **WHEN** `displaySecretToUser` is called with a title and secret string
+- **THEN** the AuthProvider SHALL display the secret directly to the user (GUI: browser page; TUI: /dev/tty output) without transmitting it through IPC or making it accessible to the Agent process
 
 ### Requirement: Transaction context display
 The AuthProvider SHALL display the full transaction context when requesting user confirmation.

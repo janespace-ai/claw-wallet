@@ -23,5 +23,6 @@ export interface AuthProvider {
     validator: PasswordValidator,
     maxRetries?: number,
   ): Promise<string>;
+  displaySecretToUser(title: string, secret: string): Promise<void>;
   notify(message: string): void;
 }

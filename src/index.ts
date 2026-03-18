@@ -14,6 +14,7 @@ import type { SupportedChain, WalletConfig, ToolDefinition, ChainConfig } from "
 
 import { createWalletCreateTool } from "./tools/wallet-create.js";
 import { createWalletImportTool } from "./tools/wallet-import.js";
+import { createWalletExportMnemonicTool } from "./tools/wallet-export-mnemonic.js";
 import {
   createWalletBalanceTool,
   createWalletAddressTool,
@@ -136,6 +137,7 @@ export class ClawWallet {
   getTools(): ToolDefinition[] {
     const walletCreate = createWalletCreateTool(this.signerClient);
     const walletImport = createWalletImportTool(this.signerClient);
+    const walletExportMnemonic = createWalletExportMnemonicTool(this.signerClient);
 
     const originalCreateExecute = walletCreate.execute;
     walletCreate.execute = async (args) => {
@@ -158,6 +160,7 @@ export class ClawWallet {
     return [
       walletCreate,
       walletImport,
+      walletExportMnemonic,
       createWalletAddressTool(() => this.getAddress()),
       createWalletBalanceTool(this.chainAdapter, () => this.getAddress(), this.defaultChain),
       createWalletEstimateGasTool(this.chainAdapter, this.defaultChain),

@@ -27,6 +27,14 @@ import {
   keystoreExists,
   getAddress as getKeystoreAddress,
 } from "../keystore.js";
+import {
+  generateWalletWithMnemonic,
+  encryptMnemonic,
+  decryptMnemonic,
+  saveMnemonic,
+  loadMnemonic,
+  mnemonicExists,
+} from "../mnemonic.js";
 import type { KeystoreV3 } from "../types.js";
 import { validateKeystoreSchema } from "../validation.js";
 
@@ -113,6 +121,8 @@ export class SignerDaemon {
           return this.handleGetAllowance(req);
         case "set_allowance":
           return await this.handleSetAllowance(req);
+        case "export_mnemonic":
+          return await this.handleExportMnemonic(req);
         default:
           return createError(req.id, RpcErrorCode.METHOD_NOT_FOUND, `Unknown method: ${req.method}`);
       }
@@ -137,13 +147,17 @@ export class SignerDaemon {
     const ctx: SigningContext = { operation: "create_wallet", level: 2 };
     const password = await this.requestValidatedPassword(ctx);
 
-    const { privateKey, address } = generateWallet();
+    const { mnemonic, privateKey, address } = generateWalletWithMnemonic();
     const keystore = encryptKey(privateKey, password);
     const buf = Buffer.from(privateKey.slice(2), "hex");
     buf.fill(0);
 
     await saveKeystore(keystore, ksPath);
     this.keystore = keystore;
+
+    const mnemonicPath = join(this.dataDir, "mnemonic.enc");
+    const encryptedMnemonic = encryptMnemonic(mnemonic, password);
+    await saveMnemonic(encryptedMnemonic, mnemonicPath);
 
     this.authProvider.notify(`Wallet created: ${address}`);
     return createSuccess(req.id, { address });
@@ -356,6 +370,41 @@ export class SignerDaemon {
     }
 
     return createSuccess(req.id, { policy: this.allowance.getPolicy() });
+  }
+
+  private async handleExportMnemonic(req: JsonRpcRequest): Promise<JsonRpcResponse> {
+    const mnemonicPath = join(this.dataDir, "mnemonic.enc");
+    if (!(await mnemonicExists(mnemonicPath))) {
+      return createError(req.id, RpcErrorCode.INVALID_PARAMS,
+        "No mnemonic available. This wallet was created without BIP-39 mnemonic support.");
+    }
+
+    const rateCheck = this.rateLimiter.checkRateLimit();
+    if (!rateCheck.allowed) {
+      return createError(req.id, RpcErrorCode.INVALID_PARAMS, rateCheck.message ?? "Rate limited");
+    }
+
+    const ctx: SigningContext = { operation: "unlock", level: 2 };
+    const password = await this.requestPinWithTimingCheck(ctx);
+
+    let mnemonic: string;
+    try {
+      const encrypted = await loadMnemonic(mnemonicPath);
+      mnemonic = decryptMnemonic(encrypted, password);
+      await this.rateLimiter.recordSuccess();
+    } catch {
+      await this.rateLimiter.recordFailure();
+      return createError(req.id, RpcErrorCode.INVALID_PARAMS, "Invalid password");
+    }
+
+    try {
+      await this.authProvider.displaySecretToUser("Your Recovery Phrase", mnemonic);
+    } finally {
+      const buf = Buffer.from(mnemonic, "utf-8");
+      buf.fill(0);
+    }
+
+    return createSuccess(req.id, { exported: true });
   }
 
   private async requestValidatedPassword(ctx: SigningContext): Promise<string> {

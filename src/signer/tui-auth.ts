@@ -90,6 +90,34 @@ export class TuiAuthProvider implements AuthProvider {
     this.notifyDirect(`📋 ${message}`);
   }
 
+  async displaySecretToUser(title: string, secret: string): Promise<void> {
+    try {
+      const { output } = this.getTty();
+      output.write(`\n${"=".repeat(50)}\n`);
+      output.write(`⚠️  ${title}\n`);
+      output.write(`${"=".repeat(50)}\n\n`);
+      output.write(`${secret}\n\n`);
+      output.write(`${"=".repeat(50)}\n`);
+      output.write(`Keep this safe. Press Enter to clear.\n`);
+      output.destroy();
+    } catch {}
+
+    await new Promise<void>((resolve) => {
+      try {
+        const { input } = this.getTty();
+        const rl = (import("node:readline")).then((m) =>
+          m.createInterface({ input, terminal: false })
+        );
+        rl.then((r) => {
+          r.once("line", () => { r.close(); resolve(); });
+          setTimeout(() => { r.close(); resolve(); }, 60_000);
+        });
+      } catch {
+        resolve();
+      }
+    });
+  }
+
   private notifyDirect(message: string): void {
     try {
       const { output } = this.getTty();

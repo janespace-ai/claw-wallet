@@ -10,6 +10,7 @@ export function createWalletSendTool(
     description:
       "Send ETH or ERC-20 tokens to an address or contact name. " +
       "Checks balance, applies spending limits, and broadcasts the transaction. " +
+      "If the amount exceeds the auto-approval limit, a confirmation dialog will pop up — tell the user beforehand. " +
       "Examples: send 0.1 ETH, send 50 USDC to 0xABC..., send 10 USDC to trading-bot.",
     parameters: {
       type: "object",

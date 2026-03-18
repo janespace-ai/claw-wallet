@@ -13,6 +13,7 @@ class TestAuthProvider implements AuthProvider {
   async requestConfirm(_ctx: SigningContext): Promise<boolean> { return true; }
   async requestSecretInput(_prompt: string): Promise<string> { return ""; }
   async requestPasswordWithConfirmation(_ctx: SigningContext, _validator: PasswordValidator): Promise<string> { return this.pin; }
+  async displaySecretToUser(_title: string, _secret: string): Promise<void> {}
   notify(_message: string): void {}
 }
 
@@ -176,15 +177,16 @@ describe("claw-wallet E2E", () => {
     console.log(`  ✅ Contact removed`);
   });
 
-  it("13. all 16 tools are registered", () => {
+  it("13. all 17 tools are registered", () => {
     const tools = wallet.getTools();
     const toolNames = tools.map((t) => t.name).sort();
     expect(toolNames).toEqual([
       "wallet_address", "wallet_approval_approve", "wallet_approval_list",
       "wallet_approval_reject", "wallet_balance", "wallet_contacts_add",
       "wallet_contacts_list", "wallet_contacts_remove", "wallet_contacts_resolve",
-      "wallet_create", "wallet_estimate_gas", "wallet_history",
-      "wallet_import", "wallet_policy_get", "wallet_policy_set", "wallet_send",
+      "wallet_create", "wallet_estimate_gas", "wallet_export_mnemonic",
+      "wallet_history", "wallet_import", "wallet_policy_get", "wallet_policy_set",
+      "wallet_send",
     ]);
     console.log(`  ✅ All ${tools.length} tools registered`);
   });

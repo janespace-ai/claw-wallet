@@ -4,7 +4,7 @@ import { SignerClient } from "../signer/ipc-client.js";
 export function createWalletCreateTool(signerClient: SignerClient): ToolDefinition {
   return {
     name: "wallet_create",
-    description: "Create a new Web3 wallet. The wallet key is generated and encrypted inside the isolated Signer process. Returns the new wallet address.",
+    description: "Create a new Web3 wallet with BIP-39 mnemonic. A secure password input window will pop up — tell the user to set a strong password in the dialog before calling this tool. Returns the new wallet address.",
     parameters: {
       type: "object",
       properties: {},

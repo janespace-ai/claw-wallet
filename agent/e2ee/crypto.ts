@@ -115,3 +115,22 @@ export function destroySession(session: E2EESession): void {
   session.sendSeq = 0;
   session.recvSeq = 0;
 }
+
+export function serializeKeyPair(kp: E2EEKeyPair): { publicKey: string; privateKey: string } {
+  return {
+    publicKey: Buffer.from(kp.publicKey).toString("hex"),
+    privateKey: Buffer.from(kp.privateKey).toString("hex"),
+  };
+}
+
+export function deserializeKeyPair(data: { publicKey: string; privateKey: string }): E2EEKeyPair {
+  return {
+    publicKey: new Uint8Array(Buffer.from(data.publicKey, "hex")),
+    privateKey: new Uint8Array(Buffer.from(data.privateKey, "hex")),
+  };
+}
+
+export function derivePairId(walletAddress: string, agentPubKeyHex: string): string {
+  const hash = sha256(new TextEncoder().encode(`${walletAddress}:${agentPubKeyHex}`));
+  return Buffer.from(hash).toString("hex").slice(0, 16);
+}

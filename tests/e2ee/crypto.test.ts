@@ -8,6 +8,9 @@ import {
   encryptJSON,
   decryptJSON,
   destroySession,
+  serializeKeyPair,
+  deserializeKeyPair,
+  derivePairId,
 } from "../../agent/e2ee/crypto.js";
 
 describe("E2EE crypto", () => {
@@ -139,5 +142,34 @@ describe("E2EE crypto", () => {
     expect(session.sharedKey.every(b => b === 0)).toBe(true);
     expect(session.sendSeq).toBe(0);
     expect(session.recvSeq).toBe(0);
+  });
+
+  it("serializeKeyPair and deserializeKeyPair round-trip", () => {
+    const kp = generateKeyPair();
+    const serialized = serializeKeyPair(kp);
+
+    expect(typeof serialized.publicKey).toBe("string");
+    expect(typeof serialized.privateKey).toBe("string");
+    expect(serialized.publicKey.length).toBe(64);
+    expect(serialized.privateKey.length).toBe(64);
+
+    const restored = deserializeKeyPair(serialized);
+    expect(restored.publicKey).toEqual(kp.publicKey);
+    expect(restored.privateKey).toEqual(kp.privateKey);
+  });
+
+  it("derivePairId is deterministic", () => {
+    const id1 = derivePairId("0x1234abcd", "aabbccdd");
+    const id2 = derivePairId("0x1234abcd", "aabbccdd");
+    expect(id1).toBe(id2);
+    expect(id1.length).toBe(16);
+  });
+
+  it("derivePairId produces different IDs for different inputs", () => {
+    const id1 = derivePairId("0x1234abcd", "aabbccdd");
+    const id2 = derivePairId("0x1234abcd", "eeff0011");
+    const id3 = derivePairId("0x5678efgh", "aabbccdd");
+    expect(id1).not.toBe(id2);
+    expect(id1).not.toBe(id3);
   });
 });

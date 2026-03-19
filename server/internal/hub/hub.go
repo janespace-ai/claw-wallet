@@ -23,9 +23,11 @@ type Client struct {
 }
 
 type Hub struct {
-	mu      sync.RWMutex
-	pairs   map[string][]*Client
-	msgRate map[string]*rateBucket
+	mu           sync.RWMutex
+	pairs        map[string][]*Client
+	msgRate      map[string]*rateBucket
+	pairIPs      map[string]map[string]int // pairId -> ip -> client count
+	pairConnRate map[string]*rateBucket    // pairId -> connection rate
 }
 
 type rateBucket struct {
@@ -34,10 +36,14 @@ type rateBucket struct {
 }
 
 func New() *Hub {
-	return &Hub{
-		pairs:   make(map[string][]*Client),
-		msgRate: make(map[string]*rateBucket),
+	h := &Hub{
+		pairs:        make(map[string][]*Client),
+		msgRate:      make(map[string]*rateBucket),
+		pairIPs:      make(map[string]map[string]int),
+		pairConnRate: make(map[string]*rateBucket),
 	}
+	go h.cleanupRateBuckets()
+	return h
 }
 
 func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
@@ -47,13 +53,24 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	clientIP := iputil.ExtractIP(r)
+
+	if !h.checkPairConnRate(pairID) {
+		http.Error(w, "connection rate limit exceeded", http.StatusTooManyRequests)
+		return
+	}
+
+	if !h.checkPairIPLimit(pairID, clientIP) {
+		http.Error(w, "pair IP limit exceeded", http.StatusForbidden)
+		return
+	}
+
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("upgrade error: %v", err)
 		return
 	}
 
-	clientIP := iputil.ExtractIP(r)
 	client := &Client{
 		PairID: pairID,
 		Conn:   conn,
@@ -73,11 +90,22 @@ func (h *Hub) register(c *Client) {
 	clients := h.pairs[c.PairID]
 	if len(clients) >= 2 {
 		oldest := clients[0]
+		h.removeIPTracking(oldest.PairID, oldest.IP)
 		oldest.Conn.Close()
 		clients = clients[1:]
 	}
 	h.pairs[c.PairID] = append(clients, c)
-	log.Printf("client registered: pairId=%s ip=%s (total=%d)", c.PairID, c.IP, len(h.pairs[c.PairID]))
+
+	if h.pairIPs[c.PairID] == nil {
+		h.pairIPs[c.PairID] = make(map[string]int)
+	}
+	h.pairIPs[c.PairID][c.IP]++
+
+	pairIdShort := c.PairID
+	if len(pairIdShort) > 8 {
+		pairIdShort = pairIdShort[:8]
+	}
+	log.Printf("client connect: pairId=%s ip=%s active=%d", pairIdShort, c.IP, len(h.pairs[c.PairID]))
 }
 
 func (h *Hub) unregister(c *Client) {
@@ -93,9 +121,29 @@ func (h *Hub) unregister(c *Client) {
 	}
 	if len(h.pairs[c.PairID]) == 0 {
 		delete(h.pairs, c.PairID)
+		delete(h.pairIPs, c.PairID)
+	} else {
+		h.removeIPTracking(c.PairID, c.IP)
 	}
 	close(c.Send)
-	log.Printf("client unregistered: pairId=%s ip=%s", c.PairID, c.IP)
+
+	pairIdShort := c.PairID
+	if len(pairIdShort) > 8 {
+		pairIdShort = pairIdShort[:8]
+	}
+	remaining := len(h.pairs[c.PairID])
+	log.Printf("client disconnect: pairId=%s ip=%s active=%d", pairIdShort, c.IP, remaining)
+}
+
+func (h *Hub) removeIPTracking(pairID, ip string) {
+	ips := h.pairIPs[pairID]
+	if ips == nil {
+		return
+	}
+	ips[ip]--
+	if ips[ip] <= 0 {
+		delete(ips, ip)
+	}
 }
 
 func (h *Hub) checkMsgRate(clientAddr string) bool {
@@ -110,6 +158,53 @@ func (h *Hub) checkMsgRate(clientAddr string) bool {
 	}
 	bucket.count++
 	return bucket.count <= 100
+}
+
+func (h *Hub) checkPairIPLimit(pairID, ip string) bool {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	ips := h.pairIPs[pairID]
+	if ips == nil {
+		return true
+	}
+	if _, exists := ips[ip]; exists {
+		return true
+	}
+	return len(ips) < 2
+}
+
+func (h *Hub) checkPairConnRate(pairID string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	now := time.Now()
+	bucket, ok := h.pairConnRate[pairID]
+	if !ok || now.After(bucket.resetAt) {
+		h.pairConnRate[pairID] = &rateBucket{count: 1, resetAt: now.Add(time.Minute)}
+		return true
+	}
+	bucket.count++
+	return bucket.count <= 10
+}
+
+func (h *Hub) cleanupRateBuckets() {
+	ticker := time.NewTicker(5 * time.Minute)
+	for range ticker.C {
+		h.mu.Lock()
+		now := time.Now()
+		for k, b := range h.pairConnRate {
+			if now.After(b.resetAt) {
+				delete(h.pairConnRate, k)
+			}
+		}
+		for k, b := range h.msgRate {
+			if now.After(b.resetAt) {
+				delete(h.msgRate, k)
+			}
+		}
+		h.mu.Unlock()
+	}
 }
 
 func (h *Hub) readPump(c *Client) {

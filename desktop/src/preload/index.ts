@@ -9,6 +9,9 @@ export interface WalletAPI {
   getStatus: () => Promise<WalletStatus>;
   generatePairCode: () => Promise<{ code: string; expiresAt: number }>;
   revokePairing: (deviceId: string) => Promise<void>;
+  repairDevice: (deviceId: string) => Promise<{ code: string; expiresAt: number }>;
+  getIpChangePolicy: () => Promise<"block" | "warn" | "allow">;
+  setIpChangePolicy: (policy: "block" | "warn" | "allow") => Promise<void>;
   getPairedDevices: () => Promise<PairedDevice[]>;
   approveTransaction: (requestId: string) => Promise<void>;
   rejectTransaction: (requestId: string) => Promise<void>;
@@ -72,7 +75,7 @@ export interface ConnectionStatus {
 
 export interface SecurityAlert {
   alertId: string;
-  type: "ip_change" | "fingerprint_change" | "same_machine";
+  type: "ip_change" | "fingerprint_change" | "same_machine" | "key_mismatch" | "device_mismatch";
   message: string;
   details: Record<string, string>;
   timestamp: number;
@@ -94,6 +97,9 @@ const api: WalletAPI = {
   getStatus: () => ipcRenderer.invoke("wallet:status"),
   generatePairCode: () => ipcRenderer.invoke("wallet:pair-code"),
   revokePairing: (deviceId) => ipcRenderer.invoke("wallet:revoke-pairing", deviceId),
+  repairDevice: (deviceId) => ipcRenderer.invoke("wallet:repair-device", deviceId),
+  getIpChangePolicy: () => ipcRenderer.invoke("wallet:get-ip-policy"),
+  setIpChangePolicy: (policy) => ipcRenderer.invoke("wallet:set-ip-policy", policy),
   getPairedDevices: () => ipcRenderer.invoke("wallet:paired-devices"),
   approveTransaction: (requestId) => ipcRenderer.invoke("wallet:approve-tx", requestId),
   rejectTransaction: (requestId) => ipcRenderer.invoke("wallet:reject-tx", requestId),

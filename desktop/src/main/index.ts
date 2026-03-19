@@ -117,6 +117,21 @@ function registerIpcHandlers(): void {
     relayBridge.revokePairing(deviceId);
   });
 
+  ipcMain.handle("wallet:repair-device", async (_, deviceId: string) => {
+    if (!relayBridge) throw new Error("Relay not initialized");
+    return relayBridge.repairDevice(deviceId);
+  });
+
+  ipcMain.handle("wallet:get-ip-policy", async () => {
+    if (!relayBridge) return "warn";
+    return relayBridge.getIpChangePolicy();
+  });
+
+  ipcMain.handle("wallet:set-ip-policy", async (_, policy: "block" | "warn" | "allow") => {
+    if (!relayBridge) throw new Error("Relay not initialized");
+    relayBridge.setIpChangePolicy(policy);
+  });
+
   ipcMain.handle("wallet:paired-devices", async () => {
     if (!relayBridge) return [];
     return relayBridge.getPairedDevices();

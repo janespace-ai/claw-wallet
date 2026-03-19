@@ -14,6 +14,8 @@ export interface RelayTransportOptions {
   relayUrl: string;
   pairId: string;
   keyPair?: E2EEKeyPair;
+  machineId?: string;
+  reconnect?: boolean;
   onMessage?: (data: unknown, sourceIP: string) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
@@ -145,6 +147,8 @@ export class RelayTransport {
     this.sendRaw({
       type: "handshake",
       publicKey: this.getPublicKeyHex(),
+      machineId: this.options.machineId ?? "",
+      reconnect: this.options.reconnect ?? false,
     });
   }
 

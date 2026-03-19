@@ -216,3 +216,49 @@ func TestWSMessageRateLimit(t *testing.T) {
 		t.Fatal("should have received at least some messages")
 	}
 }
+
+func TestPairIPBinding(t *testing.T) {
+	h := New()
+	s := setupTestServer(h)
+	defer s.Close()
+
+	conn1 := dial(t, s, "ip-pair")
+	defer conn1.Close()
+	conn2 := dial(t, s, "ip-pair")
+	defer conn2.Close()
+
+	time.Sleep(50 * time.Millisecond)
+
+	h.mu.RLock()
+	ipCount := len(h.pairIPs["ip-pair"])
+	h.mu.RUnlock()
+
+	// Both connections come from localhost (same IP in tests), so IP count should be 1
+	if ipCount != 1 {
+		t.Fatalf("expected 1 distinct IP (both from localhost), got %d", ipCount)
+	}
+}
+
+func TestPairConnRateLimit(t *testing.T) {
+	h := New()
+	s := setupTestServer(h)
+	defer s.Close()
+
+	connections := make([]*websocket.Conn, 0)
+	for i := 0; i < 10; i++ {
+		conn := dial(t, s, "rate-conn-pair")
+		connections = append(connections, conn)
+		defer conn.Close()
+	}
+
+	time.Sleep(50 * time.Millisecond)
+
+	// 11th connection should fail due to rate limit
+	_, resp, err := websocket.DefaultDialer.Dial(wsURL(s, "rate-conn-pair"), nil)
+	if err == nil {
+		t.Fatal("11th connection should have been rejected by rate limit")
+	}
+	if resp != nil && resp.StatusCode != http.StatusTooManyRequests {
+		t.Fatalf("expected 429, got %d", resp.StatusCode)
+	}
+}

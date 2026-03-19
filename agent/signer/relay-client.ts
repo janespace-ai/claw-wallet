@@ -1,7 +1,5 @@
-import { hostname, networkInterfaces } from "node:os";
 import { join } from "node:path";
 import { readFile, writeFile, mkdir } from "node:fs/promises";
-import { createHash } from "node:crypto";
 import { IpcServer, type RequestHandler } from "./ipc-server.js";
 import {
   createSuccess,
@@ -11,6 +9,14 @@ import {
   type JsonRpcResponse,
 } from "./ipc-protocol.js";
 import { RelayTransport } from "../e2ee/transport.js";
+import { getMachineId } from "../e2ee/machine-id.js";
+import {
+  generateKeyPair,
+  serializeKeyPair,
+  deserializeKeyPair,
+  derivePairId,
+  type E2EEKeyPair,
+} from "../e2ee/crypto.js";
 
 export interface RelaySignerOptions {
   dataDir: string;
@@ -24,6 +30,7 @@ interface PairingConfig {
   walletAddress: string;
   peerMachineId: string;
   pairedAt: string;
+  commKeyPair?: { publicKey: string; privateKey: string };
 }
 
 interface PendingRequest {
@@ -39,6 +46,7 @@ export class RelaySigner {
   private transport: RelayTransport | null = null;
   private options: RelaySignerOptions;
   private pairing: PairingConfig | null = null;
+  private commKeyPair: E2EEKeyPair | null = null;
   private pendingRequests = new Map<string, PendingRequest>();
   private requestCounter = 0;
 
@@ -51,6 +59,7 @@ export class RelaySigner {
   async start(): Promise<void> {
     await mkdir(this.options.dataDir, { recursive: true });
     await this.loadPairing();
+    this.loadCommKeyPair();
 
     if (this.pairing) {
       this.connectRelay();
@@ -73,9 +82,20 @@ export class RelaySigner {
   private connectRelay(): void {
     if (!this.pairing) return;
 
+    let pairId = this.pairing.pairId;
+    if (this.commKeyPair && this.pairing.walletAddress) {
+      const agentPubHex = Buffer.from(this.commKeyPair.publicKey).toString("hex");
+      pairId = derivePairId(this.pairing.walletAddress, agentPubHex);
+    }
+
+    const isReconnect = !!this.pairing.pairedAt;
+
     this.transport = new RelayTransport({
       relayUrl: this.options.relayUrl,
-      pairId: this.pairing.pairId,
+      pairId,
+      keyPair: this.commKeyPair ?? undefined,
+      machineId: getMachineId(),
+      reconnect: isReconnect,
       onMessage: (data, sourceIP) => this.handleRelayMessage(data, sourceIP),
       onConnect: () => {
         if (this.pairing?.peerPublicKey) {
@@ -143,6 +163,8 @@ export class RelaySigner {
       switch (req.method) {
         case "wallet_pair":
           return createSuccess(req.id, await this.handlePair(req.params));
+        case "wallet_repair":
+          return createSuccess(req.id, await this.handleRepair());
         case "get_address":
           return createSuccess(req.id, await this.handleGetAddress());
         case "sign_transaction":
@@ -176,10 +198,11 @@ export class RelaySigner {
 
     const pairInfo = await response.json() as { walletAddr: string; commPubKey: string };
 
-    const pairId = createHash("sha256")
-      .update(`${pairInfo.walletAddr}-${Date.now()}-${Math.random()}`)
-      .digest("hex")
-      .slice(0, 16);
+    if (!this.commKeyPair) {
+      this.commKeyPair = generateKeyPair();
+    }
+    const agentPubHex = Buffer.from(this.commKeyPair.publicKey).toString("hex");
+    const pairId = derivePairId(pairInfo.walletAddr, agentPubHex);
 
     this.transport?.disconnect();
 
@@ -213,6 +236,22 @@ export class RelaySigner {
     };
   }
 
+  private async handleRepair(): Promise<unknown> {
+    this.transport?.disconnect();
+    this.transport = null;
+    this.pairing = null;
+    this.commKeyPair = null;
+    const filePath = join(this.options.dataDir, "pairing.json");
+    try {
+      const { unlink } = await import("node:fs/promises");
+      await unlink(filePath);
+    } catch {}
+    return {
+      message: "Pairing data cleared. Generate a new pairing code in the Electron Wallet App and call wallet_pair with the new code.",
+      repaired: true,
+    };
+  }
+
   private async handleGetAddress(): Promise<unknown> {
     if (!this.pairing) {
       throw new Error("No wallet paired. Use wallet_pair to connect an Electron Wallet App.");
@@ -241,22 +280,19 @@ export class RelaySigner {
 
   private async savePairing(): Promise<void> {
     const filePath = join(this.options.dataDir, "pairing.json");
-    await writeFile(filePath, JSON.stringify(this.pairing, null, 2), { mode: 0o600 });
+    const data = {
+      ...this.pairing,
+      commKeyPair: this.commKeyPair ? serializeKeyPair(this.commKeyPair) : undefined,
+    };
+    await writeFile(filePath, JSON.stringify(data, null, 2), { mode: 0o600 });
   }
-}
 
-function getMachineId(): string {
-  const host = hostname();
-  const ifaces = networkInterfaces();
-  let mac = "";
-  for (const name in ifaces) {
-    for (const iface of ifaces[name] ?? []) {
-      if (!iface.internal && iface.mac && iface.mac !== "00:00:00:00:00:00") {
-        mac = iface.mac;
-        break;
-      }
+  private loadCommKeyPair(): void {
+    if (this.pairing?.commKeyPair) {
+      this.commKeyPair = deserializeKeyPair(this.pairing.commKeyPair);
     }
-    if (mac) break;
+    if (!this.commKeyPair) {
+      this.commKeyPair = generateKeyPair();
+    }
   }
-  return createHash("sha256").update(`${host}:${mac}`).digest("hex").slice(0, 16);
 }

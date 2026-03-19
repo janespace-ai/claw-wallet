@@ -10,6 +10,9 @@ import {
   encryptJSON,
   decryptJSON,
   destroySession,
+  serializeKeyPair,
+  deserializeKeyPair,
+  derivePairId,
   type E2EEKeyPair,
   type E2EESession,
 } from "../../shared/e2ee-crypto.js";
@@ -23,6 +26,7 @@ export interface RelayBridgeOptions {
   signingEngine: SigningEngine;
   securityMonitor: SecurityMonitor;
   relayUrl?: string;
+  ipChangePolicy?: "block" | "warn" | "allow";
   onTransactionRequest?: (req: TransactionRequestInfo) => void;
   onConnectionStatus?: (status: ConnectionStatusInfo) => void;
   onSecurityAlert?: (alert: SecurityAlertInfo) => void;
@@ -48,7 +52,7 @@ export interface ConnectionStatusInfo {
 
 export interface SecurityAlertInfo {
   alertId: string;
-  type: "ip_change" | "fingerprint_change" | "same_machine";
+  type: "ip_change" | "fingerprint_change" | "same_machine" | "key_mismatch" | "device_mismatch";
   message: string;
   details: Record<string, string>;
   timestamp: number;
@@ -71,9 +75,29 @@ interface StoredPairings {
 const DEFAULT_RELAY_URL = "ws://localhost:8765";
 const PAIR_CODE_ENDPOINT = "/pair/create";
 
+async function loadOrCreateKeyPair(dataDir: string): Promise<E2EEKeyPair> {
+  const keyPairPath = join(dataDir, "comm-keypair.json");
+  try {
+    const raw = await readFile(keyPairPath, "utf-8");
+    const data = JSON.parse(raw);
+    return deserializeKeyPair(data);
+  } catch {
+    const kp = generateKeyPair();
+    await writeFile(keyPairPath, JSON.stringify(serializeKeyPair(kp), null, 2), { mode: 0o600 });
+    return kp;
+  }
+}
+
+function isSameSubnet(ip1: string, ip2: string): boolean {
+  const parts1 = ip1.split(".");
+  const parts2 = ip2.split(".");
+  if (parts1.length !== 4 || parts2.length !== 4) return false;
+  return parts1[0] === parts2[0] && parts1[1] === parts2[1] && parts1[2] === parts2[2];
+}
+
 export class RelayBridge {
   private options: RelayBridgeOptions;
-  private keyPair: E2EEKeyPair;
+  private keyPair!: E2EEKeyPair;
   private sessions = new Map<string, E2EESession>();
   private ws: WebSocket | null = null;
   private pairings: StoredPairings = { devices: [] };
@@ -83,18 +107,21 @@ export class RelayBridge {
   private destroyed = false;
   private relayUrl: string;
   private pendingPairCode: string | null = null;
+  private frozenSessions = new Map<string, { until: number; reason: string }>();
+  private ipChangePolicy: "block" | "warn" | "allow";
 
   constructor(options: RelayBridgeOptions) {
     this.options = options;
-    this.keyPair = generateKeyPair();
     this.pairingsPath = join(options.dataDir, "pairings.enc.json");
     this.relayUrl = options.relayUrl ?? DEFAULT_RELAY_URL;
+    this.ipChangePolicy = options.ipChangePolicy ?? "warn";
 
     this.initialize();
   }
 
   private async initialize(): Promise<void> {
     await mkdir(this.options.dataDir, { recursive: true });
+    this.keyPair = await loadOrCreateKeyPair(this.options.dataDir);
     await this.loadPairings();
     if (this.pairings.devices.length > 0) {
       this.connect();
@@ -133,7 +160,14 @@ export class RelayBridge {
   private connect(): void {
     if (this.destroyed || this.ws) return;
 
-    const pairId = this.pairings.devices[0]?.pairId ?? `pending-${Date.now()}`;
+    const device = this.pairings.devices[0];
+    let pairId: string;
+    if (device?.agentPublicKey) {
+      const walletAddress = this.options.keyManager.getAddress() ?? "";
+      pairId = derivePairId(walletAddress, device.agentPublicKey);
+    } else {
+      pairId = device?.pairId ?? `pending-${Date.now()}`;
+    }
     const url = `${this.relayUrl}/ws?pairId=${encodeURIComponent(pairId)}`;
 
     try {
@@ -171,7 +205,9 @@ export class RelayBridge {
     if (!msg) return;
 
     if (msg.type === "handshake" && typeof msg.publicKey === "string") {
-      this.handleHandshake(msg.publicKey, sourceIP);
+      const machineId = (msg.machineId as string) ?? "";
+      const reconnect = (msg.reconnect as boolean) ?? false;
+      this.handleHandshake(msg.publicKey, sourceIP, machineId, reconnect);
       return;
     }
 
@@ -181,15 +217,77 @@ export class RelayBridge {
     }
   }
 
-  private handleHandshake(agentPubKeyHex: string, sourceIP: string): void {
+  private handleHandshake(agentPubKeyHex: string, sourceIP: string, machineId: string, reconnect: boolean): void {
+    const deviceId = createHash("sha256").update(agentPubKeyHex).digest("hex").slice(0, 16);
+
+    if (reconnect) {
+      const storedDevice = this.pairings.devices.find(d => d.deviceId === deviceId);
+
+      if (storedDevice) {
+        // Level 1: Public key continuity
+        if (storedDevice.agentPublicKey && storedDevice.agentPublicKey !== agentPubKeyHex) {
+          this.options.onSecurityAlert?.({
+            alertId: `key-mismatch-${Date.now()}`,
+            type: "key_mismatch",
+            message: "Agent public key does not match stored key. Possible impersonation.",
+            details: { deviceId },
+            timestamp: Date.now(),
+          });
+          this.options.securityMonitor.recordFingerprintChange(deviceId, storedDevice.agentPublicKey, agentPubKeyHex);
+          return;
+        }
+
+        // Level 2: MachineId continuity
+        if (machineId && storedDevice.machineId && storedDevice.machineId !== machineId) {
+          this.options.onSecurityAlert?.({
+            alertId: `device-mismatch-${Date.now()}`,
+            type: "device_mismatch",
+            message: "Agent device fingerprint changed. Re-pairing required.",
+            details: { deviceId, expected: storedDevice.machineId, received: machineId },
+            timestamp: Date.now(),
+          });
+          this.options.securityMonitor.recordFingerprintChange(deviceId, storedDevice.machineId, machineId);
+          this.freezeSession(deviceId, "device_mismatch", -1);
+          return;
+        }
+
+        // Level 3: IP change policy
+        if (storedDevice.lastIP && storedDevice.lastIP !== sourceIP && storedDevice.lastIP !== "unknown") {
+          if (this.ipChangePolicy === "block") {
+            this.options.onSecurityAlert?.({
+              alertId: `ip-block-${Date.now()}`,
+              type: "ip_change",
+              message: `Agent IP changed from ${storedDevice.lastIP} to ${sourceIP}. Blocked by policy.`,
+              details: { oldIP: storedDevice.lastIP, newIP: sourceIP, deviceId },
+              timestamp: Date.now(),
+            });
+            this.options.securityMonitor.recordIPChange(deviceId, storedDevice.lastIP, sourceIP);
+            return;
+          }
+
+          if (this.ipChangePolicy === "warn" && !isSameSubnet(storedDevice.lastIP, sourceIP)) {
+            this.options.onSecurityAlert?.({
+              alertId: `ip-change-${Date.now()}`,
+              type: "ip_change",
+              message: `Agent IP changed from ${storedDevice.lastIP} to ${sourceIP}`,
+              details: { oldIP: storedDevice.lastIP, newIP: sourceIP, deviceId },
+              timestamp: Date.now(),
+            });
+            this.options.securityMonitor.recordIPChange(deviceId, storedDevice.lastIP, sourceIP);
+          }
+        }
+
+        storedDevice.lastIP = sourceIP;
+        storedDevice.lastSeen = new Date().toISOString();
+        if (machineId) storedDevice.machineId = machineId;
+        this.savePairings();
+      }
+    }
+
     const agentPubKey = Buffer.from(agentPubKeyHex, "hex");
     const sharedKey = deriveSharedKey(this.keyPair.privateKey, agentPubKey);
-
-    const deviceId = createHash("sha256").update(agentPubKeyHex).digest("hex").slice(0, 16);
-    const pairId = createHash("sha256")
-      .update(`${deviceId}-${Date.now()}`)
-      .digest("hex")
-      .slice(0, 16);
+    const walletAddress = this.options.keyManager.getAddress() ?? "";
+    const pairId = derivePairId(walletAddress, agentPubKeyHex);
 
     const session = createSession(sharedKey, pairId);
     this.sessions.set(deviceId, session);
@@ -273,16 +371,33 @@ export class RelayBridge {
     const session = this.sessions.get(deviceId);
     if (!device || !session) return;
 
+    if (this.isSessionFrozen(deviceId)) {
+      const frozen = this.frozenSessions.get(deviceId);
+      this.sendEncrypted(session, {
+        requestId: data.requestId,
+        error: `Session frozen: ${frozen?.reason ?? "security policy"}. Re-pairing required.`,
+      });
+      return;
+    }
+
     if (device.lastIP && device.lastIP !== sourceIP && device.lastIP !== "unknown") {
-      const alert: SecurityAlertInfo = {
+      this.options.onSecurityAlert?.({
         alertId: `ip-change-${Date.now()}`,
         type: "ip_change",
         message: `Agent IP changed from ${device.lastIP} to ${sourceIP}`,
         details: { oldIP: device.lastIP, newIP: sourceIP, deviceId },
         timestamp: Date.now(),
-      };
-      this.options.onSecurityAlert?.(alert);
+      });
       this.options.securityMonitor.recordIPChange(deviceId, device.lastIP, sourceIP);
+
+      if (this.ipChangePolicy === "block") {
+        this.freezeSession(deviceId, "ip_change_blocked", -1);
+        this.sendEncrypted(session, {
+          requestId: data.requestId,
+          error: "IP change detected. Session frozen by policy.",
+        });
+        return;
+      }
     }
 
     device.lastIP = sourceIP;
@@ -324,6 +439,25 @@ export class RelayBridge {
         error: (err as Error).message,
       });
     }
+  }
+
+  freezeSession(deviceId: string, reason: string, durationMs: number): void {
+    const until = durationMs < 0 ? Infinity : Date.now() + durationMs;
+    this.frozenSessions.set(deviceId, { until, reason });
+  }
+
+  unfreezeSession(deviceId: string): void {
+    this.frozenSessions.delete(deviceId);
+  }
+
+  private isSessionFrozen(deviceId: string): boolean {
+    const frozen = this.frozenSessions.get(deviceId);
+    if (!frozen) return false;
+    if (frozen.until !== Infinity && Date.now() > frozen.until) {
+      this.frozenSessions.delete(deviceId);
+      return false;
+    }
+    return true;
   }
 
   private sendEncrypted(session: E2EESession, data: unknown): void {
@@ -374,8 +508,22 @@ export class RelayBridge {
       destroySession(session);
       this.sessions.delete(deviceId);
     }
+    this.frozenSessions.delete(deviceId);
     this.pairings.devices = this.pairings.devices.filter(d => d.deviceId !== deviceId);
     this.savePairings();
+  }
+
+  getIpChangePolicy(): "block" | "warn" | "allow" {
+    return this.ipChangePolicy;
+  }
+
+  setIpChangePolicy(policy: "block" | "warn" | "allow"): void {
+    this.ipChangePolicy = policy;
+  }
+
+  async repairDevice(deviceId: string): Promise<{ code: string; expiresAt: number }> {
+    this.revokePairing(deviceId);
+    return this.generatePairCode();
   }
 
   shutdown(): void {

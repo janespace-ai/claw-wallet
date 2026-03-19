@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: IP change detection
 The Electron App SHALL monitor the source IP of incoming messages (as reported by the Relay) and enforce configurable policy actions on change.
@@ -37,40 +37,3 @@ The Electron App SHALL bind the pairing to a device fingerprint reported by the 
 #### Scenario: Fingerprint mismatch enforced
 - **WHEN** a reconnection handshake arrives with a machineId different from the stored fingerprint
 - **THEN** the Electron App SHALL reject the connection, freeze the session, log a `device_mismatch` security event, and require manual re-pairing
-
-### Requirement: Freeze mode
-The Electron App SHALL support a freeze mode that blocks all signing operations for a configurable duration.
-
-#### Scenario: User triggers freeze
-- **WHEN** user selects Reject and freeze on a security alert or manually activates freeze mode
-- **THEN** the Electron App SHALL reject all signing requests for 30 minutes (configurable) and display a countdown timer
-
-#### Scenario: Freeze expires
-- **WHEN** the freeze duration expires
-- **THEN** the Electron App SHALL resume normal operation but SHALL require user confirmation for the next transaction (one-time extra verification)
-
-### Requirement: Same-machine detection
-The system SHALL detect when the Electron App and the paired Agent are running on the same physical machine.
-
-#### Scenario: machineId comparison during pairing
-- **WHEN** pairing handshake includes machineId from both sides
-- **THEN** the system SHALL compare the machineIds (hash of hostname plus primary MAC address) and flag same-machine pairing
-
-#### Scenario: Same-machine persistent warning
-- **WHEN** a same-machine pairing is active
-- **THEN** the Electron App SHALL display a persistent red warning badge in the UI and SHALL re-display the full warning on each App launch
-
-### Requirement: Security event audit log
-The Electron App SHALL maintain a local audit log of all security-relevant events.
-
-#### Scenario: IP change logged
-- **WHEN** an IP change is detected
-- **THEN** the App SHALL log: timestamp, old IP, new IP, user response (freeze/allow/trust)
-
-#### Scenario: Device fingerprint mismatch logged
-- **WHEN** a device fingerprint mismatch is detected
-- **THEN** the App SHALL log: timestamp, expected fingerprint, received fingerprint, user response
-
-#### Scenario: Signing event logged
-- **WHEN** a transaction is signed (auto or confirmed)
-- **THEN** the App SHALL log: timestamp, recipient, amount, token, authorization level, source IP

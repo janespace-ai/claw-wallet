@@ -5,8 +5,13 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
+
+	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/cloudwego/hertz/pkg/common/adaptor"
 
 	"github.com/anthropic/claw-wallet-relay/internal/hub"
+	"github.com/anthropic/claw-wallet-relay/internal/middleware"
 	"github.com/anthropic/claw-wallet-relay/internal/pairing"
 )
 
@@ -19,24 +24,29 @@ func main() {
 	h := hub.New()
 	pairStore := pairing.NewStore()
 
-	mux := http.NewServeMux()
+	addr := ":" + port
+	srv := server.Default(
+		server.WithHostPorts(addr),
+		server.WithExitWaitTime(10*time.Second),
+	)
 
-	mux.HandleFunc("/ws", h.HandleWS)
-	mux.HandleFunc("/pair/create", pairStore.HandleCreate)
-	mux.HandleFunc("/pair/", pairStore.HandleResolve)
+	srv.Use(middleware.CORS())
+	srv.Use(middleware.AccessLog())
 
-	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	srv.GET("/ws", adaptor.HertzHandler(http.HandlerFunc(h.HandleWS)))
+
+	srv.POST("/pair/create", pairStore.HandleCreate)
+	srv.GET("/pair/:code", pairStore.HandleResolve)
+
+	srv.GET("/health", adaptor.HertzHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"status":"ok"}`)
-	})
+	})))
 
-	addr := ":" + port
 	log.Printf("Claw Wallet Relay Server starting on %s", addr)
 	log.Printf("  WebSocket: /ws?pairId=<id>")
 	log.Printf("  Pairing:   POST /pair/create, GET /pair/<code>")
 	log.Printf("  Health:    GET /health")
 
-	if err := http.ListenAndServe(addr, mux); err != nil {
-		log.Fatalf("server error: %v", err)
-	}
+	srv.Spin()
 }

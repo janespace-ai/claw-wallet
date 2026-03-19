@@ -1,19 +1,23 @@
 package pairing
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
+	"log"
 	"math/big"
-	"net/http"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
 
 const (
 	codeLength = 8
 	codeTTL    = 10 * time.Minute
-	charset    = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // no 0/O/1/I ambiguity
+	charset    = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 )
 
 type PairInfo struct {
@@ -95,32 +99,44 @@ func generateCode() (string, error) {
 	return sb.String(), nil
 }
 
-func (s *Store) HandleCreate(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
+func extractIP(c *app.RequestContext) string {
+	if xff := c.GetHeader("X-Forwarded-For"); len(xff) > 0 {
+		return strings.TrimSpace(strings.Split(string(xff), ",")[0])
 	}
+	if xri := c.GetHeader("X-Real-IP"); len(xri) > 0 {
+		return string(xri)
+	}
+	host := c.RemoteAddr().String()
+	for i := len(host) - 1; i >= 0; i-- {
+		if host[i] == ':' {
+			return host[:i]
+		}
+	}
+	return host
+}
 
-	ip := extractIP(r)
+func (s *Store) HandleCreate(_ context.Context, c *app.RequestContext) {
+	ip := extractIP(c)
 	if !s.checkIPRate(ip) {
-		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+		c.String(consts.StatusTooManyRequests, "rate limit exceeded")
 		return
 	}
 
 	var req CreateRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid JSON", http.StatusBadRequest)
+	if err := c.BindJSON(&req); err != nil {
+		c.String(consts.StatusBadRequest, "invalid JSON")
 		return
 	}
 
 	if req.WalletAddr == "" || req.CommPubKey == "" {
-		http.Error(w, "walletAddr and commPubKey required", http.StatusBadRequest)
+		c.String(consts.StatusBadRequest, "walletAddr and commPubKey required")
 		return
 	}
 
 	code, err := generateCode()
 	if err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
+		log.Printf("code generation error: %v", err)
+		c.String(consts.StatusInternalServerError, "internal error")
 		return
 	}
 
@@ -138,30 +154,22 @@ func (s *Store) HandleCreate(w http.ResponseWriter, r *http.Request) {
 		ExpiresIn: int(codeTTL.Seconds()),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	c.JSON(consts.StatusOK, resp)
 }
 
-func (s *Store) HandleResolve(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+func (s *Store) HandleResolve(_ context.Context, c *app.RequestContext) {
+	code := strings.ToUpper(c.Param("code"))
+	if code == "" {
+		c.String(consts.StatusBadRequest, "missing short code")
 		return
 	}
-
-	path := r.URL.Path
-	parts := strings.Split(strings.Trim(path, "/"), "/")
-	if len(parts) < 2 {
-		http.Error(w, "missing short code", http.StatusBadRequest)
-		return
-	}
-	code := strings.ToUpper(parts[len(parts)-1])
 
 	s.mu.RLock()
 	info, ok := s.codes[code]
 	s.mu.RUnlock()
 
 	if !ok {
-		http.Error(w, "not found or expired", http.StatusNotFound)
+		c.String(consts.StatusNotFound, "not found or expired")
 		return
 	}
 
@@ -169,29 +177,56 @@ func (s *Store) HandleResolve(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		delete(s.codes, code)
 		s.mu.Unlock()
-		http.Error(w, "not found or expired", http.StatusNotFound)
+		c.String(consts.StatusNotFound, "not found or expired")
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	c.JSON(consts.StatusOK, map[string]string{
 		"walletAddr": info.WalletAddr,
 		"commPubKey": info.CommPubKey,
 	})
 }
 
-func extractIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
+// CreateForTest exposes store creation for testing without going through HTTP.
+func (s *Store) CreateForTest(walletAddr, commPubKey, ip string) (string, error) {
+	if !s.checkIPRate(ip) {
+		return "", json.Unmarshal([]byte(`"rate limited"`), new(string))
 	}
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
+
+	code, err := generateCode()
+	if err != nil {
+		return "", err
 	}
-	host := r.RemoteAddr
-	for i := len(host) - 1; i >= 0; i-- {
-		if host[i] == ':' {
-			return host[:i]
-		}
+
+	s.mu.Lock()
+	s.codes[code] = &PairInfo{
+		WalletAddr: walletAddr,
+		CommPubKey: commPubKey,
+		CreatedAt:  time.Now(),
+		CreatorIP:  ip,
 	}
-	return host
+	s.mu.Unlock()
+
+	return code, nil
+}
+
+// ResolveForTest exposes store resolution for testing without going through HTTP.
+func (s *Store) ResolveForTest(code string) (*PairInfo, bool) {
+	code = strings.ToUpper(code)
+	s.mu.RLock()
+	info, ok := s.codes[code]
+	s.mu.RUnlock()
+
+	if !ok {
+		return nil, false
+	}
+
+	if time.Since(info.CreatedAt) > codeTTL {
+		s.mu.Lock()
+		delete(s.codes, code)
+		s.mu.Unlock()
+		return nil, false
+	}
+
+	return info, true
 }

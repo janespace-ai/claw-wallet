@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/anthropic/claw-wallet-relay/internal/iputil"
 	"github.com/gorilla/websocket"
 )
 
@@ -23,19 +24,13 @@ type Client struct {
 
 type Hub struct {
 	mu      sync.RWMutex
-	pairs   map[string][]*Client // pairId -> clients (max 2)
+	pairs   map[string][]*Client
 	msgRate map[string]*rateBucket
 }
 
 type rateBucket struct {
-	count    int
-	windowMs int64
-	resetAt  time.Time
-}
-
-type relayMessage struct {
-	SourceIP string          `json:"sourceIP,omitempty"`
-	Raw      json.RawMessage `json:"data"`
+	count   int
+	resetAt time.Time
 }
 
 func New() *Hub {
@@ -58,7 +53,7 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	clientIP := extractIP(r)
+	clientIP := iputil.ExtractIP(r)
 	client := &Client{
 		PairID: pairID,
 		Conn:   conn,
@@ -202,20 +197,4 @@ func (h *Hub) writePump(c *Client) {
 			}
 		}
 	}
-}
-
-func extractIP(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return xff
-	}
-	if xri := r.Header.Get("X-Real-IP"); xri != "" {
-		return xri
-	}
-	host := r.RemoteAddr
-	for i := len(host) - 1; i >= 0; i-- {
-		if host[i] == ':' {
-			return host[:i]
-		}
-	}
-	return host
 }

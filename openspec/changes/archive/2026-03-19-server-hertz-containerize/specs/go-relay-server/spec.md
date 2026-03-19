@@ -1,4 +1,4 @@
-## ADDED Requirements
+## MODIFIED Requirements
 
 ### Requirement: Relay WebSocket message routing
 The Relay Server SHALL use the Hertz HTTP framework with the hertz-contrib/websocket extension to accept WebSocket connections and route E2EE messages between paired clients by pairId. The Relay SHALL NOT decrypt, inspect, or store message payloads.
@@ -66,6 +66,8 @@ The Relay SHALL NOT persist any data to disk. All state SHALL be held in memory 
 #### Scenario: No logging of message content
 - **WHEN** the Relay forwards an encrypted message
 - **THEN** the Relay SHALL NOT log the message payload, only metadata (sourceIP, pairId, timestamp, message size)
+
+## ADDED Requirements
 
 ### Requirement: Hertz middleware pipeline
 The Relay SHALL use Hertz built-in and custom middleware for cross-cutting concerns.

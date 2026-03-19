@@ -1,0 +1,11 @@
+.git
+.gitignore
+docs
+openspec
+node_modules
+*.md
+.env*
+.vscode
+.cursor
+.idea
+tmp

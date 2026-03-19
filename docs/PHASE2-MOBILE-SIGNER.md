@@ -1,21 +1,35 @@
-# Phase 2: Mobile Signer Architecture (远景设计)
+# Phase 3 远景：Mobile Signer Architecture
 
-> **状态**: 规划中 — 本文档记录 Phase 2 的设计思路，待 Phase 1（auth-hardening）稳定后实施。
+> **状态**: 远景规划 — 本文档记录未来 Mobile Signer 的设计方向。
+>
+> **当前实现（Phase 2）**：claw-wallet 已实现 **Electron 桌面钱包** 作为签名端，通过 E2EE WebSocket 中继与 Agent 通信。详见 [PHASE2-ELECTRON-WALLET.md](PHASE2-ELECTRON-WALLET.md)。
+>
+> 本文所述的 Mobile Signer 是在 Desktop Wallet 基础上的进一步演进，将签名端从桌面应用迁移至手机，利用 Secure Enclave 提供硬件级密钥保护。Phase 2 中已建立的 E2EE 通信协议、自动配对机制和三级验证体系可直接复用。
+
+## 与 Phase 2 Desktop Wallet 的关系
+
+Phase 2（当前）和 Phase 3（远景）的核心差异：
+
+```
+Phase 2 (当前 — Electron Desktop Wallet):
+  Agent:   零秘密，通过 E2EE Relay 通信
+  桌面钱包: Keystore V3 加密存储私钥 (scrypt + AES-256-GCM)
+  安全特性: 自动配对/重连、三级验证、Relay IP 绑定/限流
+
+Phase 3 (远景 — Mobile Signer):
+  Agent:   零秘密，复用 E2EE Relay 通信协议
+  手机:    私钥存储在 Secure Enclave (硬件隔离)
+  新增特性: 生物识别认证、硬件级密钥保护、QR 配对
+```
+
+Phase 2 的以下基础设施可直接复用于 Phase 3：
+- E2EE 通信协议（X25519 + AES-256-GCM）
+- Go Relay Server（WebSocket 转发、IP 绑定、速率限制）
+- 持久化通信密钥对与确定性 pairId
+- 三级重连验证（公钥 + 设备指纹 + IP 策略）
+- 策略引擎（Allowance 预算）
 
 ## 核心架构：私钥仅存手机，电脑零秘密
-
-Phase 1 的安全模型依赖「强密码 + Signer 进程隔离」，但私钥仍然存储在电脑上的 keystore 文件中。Phase 2 的目标是彻底消除电脑端的密钥材料：
-
-```
-Phase 1 (当前):
-  电脑: keystore.json (加密私钥) + Signer daemon
-  威胁: 攻击者获取 keystore → 需破解强密码 (实际不可行)
-
-Phase 2 (目标):
-  电脑: 仅存钱包地址 + 手机公钥
-  手机: 私钥 (Secure Enclave)
-  威胁: 攻击者完全控制电脑 → 无任何密钥材料可偷
-```
 
 ### 架构图
 
@@ -120,7 +134,7 @@ Signer 验证 timestamp 在窗口内 ✓
 - 电脑持有 Session Key，直接签名（链上限制）
 - 手机离线也不影响小额交易
 
-## Phase 3 展望: ERC-4337 Account Abstraction
+## Phase 3 终极方案: ERC-4337 Account Abstraction
 
 ERC-4337 是终极方案，提供链上强制的权限分离。
 

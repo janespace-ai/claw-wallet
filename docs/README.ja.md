@@ -4,408 +4,455 @@
 
 # claw-wallet
 
-**AIエージェントに、安全な本物のウォレットを。**
+**AIエージェントに本物のウォレットを — 安全に。**
 
-[OpenClaw](https://getclaw.sh) AI Agent フレームワーク向け Web3 ウォレットプラグイン。ローカルでセルフホスト、非カストディアルな暗号資産ウォレットで、AI エージェントが資産管理・送金・EVM チェーンとのやり取りを行える一方、秘密鍵は暗号化され LLM から完全に隔離されます。
+[OpenClaw](https://getclaw.sh) AIエージェント向けの非カストディアル暗号ウォレット。秘密鍵は独立した**Electronデスクトップウォレット**に保管され、AIモデルから完全に隔離されています。エージェントとデスクトップは**Goリレーサーバー**を介した**E2EE（エンドツーエンド暗号化）**チャネルで通信します。リレーは暗号文を転送するだけで、メッセージを読み取ったり改ざんしたりすることは一切できません。
 
-> 秘密鍵が AI モデルに触れることはありません。エージェントは Tool API 経由で動作し、返すのはアドレスとトランザクションハッシュのみです。
-
----
-
-## なぜ claw-wallet？
-
-AI エージェントがオンチェーンで動く（取引・支払い・DeFi 戦略）とき、根本的なジレンマがあります：**モデルは「動く」必要があるが、鍵を見てはならない**。claw-wallet は役割の分離でこれを解決します。
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     Your AI Agent (LLM)                     │
-│                                                             │
-│  "Send 10 USDC to Alice on Base"                            │
-│         │                                                   │
-│         ▼                                                   │
-│  ┌─────────────┐    ┌──────────────┐    ┌──────────────┐    │
-│  │ Tool APIs   │───▶│ Policy Engine│───▶│ Keystore     │    │
-│  │ (16 tools)  │    │ (limits &    │    │ (AES-256-GCM │    │
-│  │             │    │  approvals)  │    │  + scrypt)   │    │
-│  └─────────────┘    └──────────────┘    └──────┬───────┘    │
-│                                                │            │
-│                                         sign & broadcast    │
-│                                                │            │
-│                                         ┌──────▼───────┐    │
-│                                         │  EVM Chain   │    │
-│                                         │  Base / ETH  │    │
-│                                         └──────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**LLM が参照できるもの：** ウォレットアドレス、残高、トランザクションハッシュ、ポリシー状態。  
-**LLM が参照できないもの：** 秘密鍵、ニーモニック、復号された鍵材料。
+> 秘密鍵はAIモデルに一切触れません。同じマシン上にも、同じプロセス内にも、メモリ内にも存在しません。エージェントが見るのはウォレットアドレスとトランザクションハッシュだけです。
 
 ---
 
-## 主な機能
+## アーキテクチャ
 
-- **非カストディアル＆ローカル** — 鍵はあなたのマシンで暗号化保存、クラウド依存なし。
-- **Keystore V3 暗号化** — AES-256-GCM + scrypt KDF、Ethereum クライアントと同じ標準。
-- **ポリシーエンジン** — 1 取引あたり・1 日あたりの支出制限、アドレスホワイトリスト、手動承認キュー。プロンプトインジェクションでエージェントが乗っ取られても、未承認の送金はブロックされます。
-- **マルチチェーン EVM** — Base（デフォルト・低 Gas）と Ethereum メインネット。任意の EVM チェーンへ拡張可能。
-- **二つの運用モード** — 監視モード（人の承認）と自律モード（制限内で自動実行）。
-- **エージェント連絡先** — P2P アドレス帳。エージェント同士でアドレスを共有し、名前で解決。
-- **残高モニタリング** — 着金をバックグラウンドでポーリングし、リアルタイム通知。
-- **トランザクション履歴** — 送受信の全取引をローカルにキャッシュ。
-- **16 個の OpenClaw ツール** — そのまま使えるツール定義で AI エージェントに統合。
+```
+┌──────────────┐        E2EE WebSocket        ┌──────────────┐        E2EE WebSocket        ┌──────────────────┐
+│  AI Agent    │◄────────────────────────────►│  Go Relay    │◄────────────────────────────►│  Desktop Wallet  │
+│  (TypeScript)│   X25519 + AES-256-GCM       │  Server      │   X25519 + AES-256-GCM       │  (Electron)      │
+│              │                               │  (Hertz)     │                               │                  │
+│ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
+│ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
+│ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
+│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+└──────────────┘                               └──────────────┘                               └──────────────────┘
+       │                                                                                              │
+       │  Agent never sees:                                                        Desktop holds:     │
+       │  • private keys                                                           • BIP-39 mnemonic  │
+       │  • mnemonics                                                              • Keystore V3 file │
+       │  • key material                                                           • Signing engine    │
+       └──────────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+**3コンポーネント設計**：各コンポーネントは単一の責務を持ちます。エージェントのホストが完全に侵害されたとしても、攻撃者は鍵素材を一切取得できません。
 
 ---
 
-## ユースケース
+## ユーザーインタラクションフロー
 
-### シナリオ 1: 人 → エージェント → 契約 / 機関
+### 初回セットアップ：ペアリング
 
-あなたがエージェントに「業者への支払い」「NFT ミント」「DeFi プロトコル操作」を指示します。
-
-```
- You (chat)                    Your Agent                        On-chain
-─────────────────────────────────────────────────────────────────────────────
- "Pay 50 USDC to the          wallet_contacts_resolve            Uniswap
-  Uniswap treasury             → 0x1a9C...                      Treasury
-  on Ethereum"                                                   Contract
-                               wallet_send                         │
-                                 to: 0x1a9C...                     │
-                                 amount: 50                        │
-                                 token: USDC                       │
-                                 chain: ethereum                   │
-                                        │                          │
-                               Policy Engine checks:               │
-                                 ✓ $50 < $100 per-tx limit         │
-                                 ✓ Daily total within $500         │
-                                 ✓ 0x1a9C in whitelist             │
-                                        │                          │
-                               Sign → Broadcast ──────────────────▶│
-                                        │                          │
-                               Return: tx hash 0xab3f...      ✓ Confirmed
-```
-
-**典型的な用途：** SaaS の支払い、オンチェーンサービス購入、DeFi プロトコル利用、取引所入金。アドレスホワイトリストで、事前に許可した契約先にしか送金できません。
-
-### シナリオ 2: 人 → エージェント → 別のエージェント
-
-あなたのエージェントが、別の AI エージェントにサービス対価を支払うケース。連絡先機能でアドレスを名前解決します。
+初回のみ必要です。初回ペアリング後は、再接続は完全に自動で行われます。
 
 ```
- You (chat)              Your Agent                   Bob's Agent
-──────────────────────────────────────────────────────────────────
- "Send 10 USDC          wallet_contacts_add
-  to Bob's agent          name: "bob-agent"
-  on Base"                base: 0x742d...
-                                │
-                         wallet_send
-                           to: "bob-agent"     ◄── resolved from contacts
-                           amount: 10
-                           token: USDC
-                           chain: base
-                                │
-                         Policy ✓ → Sign → Broadcast ──────▶ 0x742d...
-                                │                              │
-                         tx: 0xef01...                    Bob's monitor
-                                                          detects +10 USDC
-                                                          notifies Bob's Agent
+ You                          Desktop Wallet                 Relay Server              AI Agent
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ 1. Create wallet
+    (set password,            Generates BIP-39 mnemonic
+     backup mnemonic)         Encrypts with AES-256-GCM
+                              + scrypt KDF
+                                    │
+ 2. Click "Generate           Generates 8-char pairing
+    Pairing Code"             code (valid 10 min)
+                                    │
+ 3. Copy code to Agent              │                                              Agent calls
+    (or send via secure             │                                              wallet_pair
+    channel)                        │                                              { shortCode }
+                                    │                         ◄──── Agent registers ────┘
+                                    │                               with code
+                              Desktop connects ────────────►  Relay matches pair
+                              X25519 key exchange ◄─────────► E2EE session established
+                                    │
+                              Saves persistent comm          Agent saves persistent
+                              key pair (encrypted)           comm key pair (0600)
+                                    │
+                              Derives deterministic          Derives same pairId
+                              pairId = SHA256(addr +         = SHA256(addr +
+                              agentPubKey)[:16]              agentPubKey)[:16]
+                                    │
+ ✓ Paired!                    Ready to sign                  Ready to transact
 ```
 
-**典型的な用途：** エージェント間の API 利用料・データ購入・協調タスクの報酬。連絡先を使えば、名前を指定するだけで定期送金でき、毎回アドレスを貼る必要はありません。
+### 日常利用：自動再接続
 
-### シナリオ 3: エージェントの自律運用
-
-エージェントが単体で動き、ポリシー制限内で取引・サービス購入・ポートフォリオ調整を行います。1 取引ごとに人は介在しません。
+初回ペアリング後は、エージェントとデスクトップは再起動時に自動的に再接続します — ユーザーの操作は不要です。
 
 ```
- Agent (autonomous mode)                              On-chain
-──────────────────────────────────────────────────────────────────
- Detects: ETH price dropped 5%
- Decision: Buy opportunity
-
- wallet_balance → 500 USDC available
- wallet_estimate_gas → 0.0001 ETH
-
- wallet_send
-   to: 0xDEX_ROUTER         (whitelisted)
-   amount: 200
-   token: USDC
-   chain: base
-         │
- Policy Engine:
-   ✓ $200 > $100 per-tx limit  ← BLOCKED
-   → Queued for approval (id: a3f8...)
-
- ─── Option A: Raise limits ───
- wallet_policy_set
-   perTransactionLimitUsd: 300
-   mode: "autonomous"
-
- Re-send → Policy ✓ → Sign → Broadcast → Confirmed
-
- ─── Option B: Human approves ───
- wallet_approval_approve("a3f8...")
- → Sign → Broadcast → Confirmed
+ Agent restarts               Desktop restarts
+       │                             │
+ Loads persistent             Loads persistent
+ comm key pair                comm key pair (decrypts
+ from disk                    with wallet password)
+       │                             │
+ Recomputes pairId            Recomputes same pairId
+       │                             │
+ Connects to Relay ──────────► Relay routes by pairId ──────► Desktop receives
+       │                                                             │
+ Sends extended handshake:                                    Three-level verification:
+ • publicKey                                                  ✓ Level 1: Public key matches stored key
+ • machineId                                                  ✓ Level 2: machineId matches stored ID
+ • reconnect: true                                            ✓ Level 3: IP change policy (configurable)
+       │                                                             │
+ E2EE session restored ◄──────────────────────────────────── Session active
+       │                                                             │
+ Ready to transact                                            Ready to sign
 ```
 
-**典型的な用途：** DeFi イールドファーミング、自動売買、定期購読の支払い、リバランス。ポリシーエンジンが**安全レール**となり、完全自律のエージェントも設定可能な支出範囲内でしか動きません。
+### トランザクションフロー
 
-### モード比較
+```
+ You (chat with Agent)                AI Agent                        Desktop Wallet
+──────────────────────────────────────────────────────────────────────────────────────
+ "Send 0.5 ETH to Bob           wallet_send
+  on Base"                         to: "bob"  (contact)
+                                   amount: 0.5
+                                   chain: base
+                                        │
+                                 Resolve contact ──► Bob = 0x742d...
+                                 Build tx request
+                                        │
+                                 E2EE encrypt ──────────────────► Decrypt request
+                                                                       │
+                                                                 Policy check:
+                                                                   ✓ Within per-tx limit
+                                                                   ✓ Within daily limit
+                                                                   ✓ Device not frozen
+                                                                       │
+                                                                 Decrypt private key
+                                                                 Sign transaction
+                                                                 Zero key from memory
+                                                                 Broadcast to chain
+                                                                       │
+                                 Receive result ◄────────────────── tx hash + receipt
+                                        │
+                                 Return to you:
+                                 "Sent 0.5 ETH to Bob
+                                  tx: 0xab3f..."
+```
 
-| | 監視モード | 自律モード |
-|---|---|---|
-| **決定者** | ホワイトリスト外の取引は人が承認 | 制限内でエージェントが決定 |
-| **ホワイトリスト** | 必須（リスト外はブロック） | 不要（制限内なら任意アドレス可） |
-| **支出制限** | 1 取引・1 日制限を適用 | 同左 |
-| **向いている用途** | 高額ウォレット、信頼構築期 | 日常運用、トレードボット |
-| **制限超過時** | キュー → 人が承認/拒否 | キュー → 人が承認/拒否 |
+---
+
+## セキュリティアーキテクチャ
+
+claw-walletは**多層防御**を採用し、**通信セキュリティ**（コンポーネント間の通信方法）と**鍵セキュリティ**（鍵の保管・使用方法）の2つの独立したセキュリティドメインで構成されています。
+
+### パートA：通信セキュリティ
+
+#### 1. エンドツーエンド暗号化（E2EE）
+
+エージェントとデスクトップ間のすべてのメッセージはエンドツーエンドで暗号化されます。リレーサーバーは暗号文しか見ることができません。
+
+| コンポーネント | 詳細 |
+|-----------|--------|
+| **鍵交換** | X25519 ECDH (Curve25519) |
+| **鍵導出** | HKDF-SHA256 |
+| **暗号化** | AES-256-GCM（認証付き） |
+| **リプレイ防止** | メッセージごとのインクリメンタルノンス |
+| **前方秘匿性** | セッションごとに新しいエフェメラル鍵 |
+
+#### 2. 自動ペアリングと再接続
+
+手動ペアリングは一度だけ必要です。システムは**永続通信鍵ペア**と**決定論的ペアID**を使用して自動再接続を行います：
+
+- **永続鍵ペア**：X25519鍵ペアはディスクに保存されます — デスクトップではウォレットパスワードで暗号化（scrypt + AES-256-GCM）、エージェントではファイルパーミッション保護（0600）
+- **決定論的PairId**：`SHA256(walletAddress + ":" + agentPublicKeyHex)[:16]` — 両側が独立して同じIDを計算し、調整は不要
+- **ゼロインタラクション再接続**：再起動時、両側が保存された鍵を読み込み、pairIdを再計算し、リレーを通じて自動的に再接続
+
+#### 3. 3段階再接続検証
+
+エージェントが再接続する際、デスクトップは署名を許可する前に3つのID検証を実行します：
+
+| レベル | 検証内容 | 失敗時のアクション |
+|-------|-------|----------------|
+| **レベル1**（厳格） | 公開鍵が保存された鍵と一致 | 拒否 + 再ペアリング強制 |
+| **レベル2**（厳格） | machineIdが保存されたIDと一致 | セッション凍結 + 再ペアリング強制 |
+| **レベル3**（設定可能） | IPアドレス変更ポリシー | `block` / `warn`（デフォルト）/ `allow` |
+
+- **machineId**：SHA256(ホスト名 + MACアドレス) — エージェントが別のマシンに移動したことを検出
+- **セッション凍結**：ID不一致が検出された場合、ユーザーが手動で再ペアリングするまですべての署名リクエストがブロックされます
+- **IPポリシー**：デプロイメントごとに設定可能 — `block`は即座に拒否、`warn`はユーザーに警告しつつ許可（同一サブネット許容あり）、`allow`はチェックをスキップ
+
+#### 4. リレー側の保護
+
+Goリレーサーバーはメッセージの内容を読み取れませんが、追加のセキュリティを適用します：
+
+| 保護機能 | 詳細 |
+|------------|--------|
+| **pairIdごとのIPバインディング** | ペアあたり同時に最大2つの異なるソースIP |
+| **接続レート制限** | pairIdあたり1分間に最大10のWebSocket新規接続 |
+| **接続エビクション** | 3番目のクライアントがペアに接続した場合、最も古い接続が切断される |
+| **メタデータログ** | 監査用にトランケートされたpairIdで接続イベントを記録 |
+
+#### 5. 手動再ペアリングフォールバック
+
+自動再接続が失敗した場合（デバイス変更、鍵の破損など）：
+
+- **エージェント側**：`wallet_repair` RPCメソッドが保存されたペアリングデータをクリアし、状態をリセット
+- **デスクトップ側**：セキュリティパネルの「Re-pair Device」UIアクション
+- 両側で新しい鍵ペアが生成され、新しいペアリングコードの交換が必要
+
+### パートB：鍵セキュリティ
+
+#### 6. 鍵の隔離 — 鍵はAIモデルに一切触れない
+
+```
+┌────────────────────┐     Tool APIs     ┌────────────────────┐
+│     AI Agent       │ ◄──────────────── │  Desktop Wallet    │
+│                    │  addresses, hashes │                    │
+│  NO access to:     │                   │  Private key only  │
+│  - private keys    │                   │  decrypted inside  │
+│  - keystore file   │                   │  signTransaction() │
+│  - password        │                   │  then zeroed       │
+└────────────────────┘                   └────────────────────┘
+```
+
+エージェントはTool APIを通じてのみやり取りします。鍵素材を返すツールは一切ありません。
+
+#### 7. 静止時の暗号化 — Keystore V3
+
+| コンポーネント | 詳細 |
+|-----------|--------|
+| **暗号方式** | AES-256-GCM（認証付き暗号化） |
+| **KDF** | scrypt (N=131072, r=8, p=1) |
+| **ソルト** | 暗号化ごとにランダム32バイト |
+| **IV** | 暗号化ごとにランダム16バイト |
+| **認証タグ** | GCMタグが暗号文の改ざんを防止 |
+| **ファイルパーミッション** | 0600（所有者のみ読み書き可能） |
+
+#### 8. メモリ安全性
+
+- 秘密鍵は`signTransaction()` / `signMessage()`の実行中にのみ復号されます
+- 鍵バッファは`finally`ブロック内で`Buffer.fill(0)`によりゼロクリアされます — 署名中にエラーが発生しても同様
+- 復号された鍵素材がメモリに存在するのは数秒ではなく数ミリ秒です
+
+#### 9. ポリシーエンジン — 独立した支出制御
+
+ポリシーエンジンは署名の**前**に実行され、プロンプトインジェクションでバイパスすることはできません：
+
+| 制御 | デフォルト | 説明 |
+|---------|---------|-------------|
+| トランザクションごとの上限 | $100 | 単一トランザクションの最大金額 |
+| 日次上限 | $500 | 24時間ローリング累計支出上限 |
+| アドレスホワイトリスト | 空 | 監視モードで必須 |
+| 動作モード | 監視 | `supervised`（ホワイトリスト必須）または `autonomous`（上限のみ） |
+| 承認キュー | 24時間有効期限 | ブロックされたトランザクションの手動レビュー用キュー |
+
+**バイパス防止対策：**
+- 浮動小数点精度攻撃を防ぐための整数セント演算
+- 大文字小文字を区別しないホワイトリスト照合
+- 暗号学的ランダム承認ID（連番でなく、推測不可能）
+
+#### 10. 入力バリデーション
+
+| 入力 | バリデーション |
+|-------|-----------|
+| アドレス | 16進数形式、長さ=42、viemによるEIP-55チェックサム |
+| 金額 | NaN、Infinity、負数、ゼロ、空を拒否 |
+| チェーン | 厳格なホワイトリスト（`base`、`ethereum`） |
+| トークンシンボル | 最大20文字、インジェクション文字を拒否 |
+| コンタクト名 | 最大100文字、パストラバーサルを拒否 |
+
+#### 11. ファイルシステムとRPCの安全性
+
+- **アトミック書き込み**：一時ファイルに書き込み → リネーム（クラッシュ時の破損を防止）
+- **0600パーミッション**：所有者のみが機密ファイルの読み書きが可能
+- **パストラバーサル防止**：`sanitizePath()`がデータディレクトリ外のパスを拒否
+- **ガスの妥当性チェック**：ガス0および3000万超のガス見積もりを拒否
+- **鍵の漏洩防止**：エラーメッセージに秘密鍵やパスワードを含めない
+
+---
+
+## 機能
+
+- **非カストディアル＆エアギャップ** — 鍵はデスクトップに、エージェントはゼロシークレット
+- **エンドツーエンド暗号化** — X25519 + AES-256-GCM、リレーは暗号文のみ参照
+- **自動ペアリング** — 初回セットアップのみ、再起動後は自動再接続
+- **3段階検証** — 再接続ごとに公開鍵 + デバイスフィンガープリント + IPポリシー
+- **Keystore V3暗号化** — 静止時の鍵にAES-256-GCM + scrypt KDF
+- **ポリシーエンジン** — トランザクションごと・日次の支出制限、アドレスホワイトリスト、承認キュー
+- **マルチチェーンEVM** — Base（デフォルト、低ガス）およびEthereumメインネット、任意のEVMチェーンに拡張可能
+- **デュアル動作モード** — 監視（人間が承認）または自律（制限内で自動）
+- **エージェントコンタクト** — P2Pアドレス帳と名前解決
+- **残高モニタリング** — 受信トランスファーのバックグラウンドポーリング
+- **トランザクション履歴** — 完全な記録を持つローカルキャッシュ
+- **コンテナ化リレー** — Docker対応のGoリレーサーバー（Hertzフレームワーク）
+- **17個のMCPツール** — AIエージェント統合用のすぐに登録可能なツール定義
 
 ---
 
 ## クイックスタート
 
-### インストール
+### 前提条件
+
+- Node.js ≥ 18
+- Go ≥ 1.21（リレーサーバー用）
+- OpenClaw互換のAIエージェントフレームワーク
+
+### 1. リレーサーバーの起動
 
 ```bash
-npm install claw-wallet
+cd server
+go run cmd/relay/main.go
+# Default: :8765
 ```
 
-### 基本的な使い方
+またはDockerで：
 
-```typescript
-import { ClawWallet } from "claw-wallet";
-
-const wallet = new ClawWallet({
-  defaultChain: "base",
-  password: process.env.WALLET_PASSWORD,
-});
-
-await wallet.initialize();
-
-// OpenClaw エージェントに 16 ツールを登録
-const tools = wallet.getTools();
-
-// ... エージェントがツールで送受信・管理 ...
-
-// 終了時：履歴・連絡先・ポリシーをディスクに保存
-await wallet.shutdown();
+```bash
+cd server
+docker compose up -d
 ```
 
----
+### 2. デスクトップウォレットの起動
 
-## 動作の流れ
-
-### トランザクションの流れ
-
-エージェントの意図からオンチェーン確定までの流れ：
-
-```
-  Agent says: "Send 0.5 ETH to Bob on Base"
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  1. Input Validation                │  Address format, amount range,
-  │     validateAddress / validateAmount │  chain whitelist, token symbol
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  2. Recipient Resolution            │  "Bob" → contacts lookup
-  │     Contact name or 0x address      │  → 0x742d...4a (on Base)
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  3. Balance Check                   │  ETH balance ≥ amount + gas?
-  │     getBalance + estimateGas        │  ERC-20: token balance + ETH for gas
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  4. Policy Check                    │  ✓ Within per-tx limit ($100)?
-  │     PolicyEngine.checkTransaction   │  ✓ Within daily limit ($500)?
-  │                                     │  ✓ Address whitelisted (supervised)?
-  │     Blocked? → Queue for approval   │  → approval ID returned
-  │     Allowed? → Continue ↓           │
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  5. Sign Transaction                │  Decrypt key (scrypt + AES-256-GCM)
-  │     Keystore → decrypt → sign       │  Sign tx with viem
-  │     → immediately clear key buffer  │  Zero key in memory in finally{}
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  6. Broadcast & Confirm             │  Send raw tx to RPC
-  │     broadcastTransaction            │  Wait for receipt
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  7. Record & Return                 │  Save to local history
-  │     TransactionHistory.addRecord    │  Return: { hash, status, gasUsed }
-  └─────────────────────────────────────┘
+```bash
+cd desktop
+npm install
+npm run dev
 ```
 
-### 承認フロー（監視モード）
+### 3. ウォレットの作成とペアリング
 
-制限超過やホワイトリスト外アドレスへの送金時：
+1. デスクトップアプリで：パスワードを設定 → ニーモニックをバックアップ
+2. 「Generate Pairing Code」をクリック → 8文字のコードをコピー
+3. エージェントで `wallet_pair({ shortCode: "ABCD1234" })` を呼び出す
+4. 完了 — E2EEセッションが確立、自動再接続が有効に
+
+### 4. エージェントでの使用
+
+エージェントは17個のツールを提供します。会話例：
 
 ```
-  Agent → wallet_send → Policy blocks → approval ID returned
-                                              │
-              ┌───────────────────────────────┘
-              ▼
-  Human reviews:  wallet_approval_list  →  see pending tx details
-                  wallet_approval_approve(id)  →  tx executes
-                  wallet_approval_reject(id)   →  tx cancelled
-                  (auto-expires after 24h if no action)
+You:    "Send 10 USDC to Bob on Base"
+Agent:  wallet_contacts_resolve("bob") → 0x742d...
+        wallet_send({ to: "0x742d...", amount: 10, token: "USDC", chain: "base" })
+        → Policy ✓ → E2EE → Desktop signs → Broadcast
+        "Sent 10 USDC to Bob. tx: 0xab3f..."
 ```
 
 ---
 
 ## 利用可能なツール
 
-claw-wallet が提供する 16 ツール：
-
-| Tool | Description |
+| ツール | 説明 |
 |------|-------------|
-| **Wallet Management** | |
-| `wallet_create` | Create a new wallet with encrypted keystore |
-| `wallet_import` | Import existing wallet via private key |
-| `wallet_address` | Get current wallet address (no decryption needed) |
-| **Balance & Gas** | |
-| `wallet_balance` | Query ETH or ERC-20 token balance |
-| `wallet_estimate_gas` | Estimate transaction gas cost |
-| **Transactions** | |
-| `wallet_send` | Send ETH or ERC-20 tokens (supports contact names) |
-| `wallet_history` | Query paginated transaction history |
-| **Contacts** | |
-| `wallet_contacts_add` | Add or update a contact with multi-chain addresses |
-| `wallet_contacts_list` | List all saved contacts |
-| `wallet_contacts_resolve` | Look up a contact's address by name |
-| `wallet_contacts_remove` | Remove a contact |
-| **Policy & Approvals** | |
-| `wallet_policy_get` | View current security policy |
-| `wallet_policy_set` | Update spending limits, whitelist, or mode |
-| `wallet_approval_list` | List pending transaction approvals |
-| `wallet_approval_approve` | Approve a queued transaction |
-| `wallet_approval_reject` | Reject a queued transaction |
+| **ウォレット管理** | |
+| `wallet_create` | 暗号化キーストアで新しいウォレットを作成 |
+| `wallet_import` | 秘密鍵で既存のウォレットをインポート |
+| `wallet_address` | 現在のウォレットアドレスを取得 |
+| `wallet_pair` | ショートコードでデスクトップウォレットとペアリング |
+| **残高とガス** | |
+| `wallet_balance` | ETHまたはERC-20トークンの残高を照会 |
+| `wallet_estimate_gas` | 送信前のガスコストを見積もり |
+| **トランザクション** | |
+| `wallet_send` | ETHまたはERC-20トークンを送信（コンタクト名対応） |
+| `wallet_history` | ページネーション付きトランザクション履歴を照会 |
+| **コンタクト** | |
+| `wallet_contacts_add` | マルチチェーンアドレスでコンタクトを追加・更新 |
+| `wallet_contacts_list` | 保存済みコンタクトの一覧を表示 |
+| `wallet_contacts_resolve` | 名前でコンタクトのアドレスを検索 |
+| `wallet_contacts_remove` | コンタクトを削除 |
+| **ポリシーと承認** | |
+| `wallet_policy_get` | 現在のセキュリティポリシーを表示 |
+| `wallet_policy_set` | 支出制限、ホワイトリスト、モードを更新 |
+| `wallet_approval_list` | 保留中のトランザクション承認一覧 |
+| `wallet_approval_approve` | キューに入ったトランザクションを承認 |
+| `wallet_approval_reject` | キューに入ったトランザクションを拒否 |
 
 ---
 
-## セキュリティモデル
+## プロジェクト構成
 
-claw-wallet は**多層防御**で設計されています。
-
-### 1. 鍵の隔離 — 鍵は LLM に触れない
-
-Agent は Tool API 経由でのみ操作し、鍵材料を返すツールはありません。`wallet_create` でさえ返すのはアドレスのみです。
-
-### 2. 保管時の暗号化 — Keystore V3
-
-| Component | Detail |
-|-----------|--------|
-| **Cipher** | AES-256-GCM (authenticated encryption) |
-| **KDF** | scrypt (N=131072, r=8, p=1) |
-| **Salt** | 32 bytes random per encryption |
-| **IV** | 16 bytes random per encryption |
-| **Auth Tag** | GCM tag prevents ciphertext tampering |
-| **File Permissions** | 0600 (owner read/write only) |
-
-### 3. メモリ安全
-
-秘密鍵は `signTransaction()` / `signMessage()` の実行中のみ復号され、`finally` でバッファをゼロクリアします。
-
-### 4. ポリシーエンジン
-
-署名の前に必ず実行され、プロンプトインジェクションでは迂回できません。単一取引・1 日あたりの制限、ホワイトリスト、24 時間で失効する承認キュー。金額は**整数セント**で扱い浮動小数点攻撃を防止し、承認 ID は暗号論的乱数です。
-
-### 5. 入力検証
-
-アドレス・金額・チェーン・トークンシンボル・連絡先名・Keystore JSON をすべて検証し、パストラバーサルや不正な KDF パラメータを拒否します。
-
-### 6. ファイルシステム
-
-原子書き込み（一時ファイル → リネーム）、0600 パーミッション、データディレクトリ外へのパス拒否。
-
-### 7. RPC 安全
-
-負の残高は 0 扱い、Gas は 0 および 30M 超を拒否。エラーメッセージに秘密鍵・パスワードは含めません。
-
----
-
-## 設定
-
-```typescript
-const wallet = new ClawWallet({
-  dataDir: "~/.openclaw/wallet",
-  defaultChain: "base",
-  chains: {
-    base: { rpcUrl: "https://your-base-rpc.com" },
-    ethereum: { rpcUrl: "https://your-eth-rpc.com" },
-  },
-  password: process.env.WALLET_PASSWORD,
-  pollIntervalMs: 30_000,
-  onBalanceChange: (event) => {
-    console.log(`${event.direction}: ${event.difference} ${event.token} on ${event.chain}`);
-  },
-});
+```
+wallet/
+├── agent/                 # AI Agent framework (TypeScript) — zero secrets
+│   ├── index.ts           # ClawWallet class — orchestrates tools & signer
+│   ├── e2ee/              # E2EE crypto, WebSocket transport, machine-id
+│   │   ├── crypto.ts      # X25519, AES-256-GCM, HKDF, key serialization
+│   │   ├── transport.ts   # E2EE WebSocket client with extended handshake
+│   │   └── machine-id.ts  # Device fingerprint (SHA256 of hostname:MAC)
+│   ├── signer/            # RelaySigner — persistent pairing, auto-reconnect
+│   │   ├── relay-client.ts    # Relay connection, deterministic pairId, repair
+│   │   ├── ipc-server.ts     # Unix domain socket IPC server
+│   │   └── ipc-client.ts     # IPC client for tool → signer communication
+│   ├── tools/             # 17 MCP tool definitions
+│   └── *.ts               # Policy, contacts, history, monitor, validation
+│
+├── desktop/               # Electron Desktop Wallet — holds all secrets
+│   └── src/
+│       ├── main/
+│       │   ├── key-manager.ts      # BIP-39 mnemonic, Keystore V3 encrypt/decrypt
+│       │   ├── signing-engine.ts   # Transaction signing with memory zeroing
+│       │   ├── relay-bridge.ts     # E2EE relay, three-level verification, session freeze
+│       │   ├── security-monitor.ts # IP/device change detection, alerts
+│       │   └── lock-manager.ts     # Wallet lock/unlock, idle timeout
+│       ├── preload/                # Secure contextBridge (no nodeIntegration)
+│       ├── renderer/               # HTML/CSS/JS UI
+│       └── shared/
+│           └── e2ee-crypto.ts      # Shared E2EE primitives
+│
+└── server/                # Go Relay Server (Hertz) — stateless forwarder
+    ├── cmd/relay/main.go  # Entry point, route setup
+    ├── internal/
+    │   ├── hub/           # WebSocket hub, IP binding, rate limiting
+    │   ├── pairing/       # Short code generation & resolution
+    │   ├── middleware/     # CORS, access logging
+    │   └── iputil/        # IP extraction utilities
+    ├── Dockerfile         # Multi-stage build
+    └── docker-compose.yml # One-command deployment
 ```
 
 ---
 
-## データ保存
+## 対応チェーンとトークン
 
-すべてローカルに保存（クラウド送信なし）：
-
-```
-~/.openclaw/wallet/
-├── keystore.json    # Encrypted private key (Keystore V3, chmod 0600)
-├── contacts.json    # Agent contacts address book
-├── history.json     # Transaction history cache
-└── policy.json      # Security policy & approval queue
-```
-
----
-
-## 対応チェーン・トークン
-
-| Chain | Chain ID | Default RPC | Built-in Tokens |
+| チェーン | チェーンID | デフォルトRPC | 組み込みトークン |
 |-------|----------|-------------|-----------------|
 | Base | 8453 | Public Base RPC | USDC, USDT |
 | Ethereum | 1 | Public Ethereum RPC | USDC, USDT |
 
-ERC-20 は契約アドレスを指定すれば利用可能。チェーンは設定で拡張できます。
-
----
-
-## アーキテクチャ
-
-`src/` に `index.ts`（ClawWallet）、`keystore.ts`、`chain.ts`、`transfer.ts`、`policy.ts`、`contacts.ts`、`history.ts`、`monitor.ts`、`validation.ts`、および `tools/` 配下の 16 ツール定義。ブロックチェーン用は [viem](https://viem.sh) のみ、暗号は Node.js 標準の `node:crypto` を使用。
+コントラクトアドレスを指定することで任意のERC-20トークンを使用できます。チェーンは拡張可能で、設定を通じて任意のEVM互換チェーンを追加できます。
 
 ---
 
 ## 開発
 
 ```bash
-npm install
-npm test
-npm run typecheck
-npm run build
-npm run dev
+# Agent (TypeScript)
+cd agent && npm install && npm test
+
+# Desktop (Electron)
+cd desktop && npm install && npm run dev
+
+# Relay Server (Go)
+cd server && go test ./...
+
+# Docker deployment
+cd server && docker compose up --build
 ```
 
-機能テスト（keystore / chain / contacts / history / policy / E2E）とセキュリティテスト（鍵・入力・ポリシー・ファイル・RPC）を実施しています。
+### テストスイート
+
+| カテゴリ | テスト内容 |
+|----------|---------------|
+| **キーストア** | 鍵の生成、暗号化/復号、パスワード不一致、V3構造 |
+| **ポリシー** | 制限、ホワイトリスト、モード、承認ワークフロー、整数セント演算 |
+| **E2EE** | 鍵ペアのシリアル化、決定論的pairIdの導出 |
+| **リレーハブ** | WebSocketルーティング、ペアIPバインディング、接続レート制限 |
+| **ペアリング** | ショートコード生成、有効期限、解決 |
+| **ミドルウェア** | CORS設定、アクセスログ |
+| **セキュリティ** | 鍵のエントロピー、メモリクリア、入力インジェクション、ファイルパーミッション、パストラバーサル、RPCの安全性 |
 
 ---
 
-## 要件
+## トラブルシューティング
 
-- Node.js ≥ 18
-- OpenClaw 互換の AI エージェントフレームワーク（または Tool 定義をサポートするフレームワーク）
+| 問題 | 解決策 |
+|-------|---------|
+| 「Wallet app offline」 | デスクトップウォレットが起動中でリレーに接続されていることを確認 |
+| 「Pairing code expired」 | 新しいコードを生成（10分のTTL） |
+| 署名リクエストがブロックされる | セッションが凍結されていないか確認（ID不一致） — 必要に応じて再ペアリング |
+| IPアドレス変更アラート | IPポリシーを設定：`block` / `warn` / `allow` |
+| エージェントが再接続できない | `wallet_repair`でペアリングデータをクリアし再ペアリング |
+| 同一マシン警告 | 完全なセキュリティのためにデスクトップウォレットを別のデバイスに移動 |
 
 ---
 

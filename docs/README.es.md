@@ -4,512 +4,455 @@
 
 # claw-wallet
 
-**Dale a tu Agente IA una billetera real — de forma segura.**
+**Deja que tu Agente de IA tenga una billetera real — de forma segura.**
 
-Plugin de billetera Web3 para el framework de agentes IA [OpenClaw](https://getclaw.sh). Una billetera cripto local, autocustodiada y sin custodia que permite a los agentes IA gestionar activos, enviar transacciones e interactuar con blockchains EVM, manteniendo las claves privadas cifradas y completamente aisladas del LLM.
+Una billetera cripto sin custodia para Agentes de IA de [OpenClaw](https://getclaw.sh). Las claves privadas residen en una **Billetera de Escritorio Electron** separada, completamente aislada del modelo de IA. El Agente y el Escritorio se comunican a través de un canal **E2EE (Cifrado de Extremo a Extremo)** mediante un **Servidor Relay en Go** — el relay solo reenvía texto cifrado y nunca puede leer ni manipular los mensajes.
 
-> Las claves privadas nunca tocan el modelo de IA. El agente opera a través de la API de herramientas, que solo devuelve direcciones y hashes de transacciones.
-
----
-
-## ¿Por qué claw-wallet?
-
-Cuando un agente IA necesita operar on-chain (transacciones, pagos, estrategias DeFi), enfrenta una contradicción fundamental: **el modelo necesita ejecutar acciones, pero nunca debe ver las claves privadas**. claw-wallet resuelve este problema con un diseño de capas bien definido:
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    Tu Agente IA (LLM)                       │
-│                                                             │
-│  "Envía 10 USDC a Alice en Base"                            │
-│         │                                                   │
-│         ▼                                                   │
-│  ┌─────────────┐    ┌──────────────┐    ┌──────────────┐    │
-│  │ Tool APIs   │───▶│  Motor de    │───▶│  Almacén de  │    │
-│  │ (16 tools)  │    │  Políticas   │    │  Claves      │    │
-│  │             │    │ (límites y   │    │ (AES-256-GCM │    │
-│  │             │    │  aprobación) │    │  + scrypt)   │    │
-│  └─────────────┘    └──────────────┘    └──────┬───────┘    │
-│                                                │            │
-│                                          Firma y difunde    │
-│                                                │            │
-│                                         ┌──────▼───────┐    │
-│                                         │  Cadenas EVM │    │
-│                                         │  Base / ETH  │    │
-│                                         └──────────────┘    │
-└─────────────────────────────────────────────────────────────┘
-```
-
-**Lo que el LLM puede ver:** Direcciones de billetera, saldos, hashes de transacciones, estado de políticas.
-**Lo que el LLM no puede ver:** Claves privadas, frases mnemotécnicas, material criptográfico descifrado.
-
----
-
-## Características
-
-- **Sin custodia y ejecución local** — Las claves se almacenan cifradas en tu máquina, sin dependencia de la nube.
-- **Cifrado Keystore V3** — AES-256-GCM + scrypt KDF, el mismo estándar utilizado por los clientes de Ethereum.
-- **Motor de políticas** — Límites de gasto por transacción y diarios, lista blanca de direcciones, cola de aprobación humana. Incluso si el agente sufre un ataque de inyección de prompt, el motor de políticas bloquea las transacciones no autorizadas.
-- **Multi-cadena EVM** — Compatible con Base (predeterminado, bajo Gas) y Ethereum mainnet. Extensible a cualquier cadena EVM.
-- **Dos modos de operación** — Modo supervisado (aprobación humana) o modo autónomo (ejecución automática dentro de los límites).
-- **Agenda de contactos del agente** — Libreta de direcciones P2P. Los agentes intercambian direcciones y las resuelven automáticamente por nombre.
-- **Monitoreo de saldos** — Sondeo en segundo plano que detecta transferencias entrantes y notifica en tiempo real.
-- **Historial de transacciones** — Caché local de todas las transacciones enviadas y recibidas.
-- **16 herramientas OpenClaw** — Definiciones de herramientas plug-and-play, integración perfecta con agentes IA.
-
----
-
-## Casos de uso
-
-### Caso 1: Humano → Agente → Contrato / Institución
-
-Le indicas al agente que pague a un comerciante, acuñe un NFT o interactúe con un protocolo DeFi.
-
-```
- Tú (conversación)               Tu Agente                        On-chain
-─────────────────────────────────────────────────────────────────────────────
- "Paga 50 USDC al              wallet_contacts_resolve            Uniswap
-  tesoro de Uniswap            → 0x1a9C...                       Contrato
-  en Ethereum"                                                    de tesoro
-                                wallet_send                         │
-                                  to: 0x1a9C...                     │
-                                  amount: 50                        │
-                                  token: USDC                       │
-                                  chain: ethereum                   │
-                                        │                           │
-                                Motor de políticas:                 │
-                                  ✓ $50 < límite de $100/tx        │
-                                  ✓ Total diario dentro de $500    │
-                                  ✓ 0x1a9C en lista blanca         │
-                                        │                           │
-                                Firma → Difunde ────────────────────▶│
-                                        │                           │
-                                Devuelve: tx hash 0xab3f...    ✓ Confirmada
-```
-
-**Usos típicos:** Pagos de suscripción SaaS, compras de servicios on-chain, interacción con protocolos DeFi, depósitos en exchanges. La lista blanca de direcciones garantiza que el agente solo pueda transferir a direcciones de contratos previamente aprobadas.
-
-### Caso 2: Humano → Agente → Otro Agente
-
-Le indicas a tu agente que pague a otro agente IA por un servicio. Los agentes resuelven direcciones automáticamente a través del sistema de contactos.
-
-```
- Tú (conversación)          Tu Agente                    Agente de Bob
-──────────────────────────────────────────────────────────────────
- "Envía 10 USDC al        wallet_contacts_add
-  agente de Bob            name: "bob-agent"
-  en Base"                 base: 0x742d...
-                                │
-                         wallet_send
-                           to: "bob-agent"     ◄── Resuelto desde contactos
-                           amount: 10
-                           token: USDC
-                           chain: base
-                                │
-                         Política ✓ → Firma → Difunde ──────────▶ 0x742d...
-                                │                              │
-                         tx: 0xef01...                    Monitor de Bob
-                                                          detecta +10 USDC
-                                                          notifica al agente
-                                                          de Bob
-```
-
-**Usos típicos:** Pagos por llamadas API entre agentes, compra de datos, recompensas por tareas colaborativas. La agenda de contactos hace que los pagos recurrentes entre agentes sean tan simples como usar un nombre, sin necesidad de pegar direcciones cada vez.
-
-### Caso 3: Agente autónomo
-
-El agente opera de forma independiente, ejecutando transacciones, comprando servicios o ajustando carteras de inversión dentro de los límites de la política. Sin intervención humana por transacción individual.
-
-```
- Agente (modo autónomo)                                     On-chain
-──────────────────────────────────────────────────────────────────
- Detectado: precio de ETH bajó 5%
- Decisión: oportunidad de compra
-
- wallet_balance → 500 USDC disponibles
- wallet_estimate_gas → 0.0001 ETH
-
- wallet_send
-   to: 0xDEX_ROUTER         (en lista blanca)
-   amount: 200
-   token: USDC
-   chain: base
-         │
- Motor de políticas:
-   ✓ $200 > límite de $100/tx  ← Bloqueado
-   → En cola de aprobación (id: a3f8...)
-
- ─── Opción A: Aumentar el límite ───
- wallet_policy_set
-   perTransactionLimitUsd: 300
-   mode: "autonomous"
-
- Reenviar → Política ✓ → Firma → Difunde → Confirmada
-
- ─── Opción B: Aprobación humana ───
- wallet_approval_approve("a3f8...")
- → Firma → Difunde → Confirmada
-```
-
-**Usos típicos:** Farming DeFi, estrategias de trading automatizado, pagos de suscripciones periódicas, rebalanceo de cartera. El motor de políticas actúa como **barrera de seguridad**: incluso un agente completamente autónomo opera dentro de límites de gasto configurables.
-
-### Comparación de modos
-
-| | Modo supervisado | Modo autónomo |
-|---|---|---|
-| **Quién decide** | Aprobación humana para cada tx fuera de lista blanca | El agente decide dentro de los límites |
-| **Lista blanca requerida** | Sí — direcciones fuera de lista blanca son bloqueadas | No — cualquier dirección dentro de los límites |
-| **Límites de gasto** | Límites por tx + diarios aplicados | Límites por tx + diarios aplicados |
-| **Ideal para** | Billeteras de alto valor, establecer confianza inicial | Operaciones rutinarias, bots de trading |
-| **Si se excede el límite** | En cola → Aprobación/rechazo humano | En cola → Aprobación/rechazo humano |
-
----
-
-## Inicio rápido
-
-### Instalación
-
-```bash
-npm install claw-wallet
-```
-
-### Uso básico
-
-```typescript
-import { ClawWallet } from "claw-wallet";
-
-const wallet = new ClawWallet({
-  defaultChain: "base",
-  password: process.env.WALLET_PASSWORD,
-});
-
-await wallet.initialize();
-
-// Registrar las 16 herramientas en tu agente OpenClaw
-const tools = wallet.getTools();
-
-// ... El agente se ejecuta, usando herramientas para enviar/recibir/gestionar ...
-
-// Cierre ordenado: guarda historial, contactos y políticas en disco
-await wallet.shutdown();
-```
-
----
-
-## Cómo funciona
-
-### Flujo de transacción
-
-Flujo completo desde la intención del agente hasta la confirmación on-chain:
-
-```
-  Agente dice: "Envía 0.5 ETH a Bob en Base"
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  1. Validación de entrada           │  Formato de dirección, rango de
-  │     validateAddress / validateAmount│  cantidad, cadena, símbolo de token
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  2. Resolución de destinatario      │  "Bob" → búsqueda en contactos
-  │     Nombre de contacto o dirección  │  → 0x742d...4a (cadena Base)
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  3. Verificación de saldo           │  Saldo ETH ≥ monto + Gas?
-  │     getBalance + estimateGas       │  ERC-20: saldo del token + Gas ETH
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  4. Verificación de política        │  ✓ ¿Dentro del límite por tx ($100)?
-  │     PolicyEngine.checkTransaction  │  ✓ ¿Dentro del límite diario ($500)?
-  │                                     │  ✓ ¿Dirección en lista blanca
-  │                                     │    (modo supervisado)?
-  │     ¿Bloqueado? → Cola de          │  → Devuelve ID de aprobación
-  │       aprobación                    │
-  │     ¿Aprobado? → Continuar ↓       │
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  5. Firma de transacción            │  Descifra clave (scrypt + AES-256-GCM)
-  │     Almacén → Descifrar → Firmar   │  Firma con viem
-  │     → Limpia buffer inmediatamente  │  Limpieza en finally{}
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  6. Difusión y confirmación         │  Envía tx raw al RPC
-  │     broadcastTransaction           │  Espera recibo
-  └─────────────────┬───────────────────┘
-                    │
-                    ▼
-  ┌─────────────────────────────────────┐
-  │  7. Registro y retorno              │  Guarda en historial local
-  │     TransactionHistory.addRecord   │  Devuelve: { hash, status, gasUsed }
-  └─────────────────────────────────────┘
-```
-
-### Flujo de aprobación (modo supervisado)
-
-Cuando una transacción excede los límites o la dirección destino no está en la lista blanca:
-
-```
-  Agente → wallet_send → Política bloquea → Devuelve ID de aprobación
-                                        │
-              ┌─────────────────────────┘
-              ▼
-  Revisión:  wallet_approval_list  →  Ver detalles de tx pendientes
-  humana     wallet_approval_approve(id)  →  Transacción se ejecuta
-             wallet_approval_reject(id)   →  Transacción cancelada
-             (Expira automáticamente en 24 horas sin acción)
-```
-
----
-
-## Herramientas disponibles
-
-claw-wallet proporciona 16 herramientas invocables por el agente:
-
-| Herramienta | Descripción |
-|------|------|
-| **Gestión de billetera** | |
-| `wallet_create` | Crea una nueva billetera, genera almacén de claves cifrado |
-| `wallet_import` | Importa una billetera existente mediante clave privada |
-| `wallet_address` | Obtiene la dirección actual de la billetera (sin descifrado) |
-| **Saldos y Gas** | |
-| `wallet_balance` | Consulta saldo de ETH o tokens ERC-20 |
-| `wallet_estimate_gas` | Estima el coste de Gas de una transacción |
-| **Transacciones** | |
-| `wallet_send` | Envía ETH o tokens ERC-20 (compatible con nombres de contacto) |
-| `wallet_history` | Consulta historial de transacciones paginado |
-| **Contactos** | |
-| `wallet_contacts_add` | Añade o actualiza un contacto (soporta direcciones multi-cadena) |
-| `wallet_contacts_list` | Lista todos los contactos |
-| `wallet_contacts_resolve` | Busca la dirección de un contacto por nombre |
-| `wallet_contacts_remove` | Elimina un contacto |
-| **Políticas y aprobaciones** | |
-| `wallet_policy_get` | Consulta la política de seguridad actual |
-| `wallet_policy_set` | Actualiza límites de gasto, lista blanca o modo |
-| `wallet_approval_list` | Lista transacciones pendientes de aprobación |
-| `wallet_approval_approve` | Aprueba una transacción en cola |
-| `wallet_approval_reject` | Rechaza una transacción en cola |
-
----
-
-## Modelo de seguridad
-
-claw-wallet emplea una estrategia de **defensa en profundidad**: múltiples capas de seguridad independientes aseguran que ningún punto único de fallo pueda provocar la filtración de claves o transferencias no autorizadas.
-
-### 1. Aislamiento de claves — Las claves nunca tocan el LLM
-
-```
-┌────────────────────┐     Tool APIs     ┌────────────────────┐
-│     Agente IA      │ ◄──────────────── │   claw-wallet      │
-│                    │ Direcciones,       │                    │
-│  Sin acceso a:     │ hashes de tx      │  La clave privada  │
-│  - Claves privadas │                   │  solo se descifra  │
-│  - Archivos keystore│                  │  dentro de         │
-│  - Contraseña      │                   │  signTransaction() │
-│                    │                   │  y se limpia       │
-│                    │                   │  inmediatamente     │
-└────────────────────┘                   └────────────────────┘
-```
-
-El agente solo interactúa a través de la API de herramientas. Ninguna herramienta devuelve material criptográfico. Incluso `wallet_create` solo devuelve la dirección.
-
-### 2. Cifrado en reposo — Keystore V3
-
-| Componente | Detalle |
-|------|------|
-| **Algoritmo de cifrado** | AES-256-GCM (cifrado autenticado) |
-| **Derivación de clave** | scrypt (N=131072, r=8, p=1) |
-| **Salt** | 32 bytes aleatorios generados por cifrado |
-| **Vector de inicialización** | 16 bytes aleatorios generados por cifrado |
-| **Etiqueta de autenticación** | La etiqueta GCM previene la manipulación del texto cifrado |
-| **Permisos de archivo** | 0600 (solo lectura/escritura para el propietario) |
-
-La clave privada se cifra mediante derivación de clave scrypt y AES-256-GCM. Cada cifrado genera un salt e IV completamente nuevos y aleatorios, de modo que la misma clave + contraseña produce un texto cifrado diferente cada vez.
-
-### 3. Seguridad en memoria
-
-- Las claves privadas solo se descifran durante la ejecución de `signTransaction()` / `signMessage()`.
-- El buffer de la clave se limpia con `Buffer.fill(0)` en el bloque `finally`, incluso si la firma lanza una excepción.
-- El material criptográfico descifrado permanece en memoria solo durante milisegundos.
-
-### 4. Motor de políticas — Control de gastos independiente
-
-El motor de políticas se ejecuta **antes** de cualquier operación de firma y no puede eludirse mediante inyección de prompt:
-
-| Control | Valor por defecto | Descripción |
-|--------|--------|------|
-| Límite por transacción | $100 | Monto máximo por transacción individual |
-| Límite diario | $500 | Límite acumulativo en ventana de 24 horas |
-| Lista blanca de direcciones | Vacía | Obligatoria en modo supervisado |
-| Modo de operación | Supervisado | `supervised` (requiere lista blanca) o `autonomous` (solo límites) |
-| Cola de aprobación | Expira en 24 horas | Las transacciones bloqueadas esperan revisión humana |
-
-**Medidas anti-elusión:**
-- Todos los montos en dólares usan **aritmética de centavos enteros** (multiplicar por 100, redondear), previniendo ataques de precisión de punto flotante (como múltiples transacciones de $0.51 que explotan errores de redondeo).
-- La coincidencia de lista blanca **no distingue mayúsculas de minúsculas**, previniendo la elusión por mezcla de mayúsculas y minúsculas en direcciones.
-- Los IDs de aprobación usan **números aleatorios criptográficos** (8 bytes hexadecimales) — no secuenciales, imposibles de adivinar.
-
-### 5. Validación de entrada — Guardia en cada frontera
-
-| Entrada | Reglas de validación |
-|--------|---------|
-| Dirección | Formato hexadecimal, longitud=42, checksum EIP-55 |
-| Monto | Rechaza NaN, Infinity, negativos, cero, vacíos |
-| Cadena | Lista blanca estricta (`base`, `ethereum`) |
-| Símbolo de token | Máximo 20 caracteres, rechaza caracteres de inyección `<>"'\`/\` |
-| Nombre de contacto | Máximo 100 caracteres, rechaza travesía de rutas (`..`, `/`, `\`) |
-| JSON de Keystore | Estructura V3 completa + límites de parámetros KDF (n ≤ 2²⁰) |
-
-### 6. Seguridad del sistema de archivos
-
-- **Escritura atómica**: Escribe en archivo temporal → renombra (previene corrupción de datos en caso de fallo).
-- **Permisos 0600**: Solo el propietario puede leer/escribir el almacén de claves, contactos, historial y archivos de política.
-- **Protección contra travesía de rutas**: `sanitizePath()` resuelve y rechaza rutas fuera del directorio de datos.
-
-### 7. Seguridad RPC
-
-- **Clamp de saldo negativo**: Trata los saldos negativos devueltos por RPC como 0.
-- **Verificación de Gas**: Rechaza estimaciones de Gas iguales a 0 o superiores a 30 millones.
-- **Sin filtración de claves**: Los mensajes de error nunca contienen claves privadas ni contraseñas.
-
----
-
-## Configuración
-
-```typescript
-const wallet = new ClawWallet({
-  // Directorio de datos (por defecto: ~/.openclaw/wallet)
-  dataDir: "~/.openclaw/wallet",
-
-  // Cadena por defecto (por defecto: "base")
-  defaultChain: "base",
-
-  // Nodos RPC personalizados (opcional)
-  chains: {
-    base: { rpcUrl: "https://your-base-rpc.com" },
-    ethereum: { rpcUrl: "https://your-eth-rpc.com" },
-  },
-
-  // Contraseña maestra (o establecer mediante wallet.setPassword())
-  password: process.env.WALLET_PASSWORD,
-
-  // Intervalo de sondeo de saldos (por defecto: 30 segundos)
-  pollIntervalMs: 30_000,
-
-  // Callback de notificación de transferencias entrantes
-  onBalanceChange: (event) => {
-    console.log(`${event.direction}: ${event.difference} ${event.token} on ${event.chain}`);
-  },
-});
-```
-
----
-
-## Almacenamiento de datos
-
-Todos los datos se almacenan localmente (nunca se envían a la nube):
-
-```
-~/.openclaw/wallet/
-├── keystore.json    # Clave privada cifrada (Keystore V3, chmod 0600)
-├── contacts.json    # Agenda de contactos del agente
-├── history.json     # Caché de historial de transacciones
-└── policy.json      # Política de seguridad y cola de aprobaciones
-```
-
----
-
-## Cadenas y tokens compatibles
-
-| Cadena | Chain ID | RPC por defecto | Tokens integrados |
-|----|----------|----------|----------|
-| Base | 8453 | RPC público de Base | USDC, USDT |
-| Ethereum | 1 | RPC público de Ethereum | USDC, USDT |
-
-Se puede usar cualquier token ERC-20 proporcionando la dirección del contrato. Las cadenas son extensibles — se puede añadir cualquier cadena compatible con EVM mediante configuración.
+> Las claves privadas nunca tocan el modelo de IA. No en la misma máquina, no en el mismo proceso, no en memoria. El Agente solo ve direcciones de billetera y hashes de transacciones.
 
 ---
 
 ## Arquitectura
 
 ```
-src/
-├── index.ts          Clase ClawWallet — orquesta todos los subsistemas
-├── types.ts          Tipos e interfaces TypeScript compartidos
-├── keystore.ts       Generación de claves, cifrado/descifrado (AES-256-GCM + scrypt), firma
-├── chain.ts          Adaptador blockchain multi-cadena (viem PublicClient)
-├── transfer.ts       Construcción de tx: validación → política → firma → difusión
-├── policy.ts         Límites de gasto, lista blanca, cola de aprobación, aritmética de centavos
-├── contacts.ts       Libreta de direcciones con resolución multi-cadena
-├── history.ts        Historial local de transacciones (con serialización BigInt)
-├── monitor.ts        Sondeo de saldos en segundo plano y detección de cambios
-├── validation.ts     Sanitización de entrada, E/S segura de archivos, protección contra travesía de rutas
-└── tools/            16 definiciones de herramientas OpenClaw
-    ├── wallet-create.ts
-    ├── wallet-import.ts
-    ├── wallet-balance.ts       (saldo + dirección + estimación de Gas)
-    ├── wallet-send.ts
-    ├── wallet-contacts.ts      (listar + añadir + resolver + eliminar)
-    ├── wallet-policy.ts        (consultar + establecer)
-    ├── wallet-approval.ts      (listar + aprobar + rechazar)
-    └── wallet-history.ts
+┌──────────────┐        E2EE WebSocket        ┌──────────────┐        E2EE WebSocket        ┌──────────────────┐
+│  AI Agent    │◄────────────────────────────►│  Go Relay    │◄────────────────────────────►│  Desktop Wallet  │
+│  (TypeScript)│   X25519 + AES-256-GCM       │  Server      │   X25519 + AES-256-GCM       │  (Electron)      │
+│              │                               │  (Hertz)     │                               │                  │
+│ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
+│ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
+│ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
+│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+└──────────────┘                               └──────────────┘                               └──────────────────┘
+       │                                                                                              │
+       │  Agent never sees:                                                        Desktop holds:     │
+       │  • private keys                                                           • BIP-39 mnemonic  │
+       │  • mnemonics                                                              • Keystore V3 file │
+       │  • key material                                                           • Signing engine    │
+       └──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Filosofía de dependencias:** Minimalista. Solo se usa [viem](https://viem.sh) para la interacción con blockchain. Toda la criptografía utiliza `node:crypto` integrado en Node.js (scrypt, AES-256-GCM, randomBytes) — sin bibliotecas criptográficas de terceros.
+**Diseño de tres componentes**: Cada componente tiene una única responsabilidad. Incluso si el host del Agente es completamente comprometido, el atacante no obtiene ningún material de claves.
+
+---
+
+## Flujo de Interacción del Usuario
+
+### Primera Configuración: Emparejamiento
+
+Solo se requiere una vez. Después del emparejamiento inicial, la reconexión es completamente automática.
+
+```
+ You                          Desktop Wallet                 Relay Server              AI Agent
+──────────────────────────────────────────────────────────────────────────────────────────────────
+ 1. Create wallet
+    (set password,            Generates BIP-39 mnemonic
+     backup mnemonic)         Encrypts with AES-256-GCM
+                              + scrypt KDF
+                                    │
+ 2. Click "Generate           Generates 8-char pairing
+    Pairing Code"             code (valid 10 min)
+                                    │
+ 3. Copy code to Agent              │                                              Agent calls
+    (or send via secure             │                                              wallet_pair
+    channel)                        │                                              { shortCode }
+                                    │                         ◄──── Agent registers ────┘
+                                    │                               with code
+                              Desktop connects ────────────►  Relay matches pair
+                              X25519 key exchange ◄─────────► E2EE session established
+                                    │
+                              Saves persistent comm          Agent saves persistent
+                              key pair (encrypted)           comm key pair (0600)
+                                    │
+                              Derives deterministic          Derives same pairId
+                              pairId = SHA256(addr +         = SHA256(addr +
+                              agentPubKey)[:16]              agentPubKey)[:16]
+                                    │
+ ✓ Paired!                    Ready to sign                  Ready to transact
+```
+
+### Uso Diario: Reconexión Automática
+
+Después del emparejamiento inicial, el Agente y el Escritorio se reconectan automáticamente al reiniciar — no se requiere ninguna acción del usuario.
+
+```
+ Agent restarts               Desktop restarts
+       │                             │
+ Loads persistent             Loads persistent
+ comm key pair                comm key pair (decrypts
+ from disk                    with wallet password)
+       │                             │
+ Recomputes pairId            Recomputes same pairId
+       │                             │
+ Connects to Relay ──────────► Relay routes by pairId ──────► Desktop receives
+       │                                                             │
+ Sends extended handshake:                                    Three-level verification:
+ • publicKey                                                  ✓ Level 1: Public key matches stored key
+ • machineId                                                  ✓ Level 2: machineId matches stored ID
+ • reconnect: true                                            ✓ Level 3: IP change policy (configurable)
+       │                                                             │
+ E2EE session restored ◄──────────────────────────────────── Session active
+       │                                                             │
+ Ready to transact                                            Ready to sign
+```
+
+### Flujo de Transacciones
+
+```
+ You (chat with Agent)                AI Agent                        Desktop Wallet
+──────────────────────────────────────────────────────────────────────────────────────
+ "Send 0.5 ETH to Bob           wallet_send
+  on Base"                         to: "bob"  (contact)
+                                   amount: 0.5
+                                   chain: base
+                                        │
+                                 Resolve contact ──► Bob = 0x742d...
+                                 Build tx request
+                                        │
+                                 E2EE encrypt ──────────────────► Decrypt request
+                                                                       │
+                                                                 Policy check:
+                                                                   ✓ Within per-tx limit
+                                                                   ✓ Within daily limit
+                                                                   ✓ Device not frozen
+                                                                       │
+                                                                 Decrypt private key
+                                                                 Sign transaction
+                                                                 Zero key from memory
+                                                                 Broadcast to chain
+                                                                       │
+                                 Receive result ◄────────────────── tx hash + receipt
+                                        │
+                                 Return to you:
+                                 "Sent 0.5 ETH to Bob
+                                  tx: 0xab3f..."
+```
+
+---
+
+## Arquitectura de Seguridad
+
+claw-wallet utiliza **defensa en profundidad** con dos dominios de seguridad independientes: **seguridad de comunicación** (cómo se comunican los componentes) y **seguridad de claves** (cómo se almacenan y utilizan las claves).
+
+### Parte A: Seguridad de Comunicación
+
+#### 1. Cifrado de Extremo a Extremo (E2EE)
+
+Todos los mensajes entre el Agente y el Escritorio están cifrados de extremo a extremo. El servidor Relay solo ve texto cifrado.
+
+| Componente | Detalle |
+|-----------|--------|
+| **Intercambio de Claves** | X25519 ECDH (Curve25519) |
+| **Derivación de Claves** | HKDF-SHA256 |
+| **Cifrado** | AES-256-GCM (autenticado) |
+| **Anti-Repetición** | Nonce incremental por mensaje |
+| **Secreto Futuro** | Nuevas claves efímeras por sesión |
+
+#### 2. Emparejamiento y Reconexión Automáticos
+
+El emparejamiento manual solo es necesario una vez. El sistema utiliza **pares de claves de comunicación persistentes** e **IDs de par determinísticos** para la reconexión automática:
+
+- **Pares de Claves Persistentes**: Los pares de claves X25519 se guardan en disco — cifrados con la contraseña de la billetera en el Escritorio (scrypt + AES-256-GCM), protegidos por permisos de archivo (0600) en el Agente
+- **PairId Determinístico**: `SHA256(walletAddress + ":" + agentPublicKeyHex)[:16]` — ambos lados calculan el mismo ID de forma independiente, sin necesidad de coordinación
+- **Reconexión sin Interacción**: Al reiniciar, ambos lados cargan sus claves almacenadas, recalculan el pairId y se reconectan a través del Relay automáticamente
+
+#### 3. Verificación de Reconexión en Tres Niveles
+
+Cuando un Agente se reconecta, el Escritorio realiza tres verificaciones de identidad antes de permitir cualquier firma:
+
+| Nivel | Verificación | Acción ante Fallo |
+|-------|-------|----------------|
+| **Nivel 1** (Estricto) | La clave pública coincide con la almacenada | Rechazar + forzar re-emparejamiento |
+| **Nivel 2** (Estricto) | machineId coincide con el ID almacenado | Congelar sesión + forzar re-emparejamiento |
+| **Nivel 3** (Configurable) | Política de cambio de IP | `block` / `warn` (por defecto) / `allow` |
+
+- **machineId**: SHA256(hostname + dirección MAC) — detecta si el Agente se movió a una máquina diferente
+- **Congelación de Sesión**: Cuando se detecta una discrepancia de identidad, todas las solicitudes de firma se bloquean hasta que el usuario vuelva a emparejar manualmente
+- **Política de IP**: Configurable por despliegue — `block` rechaza inmediatamente, `warn` alerta al usuario pero permite (con tolerancia de misma subred), `allow` omite la verificación
+
+#### 4. Protección del Lado del Relay
+
+El Servidor Relay en Go aplica seguridad adicional aunque no pueda leer el contenido de los mensajes:
+
+| Protección | Detalle |
+|------------|--------|
+| **Vinculación de IP por pairId** | Máximo 2 IPs de origen distintas por par simultáneamente |
+| **Límite de Tasa de Conexión** | Máximo 10 nuevas conexiones WebSocket por pairId por minuto |
+| **Desalojo de Conexiones** | Si un tercer cliente se conecta a un par, el más antiguo es desalojado |
+| **Registro de Metadatos** | Eventos de conexión registrados con pairId truncado para auditoría |
+
+#### 5. Respaldo de Re-Emparejamiento Manual
+
+Cuando la reconexión automática falla (cambio de dispositivo, corrupción de claves, etc.):
+
+- **Lado del Agente**: El método RPC `wallet_repair` limpia los datos de emparejamiento almacenados y restablece el estado
+- **Lado del Escritorio**: Acción de UI "Re-emparejar Dispositivo" en el panel de seguridad
+- Ambos lados generan pares de claves nuevos, requiriendo un nuevo intercambio de código de emparejamiento
+
+### Parte B: Seguridad de Claves
+
+#### 6. Aislamiento de Claves — Las Claves Nunca Tocan el Modelo de IA
+
+```
+┌────────────────────┐     Tool APIs     ┌────────────────────┐
+│     AI Agent       │ ◄──────────────── │  Desktop Wallet    │
+│                    │  addresses, hashes │                    │
+│  NO access to:     │                   │  Private key only  │
+│  - private keys    │                   │  decrypted inside  │
+│  - keystore file   │                   │  signTransaction() │
+│  - password        │                   │  then zeroed       │
+└────────────────────┘                   └────────────────────┘
+```
+
+El Agente interactúa exclusivamente a través de las APIs de herramientas. Ninguna herramienta devuelve material de claves.
+
+#### 7. Cifrado en Reposo — Keystore V3
+
+| Componente | Detalle |
+|-----------|--------|
+| **Cifrado** | AES-256-GCM (cifrado autenticado) |
+| **KDF** | scrypt (N=131072, r=8, p=1) |
+| **Salt** | 32 bytes aleatorios por cifrado |
+| **IV** | 16 bytes aleatorios por cifrado |
+| **Etiqueta de Autenticación** | La etiqueta GCM previene la manipulación del texto cifrado |
+| **Permisos de Archivo** | 0600 (solo lectura/escritura del propietario) |
+
+#### 8. Seguridad en Memoria
+
+- Las claves privadas solo se descifran durante `signTransaction()` / `signMessage()`
+- Los buffers de claves se llenan con ceros usando `Buffer.fill(0)` en bloques `finally` — incluso si la firma lanza un error
+- El material de claves descifrado existe en memoria durante milisegundos, no segundos
+
+#### 9. Motor de Políticas — Controles de Gasto Independientes
+
+El motor de políticas se ejecuta **antes** de cualquier firma y no puede ser eludido mediante inyección de prompts:
+
+| Control | Predeterminado | Descripción |
+|---------|---------|-------------|
+| Límite por transacción | $100 | Monto máximo por transacción individual |
+| Límite diario | $500 | Tope de gasto acumulado en 24h rodantes |
+| Lista blanca de direcciones | Vacía | Requerida en modo supervisado |
+| Modo de operación | Supervisado | `supervised` (lista blanca requerida) o `autonomous` (solo límites) |
+| Cola de aprobación | Expira en 24h | Las transacciones bloqueadas se encolan para revisión manual |
+
+**Medidas anti-elusión:**
+- Aritmética de centavos enteros para prevenir ataques de precisión de punto flotante
+- Coincidencia de lista blanca sin distinción de mayúsculas/minúsculas
+- IDs de aprobación criptográficamente aleatorios (no secuenciales, no adivinables)
+
+#### 10. Validación de Entrada
+
+| Entrada | Validación |
+|-------|-----------|
+| Dirección | Formato hexadecimal, longitud=42, checksum EIP-55 vía viem |
+| Monto | Rechaza NaN, Infinity, negativos, cero, vacío |
+| Cadena | Lista blanca estricta (`base`, `ethereum`) |
+| Símbolo de token | Máximo 20 caracteres, rechaza caracteres de inyección |
+| Nombre de contacto | Máximo 100 caracteres, rechaza traversal de ruta |
+
+#### 11. Seguridad del Sistema de Archivos y RPC
+
+- **Escrituras atómicas**: escribir en archivo temporal → renombrar (previene corrupción en caídas)
+- **Permisos 0600**: solo el propietario puede leer/escribir archivos sensibles
+- **Prevención de traversal de ruta**: `sanitizePath()` rechaza rutas fuera del directorio de datos
+- **Verificaciones de cordura del gas**: rechaza estimaciones de gas de 0 y > 30M
+- **Sin filtración de claves**: los mensajes de error nunca contienen claves privadas ni contraseñas
+
+---
+
+## Características
+
+- **Sin custodia y aislada** — Las claves están en el Escritorio, el Agente no tiene secretos
+- **Cifrado de extremo a extremo** — X25519 + AES-256-GCM, el Relay solo ve texto cifrado
+- **Emparejamiento automático** — Configuración única, reconexión automática después de reinicios
+- **Verificación de tres niveles** — Clave pública + huella del dispositivo + política de IP en cada reconexión
+- **Cifrado Keystore V3** — AES-256-GCM + scrypt KDF para claves en reposo
+- **Motor de políticas** — Límites de gasto por transacción y diarios, lista blanca de direcciones, cola de aprobación
+- **Multi-cadena EVM** — Base (por defecto, gas bajo) y mainnet de Ethereum, extensible a cualquier cadena EVM
+- **Doble modo de operación** — Supervisado (aprobación humana) o Autónomo (dentro de los límites)
+- **Contactos del Agente** — Libreta de direcciones P2P con resolución de nombres
+- **Monitoreo de saldo** — Sondeo en segundo plano para transferencias entrantes
+- **Historial de transacciones** — Caché local con registros completos
+- **Relay containerizado** — Servidor Relay en Go con soporte Docker (framework Hertz)
+- **17 herramientas MCP** — Definiciones de herramientas listas para registrar para la integración de Agentes de IA
+
+---
+
+## Inicio Rápido
+
+### Requisitos Previos
+
+- Node.js ≥ 18
+- Go ≥ 1.21 (para el Servidor Relay)
+- Un framework de Agente de IA compatible con OpenClaw
+
+### 1. Iniciar el Servidor Relay
+
+```bash
+cd server
+go run cmd/relay/main.go
+# Por defecto: :8765
+```
+
+O con Docker:
+
+```bash
+cd server
+docker compose up -d
+```
+
+### 2. Iniciar la Billetera de Escritorio
+
+```bash
+cd desktop
+npm install
+npm run dev
+```
+
+### 3. Crear una Billetera y Emparejar
+
+1. En la aplicación de Escritorio: establecer contraseña → respaldar la frase mnemónica
+2. Haz clic en "Generate Pairing Code" → copia el código de 8 caracteres
+3. En tu Agente, llama a `wallet_pair({ shortCode: "ABCD1234" })`
+4. Listo — sesión E2EE establecida, reconexión automática habilitada
+
+### 4. Usar con tu Agente
+
+El Agente proporciona 17 herramientas. Ejemplo de conversación:
+
+```
+Tú:     "Envía 10 USDC a Bob en Base"
+Agente: wallet_contacts_resolve("bob") → 0x742d...
+        wallet_send({ to: "0x742d...", amount: 10, token: "USDC", chain: "base" })
+        → Política ✓ → E2EE → Escritorio firma → Transmisión
+        "Enviados 10 USDC a Bob. tx: 0xab3f..."
+```
+
+---
+
+## Herramientas Disponibles
+
+| Herramienta | Descripción |
+|------|-------------|
+| **Gestión de Billetera** | |
+| `wallet_create` | Crear una nueva billetera con keystore cifrado |
+| `wallet_import` | Importar billetera existente vía clave privada |
+| `wallet_address` | Obtener la dirección de la billetera actual |
+| `wallet_pair` | Emparejar con la Billetera de Escritorio mediante código corto |
+| **Saldo y Gas** | |
+| `wallet_balance` | Consultar saldo de ETH o tokens ERC-20 |
+| `wallet_estimate_gas` | Estimar el costo de gas antes de enviar |
+| **Transacciones** | |
+| `wallet_send` | Enviar ETH o tokens ERC-20 (soporta nombres de contactos) |
+| `wallet_history` | Consultar historial de transacciones paginado |
+| **Contactos** | |
+| `wallet_contacts_add` | Agregar o actualizar un contacto con direcciones multi-cadena |
+| `wallet_contacts_list` | Listar todos los contactos guardados |
+| `wallet_contacts_resolve` | Buscar la dirección de un contacto por nombre |
+| `wallet_contacts_remove` | Eliminar un contacto |
+| **Políticas y Aprobaciones** | |
+| `wallet_policy_get` | Ver la política de seguridad actual |
+| `wallet_policy_set` | Actualizar límites de gasto, lista blanca o modo |
+| `wallet_approval_list` | Listar aprobaciones de transacciones pendientes |
+| `wallet_approval_approve` | Aprobar una transacción en cola |
+| `wallet_approval_reject` | Rechazar una transacción en cola |
+
+---
+
+## Estructura del Proyecto
+
+```
+wallet/
+├── agent/                 # Framework del Agente de IA (TypeScript) — sin secretos
+│   ├── index.ts           # Clase ClawWallet — orquesta herramientas y firmante
+│   ├── e2ee/              # Cripto E2EE, transporte WebSocket, machine-id
+│   │   ├── crypto.ts      # X25519, AES-256-GCM, HKDF, serialización de claves
+│   │   ├── transport.ts   # Cliente WebSocket E2EE con handshake extendido
+│   │   └── machine-id.ts  # Huella del dispositivo (SHA256 de hostname:MAC)
+│   ├── signer/            # RelaySigner — emparejamiento persistente, auto-reconexión
+│   │   ├── relay-client.ts    # Conexión Relay, pairId determinístico, reparación
+│   │   ├── ipc-server.ts     # Servidor IPC con socket de dominio Unix
+│   │   └── ipc-client.ts     # Cliente IPC para comunicación herramienta → firmante
+│   ├── tools/             # 17 definiciones de herramientas MCP
+│   └── *.ts               # Política, contactos, historial, monitor, validación
+│
+├── desktop/               # Billetera de Escritorio Electron — contiene todos los secretos
+│   └── src/
+│       ├── main/
+│       │   ├── key-manager.ts      # Mnemónico BIP-39, cifrado/descifrado Keystore V3
+│       │   ├── signing-engine.ts   # Firma de transacciones con limpieza de memoria
+│       │   ├── relay-bridge.ts     # Relay E2EE, verificación de tres niveles, congelación de sesión
+│       │   ├── security-monitor.ts # Detección de cambios de IP/dispositivo, alertas
+│       │   └── lock-manager.ts     # Bloqueo/desbloqueo de billetera, timeout por inactividad
+│       ├── preload/                # contextBridge seguro (sin nodeIntegration)
+│       ├── renderer/               # UI HTML/CSS/JS
+│       └── shared/
+│           └── e2ee-crypto.ts      # Primitivas E2EE compartidas
+│
+└── server/                # Servidor Relay en Go (Hertz) — reenviador sin estado
+    ├── cmd/relay/main.go  # Punto de entrada, configuración de rutas
+    ├── internal/
+    │   ├── hub/           # Hub WebSocket, vinculación de IP, limitación de tasa
+    │   ├── pairing/       # Generación y resolución de códigos cortos
+    │   ├── middleware/     # CORS, registro de accesos
+    │   └── iputil/        # Utilidades de extracción de IP
+    ├── Dockerfile         # Compilación multi-etapa
+    └── docker-compose.yml # Despliegue con un solo comando
+```
+
+---
+
+## Cadenas y Tokens Soportados
+
+| Cadena | ID de Cadena | RPC Predeterminado | Tokens Integrados |
+|-------|----------|-------------|-----------------|
+| Base | 8453 | RPC público de Base | USDC, USDT |
+| Ethereum | 1 | RPC público de Ethereum | USDC, USDT |
+
+Cualquier token ERC-20 puede utilizarse pasando su dirección de contrato. Las cadenas son extensibles — agrega cualquier cadena compatible con EVM mediante configuración.
 
 ---
 
 ## Desarrollo
 
 ```bash
-# Instalar dependencias
-npm install
+# Agente (TypeScript)
+cd agent && npm install && npm test
 
-# Ejecutar tests
-npm test
+# Escritorio (Electron)
+cd desktop && npm install && npm run dev
 
-# Verificación de tipos
-npm run typecheck
+# Servidor Relay (Go)
+cd server && go test ./...
 
-# Compilar (salida ESM + CJS + .d.ts)
-npm run build
-
-# Desarrollo en modo observación
-npm run dev
+# Despliegue con Docker
+cd server && docker compose up --build
 ```
 
-### Suite de tests
+### Suite de Pruebas
 
-El proyecto incluye tests exhaustivos de funcionalidad y seguridad:
-
-| Categoría | Contenido de las pruebas |
-|------|---------|
-| **Almacén de claves** | Generación de claves, cifrado/descifrado, contraseña incorrecta, estructura V3, persistencia |
-| **Cadena** | Creación de cliente, caché, Chain ID, codificación calldata ERC-20 |
-| **Contactos** | Operaciones CRUD, resolución multi-cadena, búsqueda insensible a mayúsculas, persistencia |
-| **Historial** | Gestión de registros, paginación, serialización BigInt |
-| **Políticas** | Límites, lista blanca, modo, flujo de aprobación, persistencia |
-| **Extremo a extremo** | Ciclo de vida completo desde creación de billetera hasta las 16 herramientas |
-| **Seguridad: Almacén** | Entropía de claves, IV/salt aleatorios, detección de manipulación, limpieza de memoria, protección DoS de KDF, resistencia a fuerza bruta (≥100ms de descifrado) |
-| **Seguridad: Entrada** | Inyección en dirección/monto/token/contacto, esquema Keystore malicioso |
-| **Seguridad: Política** | Ataques de precisión flotante, exactitud de centavos enteros, unicidad de IDs de aprobación, totales diarios concurrentes |
-| **Seguridad: Archivos** | Permisos de archivo (0600), protección contra travesía de rutas, escritura atómica |
-| **Seguridad: RPC** | Validación de saldos, verificación de rango de Gas, sin filtración de claves en errores |
+| Categoría | Qué se Prueba |
+|----------|---------------|
+| **Keystore** | Generación de claves, cifrado/descifrado, contraseña incorrecta, estructura V3 |
+| **Políticas** | Límites, lista blanca, modos, flujo de aprobación, aritmética de centavos enteros |
+| **E2EE** | Serialización de pares de claves, derivación determinística de pairId |
+| **Hub del Relay** | Enrutamiento WebSocket, vinculación de IP por par, limitación de tasa de conexión |
+| **Emparejamiento** | Generación de códigos cortos, expiración, resolución |
+| **Middleware** | Configuración de CORS, registro de accesos |
+| **Seguridad** | Entropía de claves, limpieza de memoria, inyección de entrada, permisos de archivo, traversal de ruta, seguridad RPC |
 
 ---
 
-## Requisitos del entorno
+## Solución de Problemas
 
-- Node.js ≥ 18
-- Framework de agentes IA compatible con OpenClaw (o cualquier framework que soporte definiciones de herramientas)
+| Problema | Solución |
+|-------|---------|
+| "Wallet app offline" | Asegúrate de que la Billetera de Escritorio esté ejecutándose y conectada al Relay |
+| "Pairing code expired" | Genera un nuevo código (TTL de 10 min) |
+| Solicitudes de firma bloqueadas | Verifica si la sesión está congelada (discrepancia de identidad) — re-empareja si es necesario |
+| Alerta de cambio de IP | Configura la política de IP: `block` / `warn` / `allow` |
+| El Agente no puede reconectarse | Usa `wallet_repair` para limpiar los datos de emparejamiento y re-emparejar |
+| Advertencia de misma máquina | Mueve la Billetera de Escritorio a un dispositivo separado para seguridad completa |
 
 ---
 

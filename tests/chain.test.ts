@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ChainAdapter } from "../src/chain.js";
+import { ChainAdapter } from "../agent/chain.js";
 import { base } from "viem/chains";
 import type { Address } from "viem";
 

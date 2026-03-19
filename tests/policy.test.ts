@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
-import { PolicyEngine, createDefaultPolicy } from "../src/policy.js";
+import { PolicyEngine, createDefaultPolicy } from "../agent/policy.js";
 import type { Address } from "viem";
 
 const ADDR_A = "0x1111111111111111111111111111111111111111" as Address;

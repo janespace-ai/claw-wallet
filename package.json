@@ -13,9 +13,6 @@
       "require": "./dist/index.cjs"
     }
   },
-  "bin": {
-    "claw-signer": "./bin/claw-signer.ts"
-  },
   "files": [
     "dist"
   ],
@@ -39,14 +36,17 @@
     "node": ">=18"
   },
   "dependencies": {
-    "@scure/bip32": "^2.0.1",
-    "@scure/bip39": "^2.0.1",
+    "@noble/ciphers": "^2.1.1",
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "viem": "^2.47.4"
+    "viem": "^2.47.4",
+    "ws": "^8.19.0"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "@types/ws": "^8.18.1",
     "vitest": "^4.1.0"
   }
 }

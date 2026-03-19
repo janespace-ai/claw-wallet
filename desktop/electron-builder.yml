@@ -1,0 +1,29 @@
+appId: com.openclaw.wallet
+productName: Claw Wallet
+directories:
+  output: release
+  buildResources: assets
+
+files:
+  - dist/**/*
+  - src/renderer/**/*
+  - "!src/renderer/*.ts"
+  - node_modules/**/*
+
+mac:
+  category: public.app-category.finance
+  target:
+    - dmg
+    - zip
+  hardenedRuntime: true
+  entitlements: assets/entitlements.mac.plist
+  entitlementsInherit: assets/entitlements.mac.plist
+
+win:
+  target:
+    - nsis
+
+linux:
+  target:
+    - AppImage
+  category: Finance

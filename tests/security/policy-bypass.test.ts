@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { getAddress } from "viem";
-import { PolicyEngine, createDefaultPolicy } from "../../src/policy.js";
+import { PolicyEngine, createDefaultPolicy } from "../../agent/policy.js";
 
 describe("security-policy-bypass", () => {
   let tempDir: string;

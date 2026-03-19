@@ -1,0 +1,30 @@
+{
+  "name": "claw-wallet-desktop",
+  "version": "0.1.0",
+  "description": "Claw Wallet Desktop - Electron-based secure wallet for OpenClaw Agent",
+  "private": true,
+  "main": "dist/main/index.js",
+  "scripts": {
+    "dev": "tsc && electron .",
+    "build": "tsc",
+    "package": "electron-builder --config electron-builder.yml",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/curves": "^1.8.0",
+    "@noble/hashes": "^1.7.0",
+    "@noble/ciphers": "^1.2.0",
+    "@scure/bip32": "^2.0.1",
+    "@scure/bip39": "^2.0.1",
+    "viem": "^2.47.4",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.13",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.0.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.0"
+  }
+}

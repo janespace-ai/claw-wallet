@@ -1,15 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
-import { mkdtemp, rm, stat, readFile, writeFile } from "node:fs/promises";
-import { generateWallet } from "../../src/keystore.js";
-import { encryptKey, saveKeystore, loadKeystore, decryptKey } from "../../src/keystore.js";
-import { sanitizePath, secureWriteFile } from "../../src/validation.js";
-import { ContactsManager } from "../../src/contacts.js";
-import { TransactionHistory } from "../../src/history.js";
-import { PolicyEngine, createDefaultPolicy } from "../../src/policy.js";
-
-const TEST_PASSWORD = "test-password-123";
+import { mkdtemp, rm, stat, readFile } from "node:fs/promises";
+import { sanitizePath, secureWriteFile } from "../../agent/validation.js";
+import { ContactsManager } from "../../agent/contacts.js";
+import { TransactionHistory } from "../../agent/history.js";
+import { PolicyEngine, createDefaultPolicy } from "../../agent/policy.js";
 
 describe("security-file-system", () => {
   let tempDir: string;
@@ -20,20 +16,6 @@ describe("security-file-system", () => {
 
   afterEach(async () => {
     await rm(tempDir, { recursive: true, force: true });
-  });
-
-  describe("keystore file permissions", () => {
-    it("saved keystore file has 0600 permissions (where supported)", async () => {
-      const { privateKey } = generateWallet();
-      const keystore = encryptKey(privateKey, TEST_PASSWORD);
-      const filePath = join(tempDir, "keystore.json");
-      await saveKeystore(keystore, filePath);
-      const st = await stat(filePath);
-      const mode = st.mode & 0o777;
-      if (process.platform !== "win32") {
-        expect(mode).toBe(0o600);
-      }
-    });
   });
 
   describe("path traversal", () => {
@@ -54,21 +36,6 @@ describe("security-file-system", () => {
       await secureWriteFile(filePath, '{"b":2}');
       const c2 = await readFile(filePath, "utf-8");
       expect(JSON.parse(c2)).toEqual({ b: 2 });
-    });
-  });
-
-  describe("no sensitive data in errors", () => {
-    it("decrypt error message does not contain key or password", () => {
-      const { privateKey } = generateWallet();
-      const keystore = encryptKey(privateKey, TEST_PASSWORD);
-      try {
-        decryptKey(keystore, "wrong");
-      } catch (e: any) {
-        const msg = e?.message ?? String(e);
-        expect(msg).not.toMatch(privateKey.slice(2));
-        expect(msg).not.toContain("wrong");
-        expect(msg).toMatch(/Invalid password|corrupted/);
-      }
     });
   });
 

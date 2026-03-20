@@ -9,6 +9,11 @@ dist/
 .env.local
 .env.*.local
 
+# Local config (keep config.example.json in repo)
+desktop/config.json
+server/config.json
+agent/config.json
+
 # Logs
 *.log
 npm-debug.log*

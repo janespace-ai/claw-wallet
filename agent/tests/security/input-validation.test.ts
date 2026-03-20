@@ -6,7 +6,7 @@ import {
   validateContactName,
   validateKeystoreSchema,
   ValidationError,
-} from "../../agent/validation.js";
+} from "../../validation.js";
 import { getAddress } from "viem";
 
 describe("security-input-validation", () => {

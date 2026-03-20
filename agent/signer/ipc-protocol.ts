@@ -12,7 +12,8 @@ export type SignerMethod =
   | "lock"
   | "get_allowance"
   | "set_allowance"
-  | "wallet_pair";
+  | "wallet_pair"
+  | "wallet_repair";
 
 export interface JsonRpcRequest {
   jsonrpc: typeof JSONRPC_VERSION;

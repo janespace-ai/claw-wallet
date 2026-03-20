@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { getAddress } from "viem";
-import { ClawWallet } from "../agent/index.js";
+import { ClawWallet } from "../index.js";
 
 describe("claw-wallet E2E (Phase 2 — no local signer)", () => {
   let tempDir: string;

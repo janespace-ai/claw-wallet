@@ -6,7 +6,7 @@ import {
   encryptJSON,
   decryptJSON,
   destroySession,
-} from "../../agent/e2ee/crypto.js";
+} from "../../e2ee/crypto.js";
 
 describe("E2EE integration: full pairing + signing flow", () => {
   it("simulates complete Agent <-> Wallet E2EE lifecycle", () => {

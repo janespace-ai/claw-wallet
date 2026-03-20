@@ -1,0 +1,20 @@
+{
+  "_comment_signTimeoutMs": "Timeout in ms waiting for Desktop Wallet to sign a transaction (env: CLAW_AGENT_SIGN_TIMEOUT_MS)",
+  "signTimeoutMs": 120000,
+
+  "_comment_reconnectBaseMs": "Base delay in ms before first reconnect attempt (env: CLAW_AGENT_RECONNECT_BASE_MS)",
+  "reconnectBaseMs": 1000,
+
+  "_comment_reconnectMaxMs": "Maximum reconnect delay in ms, caps exponential backoff (env: CLAW_AGENT_RECONNECT_MAX_MS)",
+  "reconnectMaxMs": 30000,
+
+  "_comment_policy": "Default policy parameters for transaction approval",
+  "policy": {
+    "_comment_perTxLimitUsd": "Maximum USD value per single transaction before requiring manual approval",
+    "perTxLimitUsd": 100,
+    "_comment_dailyLimitUsd": "Maximum total USD value of transactions per day",
+    "dailyLimitUsd": 500,
+    "_comment_mode": "Policy mode: \"supervised\" requires whitelist, \"autonomous\" allows any address within limits",
+    "mode": "supervised"
+  }
+}

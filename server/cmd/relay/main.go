@@ -4,33 +4,29 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
-	"time"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/cloudwego/hertz/pkg/common/adaptor"
 
+	"github.com/anthropic/claw-wallet-relay/internal/config"
 	"github.com/anthropic/claw-wallet-relay/internal/hub"
 	"github.com/anthropic/claw-wallet-relay/internal/middleware"
 	"github.com/anthropic/claw-wallet-relay/internal/pairing"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	cfg := config.LoadConfig()
 
-	h := hub.New()
-	pairStore := pairing.NewStore()
+	h := hub.New(cfg)
+	pairStore := pairing.NewStore(cfg.Pairing)
 
-	addr := ":" + port
+	addr := ":" + cfg.Port
 	srv := server.Default(
 		server.WithHostPorts(addr),
-		server.WithExitWaitTime(10*time.Second),
+		server.WithExitWaitTime(config.ParseDuration(cfg.GracefulShutdown, 10_000_000_000)),
 	)
 
-	srv.Use(middleware.CORS())
+	srv.Use(middleware.CORS(cfg.CORSAllowedOrigins))
 	srv.Use(middleware.AccessLog())
 
 	srv.GET("/ws", adaptor.HertzHandler(http.HandlerFunc(h.HandleWS)))

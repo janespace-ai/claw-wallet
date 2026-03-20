@@ -10,6 +10,7 @@ import type {
   TransactionRequest,
 } from "./types.js";
 import { secureWriteFile } from "./validation.js";
+import { agentConfig } from "./config.js";
 
 const APPROVAL_TIMEOUT_MS = 24 * 60 * 60 * 1000; // 24 hours
 
@@ -22,10 +23,10 @@ interface PolicyState {
 
 export function createDefaultPolicy(): PolicyConfig {
   return {
-    perTransactionLimitUsd: 100,
-    dailyLimitUsd: 500,
+    perTransactionLimitUsd: agentConfig.policy.perTxLimitUsd,
+    dailyLimitUsd: agentConfig.policy.dailyLimitUsd,
     whitelist: [],
-    mode: "supervised",
+    mode: agentConfig.policy.mode,
   };
 }
 

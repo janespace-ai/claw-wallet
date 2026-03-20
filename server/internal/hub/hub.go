@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/anthropic/claw-wallet-relay/internal/config"
 	"github.com/anthropic/claw-wallet-relay/internal/iputil"
 	"github.com/gorilla/websocket"
 )
@@ -26,8 +27,9 @@ type Hub struct {
 	mu           sync.RWMutex
 	pairs        map[string][]*Client
 	msgRate      map[string]*rateBucket
-	pairIPs      map[string]map[string]int // pairId -> ip -> client count
-	pairConnRate map[string]*rateBucket    // pairId -> connection rate
+	pairIPs      map[string]map[string]int
+	pairConnRate map[string]*rateBucket
+	cfg          config.Config
 }
 
 type rateBucket struct {
@@ -35,12 +37,13 @@ type rateBucket struct {
 	resetAt time.Time
 }
 
-func New() *Hub {
+func New(cfg config.Config) *Hub {
 	h := &Hub{
 		pairs:        make(map[string][]*Client),
 		msgRate:      make(map[string]*rateBucket),
 		pairIPs:      make(map[string]map[string]int),
 		pairConnRate: make(map[string]*rateBucket),
+		cfg:          cfg,
 	}
 	go h.cleanupRateBuckets()
 	return h
@@ -75,7 +78,7 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 		PairID: pairID,
 		Conn:   conn,
 		IP:     clientIP,
-		Send:   make(chan []byte, 64),
+		Send:   make(chan []byte, h.cfg.WS.SendBufferSize),
 	}
 
 	h.register(client)
@@ -88,7 +91,7 @@ func (h *Hub) register(c *Client) {
 	defer h.mu.Unlock()
 
 	clients := h.pairs[c.PairID]
-	if len(clients) >= 2 {
+	if len(clients) >= h.cfg.RateLimit.MaxClientsPerPair {
 		oldest := clients[0]
 		h.removeIPTracking(oldest.PairID, oldest.IP)
 		oldest.Conn.Close()
@@ -157,7 +160,7 @@ func (h *Hub) checkMsgRate(clientAddr string) bool {
 		return true
 	}
 	bucket.count++
-	return bucket.count <= 100
+	return bucket.count <= h.cfg.RateLimit.MessageRate
 }
 
 func (h *Hub) checkPairIPLimit(pairID, ip string) bool {
@@ -171,7 +174,7 @@ func (h *Hub) checkPairIPLimit(pairID, ip string) bool {
 	if _, exists := ips[ip]; exists {
 		return true
 	}
-	return len(ips) < 2
+	return len(ips) < h.cfg.RateLimit.MaxIPsPerPair
 }
 
 func (h *Hub) checkPairConnRate(pairID string) bool {
@@ -185,11 +188,12 @@ func (h *Hub) checkPairConnRate(pairID string) bool {
 		return true
 	}
 	bucket.count++
-	return bucket.count <= 10
+	return bucket.count <= h.cfg.RateLimit.ConnectionRate
 }
 
 func (h *Hub) cleanupRateBuckets() {
-	ticker := time.NewTicker(5 * time.Minute)
+	interval := config.ParseDuration(h.cfg.RateLimit.CleanupInterval, 5*time.Minute)
+	ticker := time.NewTicker(interval)
 	for range ticker.C {
 		h.mu.Lock()
 		now := time.Now()
@@ -208,6 +212,8 @@ func (h *Hub) cleanupRateBuckets() {
 }
 
 func (h *Hub) readPump(c *Client) {
+	readTimeout := config.ParseDuration(h.cfg.WS.ReadTimeout, 60*time.Second)
+
 	defer func() {
 		h.unregister(c)
 		c.Conn.Close()
@@ -227,10 +233,10 @@ func (h *Hub) readPump(c *Client) {
 		}
 	}()
 
-	c.Conn.SetReadLimit(64 * 1024)
-	c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+	c.Conn.SetReadLimit(h.cfg.WS.ReadLimitBytes)
+	c.Conn.SetReadDeadline(time.Now().Add(readTimeout))
 	c.Conn.SetPongHandler(func(string) error {
-		c.Conn.SetReadDeadline(time.Now().Add(60 * time.Second))
+		c.Conn.SetReadDeadline(time.Now().Add(readTimeout))
 		return nil
 	})
 
@@ -268,7 +274,10 @@ func (h *Hub) readPump(c *Client) {
 }
 
 func (h *Hub) writePump(c *Client) {
-	ticker := time.NewTicker(30 * time.Second)
+	pingInterval := config.ParseDuration(h.cfg.WS.PingInterval, 30*time.Second)
+	writeTimeout := config.ParseDuration(h.cfg.WS.WriteTimeout, 10*time.Second)
+
+	ticker := time.NewTicker(pingInterval)
 	defer func() {
 		ticker.Stop()
 		c.Conn.Close()
@@ -277,7 +286,7 @@ func (h *Hub) writePump(c *Client) {
 	for {
 		select {
 		case message, ok := <-c.Send:
-			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			c.Conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 			if !ok {
 				c.Conn.WriteMessage(websocket.CloseMessage, []byte{})
 				return
@@ -286,7 +295,7 @@ func (h *Hub) writePump(c *Client) {
 				return
 			}
 		case <-ticker.C:
-			c.Conn.SetWriteDeadline(time.Now().Add(10 * time.Second))
+			c.Conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 			if err := c.Conn.WriteMessage(websocket.PingMessage, nil); err != nil {
 				return
 			}

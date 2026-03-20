@@ -8,11 +8,16 @@ import (
 	"testing"
 	"time"
 
+	appconfig "github.com/anthropic/claw-wallet-relay/internal/config"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/common/config"
 	"github.com/cloudwego/hertz/pkg/common/ut"
 	"github.com/cloudwego/hertz/pkg/route"
 )
+
+func testStore() *Store {
+	return NewStore(appconfig.Default().Pairing)
+}
 
 func setupRouter(store *Store) *route.Engine {
 	router := route.NewEngine(config.NewOptions([]config.Option{}))
@@ -22,7 +27,7 @@ func setupRouter(store *Store) *route.Engine {
 }
 
 func TestCreateAndResolve(t *testing.T) {
-	store := NewStore()
+	store := testStore()
 	router := setupRouter(store)
 
 	body, _ := json.Marshal(CreateRequest{
@@ -42,8 +47,8 @@ func TestCreateAndResolve(t *testing.T) {
 	var createResp CreateResponse
 	json.Unmarshal(resp.Body(), &createResp)
 
-	if len(createResp.ShortCode) != codeLength {
-		t.Fatalf("expected code length %d, got %d", codeLength, len(createResp.ShortCode))
+	if len(createResp.ShortCode) != store.cfg.CodeLength {
+		t.Fatalf("expected code length %d, got %d", store.cfg.CodeLength, len(createResp.ShortCode))
 	}
 
 	w2 := ut.PerformRequest(router, "GET", "/pair/"+createResp.ShortCode, nil)
@@ -65,7 +70,7 @@ func TestCreateAndResolve(t *testing.T) {
 }
 
 func TestResolveNotFound(t *testing.T) {
-	store := NewStore()
+	store := testStore()
 	router := setupRouter(store)
 
 	w := ut.PerformRequest(router, "GET", "/pair/NONEXIST", nil)
@@ -77,7 +82,7 @@ func TestResolveNotFound(t *testing.T) {
 }
 
 func TestCreateRateLimit(t *testing.T) {
-	store := NewStore()
+	store := testStore()
 	router := setupRouter(store)
 
 	for i := 0; i < 10; i++ {
@@ -104,7 +109,7 @@ func TestCreateRateLimit(t *testing.T) {
 }
 
 func TestCreateMissingFields(t *testing.T) {
-	store := NewStore()
+	store := testStore()
 	router := setupRouter(store)
 
 	body, _ := json.Marshal(map[string]string{"walletAddr": "0x123"})
@@ -119,9 +124,10 @@ func TestCreateMissingFields(t *testing.T) {
 }
 
 func TestCodeUniqueness(t *testing.T) {
+	store := testStore()
 	codes := make(map[string]bool)
 	for i := 0; i < 100; i++ {
-		code, err := generateCode()
+		code, err := store.generateCode()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -133,8 +139,6 @@ func TestCodeUniqueness(t *testing.T) {
 }
 
 func TestExtractIP(t *testing.T) {
-	store := NewStore()
-
 	var capturedIP string
 	router := route.NewEngine(config.NewOptions([]config.Option{}))
 	router.GET("/test-ip", func(_ context.Context, c *app.RequestContext) {
@@ -147,18 +151,17 @@ func TestExtractIP(t *testing.T) {
 	if capturedIP != "10.0.0.1" {
 		t.Fatalf("expected IP 10.0.0.1, got %s", capturedIP)
 	}
-
-	_ = store
 }
 
 func TestResolveExpiredCode(t *testing.T) {
-	store := NewStore()
+	store := testStore()
+	ttl := store.codeTTL()
 
 	store.mu.Lock()
 	store.codes["EXPIRED1"] = &PairInfo{
 		WalletAddr: "0xexpired",
 		CommPubKey: "key-expired",
-		CreatedAt:  time.Now().Add(-(codeTTL + time.Minute)),
+		CreatedAt:  time.Now().Add(-(ttl + time.Minute)),
 		CreatorIP:  "127.0.0.1",
 	}
 	store.mu.Unlock()
@@ -173,7 +176,7 @@ func TestResolveExpiredCode(t *testing.T) {
 }
 
 func TestCreateInvalidJSON(t *testing.T) {
-	store := NewStore()
+	store := testStore()
 	router := setupRouter(store)
 
 	invalidBody := []byte(`{invalid json`)
@@ -188,7 +191,7 @@ func TestCreateInvalidJSON(t *testing.T) {
 }
 
 func TestResolveCaseInsensitive(t *testing.T) {
-	store := NewStore()
+	store := testStore()
 	router := setupRouter(store)
 
 	body, _ := json.Marshal(CreateRequest{

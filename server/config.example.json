@@ -1,0 +1,50 @@
+{
+  "_comment_port": "Server listen port (env: CLAW_SERVER_PORT or PORT)",
+  "port": "8080",
+
+  "_comment_corsAllowedOrigins": "Allowed CORS origins; use [\"*\"] for development, restrict in production (env: CLAW_SERVER_CORS_ORIGINS, comma-separated)",
+  "corsAllowedOrigins": ["*"],
+
+  "_comment_gracefulShutdown": "Graceful shutdown timeout as Go duration string",
+  "gracefulShutdown": "10s",
+
+  "_comment_ws": "WebSocket connection tuning parameters",
+  "ws": {
+    "_comment_readLimitBytes": "Maximum incoming WebSocket message size in bytes (64KB default)",
+    "readLimitBytes": 65536,
+    "_comment_readTimeout": "Read deadline / pong wait timeout",
+    "readTimeout": "60s",
+    "_comment_writeTimeout": "Write deadline for outgoing messages",
+    "writeTimeout": "10s",
+    "_comment_pingInterval": "Interval between keep-alive ping frames",
+    "pingInterval": "30s",
+    "_comment_sendBufferSize": "Per-client outgoing message buffer size",
+    "sendBufferSize": 64
+  },
+
+  "_comment_rateLimit": "Rate limiting parameters",
+  "rateLimit": {
+    "_comment_messageRate": "Maximum messages per second per client",
+    "messageRate": 100,
+    "_comment_connectionRate": "Maximum new connections per minute per pair ID",
+    "connectionRate": 10,
+    "_comment_maxIPsPerPair": "Maximum unique source IPs allowed per pair ID",
+    "maxIPsPerPair": 2,
+    "_comment_maxClientsPerPair": "Maximum concurrent WebSocket clients per pair ID",
+    "maxClientsPerPair": 2,
+    "_comment_cleanupInterval": "Interval to purge expired rate-limit buckets",
+    "cleanupInterval": "5m"
+  },
+
+  "_comment_pairing": "Pairing code parameters",
+  "pairing": {
+    "_comment_codeLength": "Length of generated pairing short codes",
+    "codeLength": 8,
+    "_comment_codeTTL": "Time-to-live for pairing codes",
+    "codeTTL": "10m",
+    "_comment_ipRateLimit": "Maximum pairing code creates per minute per IP",
+    "ipRateLimit": 10,
+    "_comment_cleanupInterval": "Interval to purge expired pairing codes",
+    "cleanupInterval": "1m"
+  }
+}

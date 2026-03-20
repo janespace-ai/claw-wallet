@@ -10,15 +10,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/anthropic/claw-wallet-relay/internal/config"
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
 
-const (
-	codeLength = 8
-	codeTTL    = 10 * time.Minute
-	charset    = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
-)
+const charset = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 
 type PairInfo struct {
 	WalletAddr string `json:"walletAddr"`
@@ -43,6 +40,8 @@ type Store struct {
 
 	rateMu    sync.Mutex
 	rateCount map[string]*ipRate
+
+	cfg config.PairingConfig
 }
 
 type ipRate struct {
@@ -50,22 +49,29 @@ type ipRate struct {
 	resetAt time.Time
 }
 
-func NewStore() *Store {
+func NewStore(cfg config.PairingConfig) *Store {
 	s := &Store{
 		codes:     make(map[string]*PairInfo),
 		rateCount: make(map[string]*ipRate),
+		cfg:       cfg,
 	}
 	go s.cleanup()
 	return s
 }
 
+func (s *Store) codeTTL() time.Duration {
+	return config.ParseDuration(s.cfg.CodeTTL, 10*time.Minute)
+}
+
 func (s *Store) cleanup() {
-	ticker := time.NewTicker(1 * time.Minute)
+	interval := config.ParseDuration(s.cfg.CleanupInterval, 1*time.Minute)
+	ticker := time.NewTicker(interval)
+	ttl := s.codeTTL()
 	for range ticker.C {
 		s.mu.Lock()
 		now := time.Now()
 		for code, info := range s.codes {
-			if now.Sub(info.CreatedAt) > codeTTL {
+			if now.Sub(info.CreatedAt) > ttl {
 				delete(s.codes, code)
 			}
 		}
@@ -84,12 +90,16 @@ func (s *Store) checkIPRate(ip string) bool {
 		return true
 	}
 	rate.count++
-	return rate.count <= 10
+	return rate.count <= s.cfg.IPRateLimit
 }
 
-func generateCode() (string, error) {
+func (s *Store) generateCode() (string, error) {
+	length := s.cfg.CodeLength
+	if length <= 0 {
+		length = 8
+	}
 	var sb strings.Builder
-	for i := 0; i < codeLength; i++ {
+	for i := 0; i < length; i++ {
 		n, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
 		if err != nil {
 			return "", err
@@ -133,7 +143,7 @@ func (s *Store) HandleCreate(_ context.Context, c *app.RequestContext) {
 		return
 	}
 
-	code, err := generateCode()
+	code, err := s.generateCode()
 	if err != nil {
 		log.Printf("code generation error: %v", err)
 		c.String(consts.StatusInternalServerError, "internal error")
@@ -151,7 +161,7 @@ func (s *Store) HandleCreate(_ context.Context, c *app.RequestContext) {
 
 	resp := CreateResponse{
 		ShortCode: code,
-		ExpiresIn: int(codeTTL.Seconds()),
+		ExpiresIn: int(s.codeTTL().Seconds()),
 	}
 
 	c.JSON(consts.StatusOK, resp)
@@ -164,6 +174,8 @@ func (s *Store) HandleResolve(_ context.Context, c *app.RequestContext) {
 		return
 	}
 
+	ttl := s.codeTTL()
+
 	s.mu.RLock()
 	info, ok := s.codes[code]
 	s.mu.RUnlock()
@@ -173,7 +185,7 @@ func (s *Store) HandleResolve(_ context.Context, c *app.RequestContext) {
 		return
 	}
 
-	if time.Since(info.CreatedAt) > codeTTL {
+	if time.Since(info.CreatedAt) > ttl {
 		s.mu.Lock()
 		delete(s.codes, code)
 		s.mu.Unlock()
@@ -193,7 +205,7 @@ func (s *Store) CreateForTest(walletAddr, commPubKey, ip string) (string, error)
 		return "", json.Unmarshal([]byte(`"rate limited"`), new(string))
 	}
 
-	code, err := generateCode()
+	code, err := s.generateCode()
 	if err != nil {
 		return "", err
 	}
@@ -213,6 +225,8 @@ func (s *Store) CreateForTest(walletAddr, commPubKey, ip string) (string, error)
 // ResolveForTest exposes store resolution for testing without going through HTTP.
 func (s *Store) ResolveForTest(code string) (*PairInfo, bool) {
 	code = strings.ToUpper(code)
+	ttl := s.codeTTL()
+
 	s.mu.RLock()
 	info, ok := s.codes[code]
 	s.mu.RUnlock()
@@ -221,7 +235,7 @@ func (s *Store) ResolveForTest(code string) (*PairInfo, bool) {
 		return nil, false
 	}
 
-	if time.Since(info.CreatedAt) > codeTTL {
+	if time.Since(info.CreatedAt) > ttl {
 		s.mu.Lock()
 		delete(s.codes, code)
 		s.mu.Unlock()

@@ -2,16 +2,21 @@ import { KeyManager } from "./key-manager.js";
 
 export type LockMode = "convenience" | "strict";
 
-const STRICT_IDLE_TIMEOUT_MS = 5 * 60 * 1000;
+export interface LockManagerOptions {
+  /** Idle timeout in ms before auto-lock in strict mode (default: 300000 = 5min) */
+  strictIdleTimeoutMs?: number;
+}
 
 export class LockManager {
   private keyManager: KeyManager;
   private mode: LockMode = "convenience";
   private idleTimer: ReturnType<typeof setTimeout> | null = null;
   private lockCallbacks: Array<() => void> = [];
+  private strictIdleTimeoutMs: number;
 
-  constructor(keyManager: KeyManager) {
+  constructor(keyManager: KeyManager, options?: LockManagerOptions) {
     this.keyManager = keyManager;
+    this.strictIdleTimeoutMs = options?.strictIdleTimeoutMs ?? 5 * 60 * 1000;
   }
 
   getMode(): LockMode {
@@ -45,7 +50,7 @@ export class LockManager {
     if (this.mode === "strict") {
       this.idleTimer = setTimeout(() => {
         this.lock();
-      }, STRICT_IDLE_TIMEOUT_MS);
+      }, this.strictIdleTimeoutMs);
     }
   }
 

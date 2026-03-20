@@ -5,21 +5,23 @@ import (
 	"testing"
 
 	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/common/config"
+	hertzconfig "github.com/cloudwego/hertz/pkg/common/config"
 	"github.com/cloudwego/hertz/pkg/common/ut"
 	"github.com/cloudwego/hertz/pkg/route"
 
+	appconfig "github.com/anthropic/claw-wallet-relay/internal/config"
 	"github.com/anthropic/claw-wallet-relay/internal/middleware"
 	"github.com/anthropic/claw-wallet-relay/internal/pairing"
 )
 
 func setupIntegrationRouter() *route.Engine {
-	router := route.NewEngine(config.NewOptions([]config.Option{}))
+	cfg := appconfig.Default()
+	router := route.NewEngine(hertzconfig.NewOptions([]hertzconfig.Option{}))
 
-	router.Use(middleware.CORS())
+	router.Use(middleware.CORS(cfg.CORSAllowedOrigins))
 	router.Use(middleware.AccessLog())
 
-	pairStore := pairing.NewStore()
+	pairStore := pairing.NewStore(cfg.Pairing)
 	router.POST("/pair/create", pairStore.HandleCreate)
 	router.GET("/pair/:code", pairStore.HandleResolve)
 

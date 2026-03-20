@@ -5,15 +5,24 @@ import { SigningEngine } from "./signing-engine.js";
 import { RelayBridge } from "./relay-bridge.js";
 import { SecurityMonitor } from "./security-monitor.js";
 import { LockManager } from "./lock-manager.js";
+import { config } from "./config.js";
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
 
 const dataDir = join(app.getPath("userData"), "wallet-data");
 const keyManager = new KeyManager(dataDir);
-const signingEngine = new SigningEngine(keyManager);
-const securityMonitor = new SecurityMonitor(dataDir);
-const lockManager = new LockManager(keyManager);
+const signingEngine = new SigningEngine(keyManager, {
+  dailyLimitUsd: config.signing.dailyLimitUsd,
+  perTxLimitUsd: config.signing.perTxLimitUsd,
+  tokenWhitelist: config.signing.tokenWhitelist,
+});
+const securityMonitor = new SecurityMonitor(dataDir, {
+  maxEvents: config.security.maxEvents,
+});
+const lockManager = new LockManager(keyManager, {
+  strictIdleTimeoutMs: config.lock.strictIdleTimeoutMs,
+});
 let relayBridge: RelayBridge | null = null;
 
 function createWindow(): void {
@@ -197,6 +206,10 @@ app.whenReady().then(async () => {
     keyManager,
     signingEngine,
     securityMonitor,
+    relayUrl: config.relayUrl,
+    reconnectBaseMs: config.relay.reconnectBaseMs,
+    reconnectMaxMs: config.relay.reconnectMaxMs,
+    ipChangePolicy: config.ipChangePolicy,
     onTransactionRequest: (req) => {
       mainWindow?.webContents.send("wallet:tx-request", req);
     },

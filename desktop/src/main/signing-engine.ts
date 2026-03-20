@@ -22,6 +22,12 @@ interface PendingSignRequest {
   reject: (reason: Error) => void;
 }
 
+export interface SigningEngineOptions {
+  dailyLimitUsd?: number;
+  perTxLimitUsd?: number;
+  tokenWhitelist?: string[];
+}
+
 const DEFAULT_ALLOWANCE: AllowanceConfig = {
   dailyLimitUSD: 100,
   perTxLimitUSD: 50,
@@ -31,15 +37,21 @@ const DEFAULT_ALLOWANCE: AllowanceConfig = {
 
 export class SigningEngine {
   private keyManager: KeyManager;
-  private allowance: AllowanceConfig = { ...DEFAULT_ALLOWANCE };
+  private allowance: AllowanceConfig;
   private dailyUsage: DailyUsage = { date: "", spentUSD: 0 };
   private pendingRequests = new Map<string, PendingSignRequest>();
   private frozen = false;
   private frozenUntil = 0;
   private dataDir = "";
 
-  constructor(keyManager: KeyManager) {
+  constructor(keyManager: KeyManager, options?: SigningEngineOptions) {
     this.keyManager = keyManager;
+    this.allowance = {
+      dailyLimitUSD: options?.dailyLimitUsd ?? DEFAULT_ALLOWANCE.dailyLimitUSD,
+      perTxLimitUSD: options?.perTxLimitUsd ?? DEFAULT_ALLOWANCE.perTxLimitUSD,
+      tokenWhitelist: options?.tokenWhitelist ?? [...DEFAULT_ALLOWANCE.tokenWhitelist],
+      addressWhitelist: [],
+    };
   }
 
   setDataDir(dir: string): void {

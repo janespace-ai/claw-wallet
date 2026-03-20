@@ -18,6 +18,8 @@ import {
   type E2EEKeyPair,
 } from "../e2ee/crypto.js";
 
+import { agentConfig } from "../config.js";
+
 export interface RelaySignerOptions {
   dataDir: string;
   socketPath: string;
@@ -39,7 +41,7 @@ interface PendingRequest {
   timer: ReturnType<typeof setTimeout>;
 }
 
-const SIGN_TIMEOUT_MS = 120_000;
+const SIGN_TIMEOUT_MS = agentConfig.signTimeoutMs;
 
 export class RelaySigner {
   private ipcServer: IpcServer;

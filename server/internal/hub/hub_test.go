@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/anthropic/claw-wallet-relay/internal/config"
 	"github.com/gorilla/websocket"
 )
 
@@ -47,7 +48,7 @@ func readJSON(t *testing.T, conn *websocket.Conn, timeout time.Duration) map[str
 }
 
 func TestWSConnect(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 
@@ -61,7 +62,7 @@ func TestWSConnect(t *testing.T) {
 }
 
 func TestWSMissingPairId(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 
@@ -75,7 +76,7 @@ func TestWSMissingPairId(t *testing.T) {
 }
 
 func TestWSMessageRelay(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 
@@ -102,7 +103,7 @@ func TestWSMessageRelay(t *testing.T) {
 }
 
 func TestWSMessageNotEchoedToSender(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 
@@ -129,7 +130,7 @@ func TestWSMessageNotEchoedToSender(t *testing.T) {
 }
 
 func TestWSDisconnectNotification(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 
@@ -148,7 +149,7 @@ func TestWSDisconnectNotification(t *testing.T) {
 }
 
 func TestWSPairCapacityEviction(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 
@@ -182,7 +183,7 @@ func TestWSPairCapacityEviction(t *testing.T) {
 }
 
 func TestWSMessageRateLimit(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 
@@ -218,7 +219,7 @@ func TestWSMessageRateLimit(t *testing.T) {
 }
 
 func TestPairIPBinding(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 
@@ -240,7 +241,7 @@ func TestPairIPBinding(t *testing.T) {
 }
 
 func TestPairConnRateLimit(t *testing.T) {
-	h := New()
+	h := New(config.Default())
 	s := setupTestServer(h)
 	defer s.Close()
 

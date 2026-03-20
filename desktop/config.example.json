@@ -1,0 +1,40 @@
+{
+  "_comment_relayUrl": "Relay server WebSocket URL (env: CLAW_DESKTOP_RELAY_URL)",
+  "relayUrl": "ws://localhost:8080",
+
+  "_comment_ipChangePolicy": "IP change policy: \"block\" rejects, \"warn\" alerts, \"allow\" ignores",
+  "ipChangePolicy": "warn",
+
+  "_comment_lockMode": "Lock mode: \"convenience\" allows biometric, \"strict\" enforces password + idle timeout",
+  "lockMode": "convenience",
+
+  "_comment_relay": "Relay connection tuning parameters",
+  "relay": {
+    "_comment_reconnectBaseMs": "Base delay in ms before first reconnect attempt",
+    "reconnectBaseMs": 1000,
+    "_comment_reconnectMaxMs": "Maximum reconnect delay in ms, caps exponential backoff",
+    "reconnectMaxMs": 30000
+  },
+
+  "_comment_signing": "Signing engine auto-approval budget parameters",
+  "signing": {
+    "_comment_dailyLimitUsd": "Maximum total USD value of auto-approved transactions per day",
+    "dailyLimitUsd": 100,
+    "_comment_perTxLimitUsd": "Maximum USD value per single auto-approved transaction",
+    "perTxLimitUsd": 50,
+    "_comment_tokenWhitelist": "Token symbols allowed for auto-approval",
+    "tokenWhitelist": ["ETH", "USDC", "USDT"]
+  },
+
+  "_comment_lock": "Lock manager parameters",
+  "lock": {
+    "_comment_strictIdleTimeoutMs": "Idle timeout in ms before auto-lock in strict mode (300000 = 5min)",
+    "strictIdleTimeoutMs": 300000
+  },
+
+  "_comment_security": "Security monitor parameters",
+  "security": {
+    "_comment_maxEvents": "Maximum number of security events to retain in memory",
+    "maxEvents": 1000
+  }
+}

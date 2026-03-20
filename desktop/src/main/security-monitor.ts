@@ -16,16 +16,17 @@ interface PendingAlert {
   timestamp: number;
 }
 
-const MAX_EVENTS = 1000;
 
 export class SecurityMonitor {
   private dataDir: string;
   private events: SecurityEvent[] = [];
   private pendingAlerts = new Map<string, PendingAlert>();
   private sameMachineDetected = false;
+  private maxEvents: number;
 
-  constructor(dataDir: string) {
+  constructor(dataDir: string, options?: { maxEvents?: number }) {
     this.dataDir = dataDir;
+    this.maxEvents = options?.maxEvents ?? 1000;
   }
 
   async initialize(): Promise<void> {
@@ -95,8 +96,8 @@ export class SecurityMonitor {
 
   private addEvent(event: SecurityEvent): void {
     this.events.push(event);
-    if (this.events.length > MAX_EVENTS) {
-      this.events = this.events.slice(-MAX_EVENTS);
+    if (this.events.length > this.maxEvents) {
+      this.events = this.events.slice(-this.maxEvents);
     }
     this.saveEvents();
   }

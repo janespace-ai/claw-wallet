@@ -25,7 +25,9 @@ export interface RelayBridgeOptions {
   keyManager: KeyManager;
   signingEngine: SigningEngine;
   securityMonitor: SecurityMonitor;
-  relayUrl?: string;
+  relayUrl: string;
+  reconnectBaseMs?: number;
+  reconnectMaxMs?: number;
   ipChangePolicy?: "block" | "warn" | "allow";
   onTransactionRequest?: (req: TransactionRequestInfo) => void;
   onConnectionStatus?: (status: ConnectionStatusInfo) => void;
@@ -72,7 +74,6 @@ interface StoredPairings {
   devices: PairedDevice[];
 }
 
-const DEFAULT_RELAY_URL = "ws://localhost:8765";
 const PAIR_CODE_ENDPOINT = "/pair/create";
 
 async function loadOrCreateKeyPair(dataDir: string): Promise<E2EEKeyPair> {
@@ -109,12 +110,16 @@ export class RelayBridge {
   private pendingPairCode: string | null = null;
   private frozenSessions = new Map<string, { until: number; reason: string }>();
   private ipChangePolicy: "block" | "warn" | "allow";
+  private reconnectBaseMs: number;
+  private reconnectMaxMs: number;
 
   constructor(options: RelayBridgeOptions) {
     this.options = options;
     this.pairingsPath = join(options.dataDir, "pairings.enc.json");
-    this.relayUrl = options.relayUrl ?? DEFAULT_RELAY_URL;
+    this.relayUrl = options.relayUrl;
     this.ipChangePolicy = options.ipChangePolicy ?? "warn";
+    this.reconnectBaseMs = options.reconnectBaseMs ?? 1000;
+    this.reconnectMaxMs = options.reconnectMaxMs ?? 30000;
 
     this.initialize();
   }
@@ -475,7 +480,7 @@ export class RelayBridge {
 
   private scheduleReconnect(): void {
     if (this.destroyed) return;
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempt), 30000);
+    const delay = Math.min(this.reconnectBaseMs * Math.pow(2, this.reconnectAttempt), this.reconnectMaxMs);
     this.reconnectAttempt++;
     this.reconnectTimer = setTimeout(() => {
       if (!this.destroyed) this.connect();

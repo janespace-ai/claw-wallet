@@ -2,8 +2,8 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
-import { TransactionHistory } from "../agent/history.js";
-import type { TxRecord } from "../agent/types.js";
+import { TransactionHistory } from "../history.js";
+import type { TxRecord } from "../types.js";
 import type { Hex, Address } from "viem";
 
 function makeTx(overrides: Partial<TxRecord> = {}): TxRecord {

@@ -9,6 +9,7 @@ import {
   type E2EESession,
   type E2EEKeyPair,
 } from "./crypto.js";
+import { agentConfig } from "../config.js";
 
 export interface RelayTransportOptions {
   relayUrl: string;
@@ -132,7 +133,7 @@ export class RelayTransport {
   private scheduleReconnect(): void {
     if (this.destroyed) return;
 
-    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempt), 30000);
+    const delay = Math.min(agentConfig.reconnectBaseMs * Math.pow(2, this.reconnectAttempt), agentConfig.reconnectMaxMs);
     this.reconnectAttempt++;
 
     this.reconnectTimer = setTimeout(() => {

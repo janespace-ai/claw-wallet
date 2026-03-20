@@ -12,7 +12,7 @@ import (
 
 func TestCORSOptionsPreflight(t *testing.T) {
 	router := route.NewEngine(config.NewOptions([]config.Option{}))
-	router.Use(CORS())
+	router.Use(CORS([]string{"*"}))
 	router.GET("/test", func(_ context.Context, c *app.RequestContext) {
 		c.String(200, "ok")
 	})
@@ -47,7 +47,7 @@ func TestCORSOptionsPreflight(t *testing.T) {
 
 func TestCORSRegularRequest(t *testing.T) {
 	router := route.NewEngine(config.NewOptions([]config.Option{}))
-	router.Use(CORS())
+	router.Use(CORS([]string{"*"}))
 	router.GET("/test", func(_ context.Context, c *app.RequestContext) {
 		c.String(200, "hello")
 	})

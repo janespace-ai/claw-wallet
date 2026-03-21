@@ -15,7 +15,7 @@ import {
   derivePairId,
   type E2EEKeyPair,
   type E2EESession,
-} from "../../shared/e2ee-crypto.js";
+} from "../shared/e2ee-crypto.js";
 import { KeyManager } from "./key-manager.js";
 import { SigningEngine } from "./signing-engine.js";
 import { SecurityMonitor } from "./security-monitor.js";

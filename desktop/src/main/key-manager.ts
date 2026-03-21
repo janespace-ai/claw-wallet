@@ -3,7 +3,7 @@ import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { randomBytes, createHash } from "node:crypto";
 import { HDKey } from "@scure/bip32";
 import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from "@scure/bip39";
-import { wordlist } from "@scure/bip39/wordlists/english";
+import { wordlist } from "@scure/bip39/wordlists/english.js";
 import { privateKeyToAccount } from "viem/accounts";
 import type { Address, Hex } from "viem";
 

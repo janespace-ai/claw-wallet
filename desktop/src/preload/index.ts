@@ -19,8 +19,10 @@ export interface WalletAPI {
   getAllowance: () => Promise<AllowanceConfig>;
   setLockMode: (mode: "convenience" | "strict") => Promise<void>;
   getLockMode: () => Promise<"convenience" | "strict">;
-  setBiometricEnabled: (enabled: boolean) => Promise<void>;
+  setBiometricEnabled: (enabled: boolean, password?: string) => Promise<void>;
   getBiometricAvailable: () => Promise<boolean>;
+  getBiometricLabel: () => Promise<string | null>;
+  canEnableBiometric: () => Promise<boolean>;
   getSecurityEvents: () => Promise<SecurityEvent[]>;
   respondToAlert: (alertId: string, action: "freeze" | "allow_once" | "trust") => Promise<void>;
   exportMnemonic: (password: string) => Promise<{ mnemonic: string }>;
@@ -29,6 +31,7 @@ export interface WalletAPI {
   onConnectionStatus: (callback: (status: ConnectionStatus) => void) => () => void;
   onSecurityAlert: (callback: (alert: SecurityAlert) => void) => () => void;
   onLockStateChange: (callback: (locked: boolean) => void) => () => void;
+  onBiometricPrompt: (callback: (password: string) => void) => () => void;
 }
 
 export interface WalletStatus {
@@ -107,8 +110,10 @@ const api: WalletAPI = {
   getAllowance: () => ipcRenderer.invoke("wallet:get-allowance"),
   setLockMode: (mode) => ipcRenderer.invoke("wallet:set-lock-mode", mode),
   getLockMode: () => ipcRenderer.invoke("wallet:get-lock-mode"),
-  setBiometricEnabled: (enabled) => ipcRenderer.invoke("wallet:set-biometric", enabled),
+  setBiometricEnabled: (enabled, password?) => ipcRenderer.invoke("wallet:set-biometric", enabled, password),
   getBiometricAvailable: () => ipcRenderer.invoke("wallet:biometric-available"),
+  getBiometricLabel: () => ipcRenderer.invoke("wallet:biometric-label"),
+  canEnableBiometric: () => ipcRenderer.invoke("wallet:can-enable-biometric"),
   getSecurityEvents: () => ipcRenderer.invoke("wallet:security-events"),
   respondToAlert: (alertId, action) => ipcRenderer.invoke("wallet:respond-alert", alertId, action),
   exportMnemonic: (password) => ipcRenderer.invoke("wallet:export-mnemonic", password),
@@ -132,6 +137,11 @@ const api: WalletAPI = {
     const handler = (_: unknown, locked: boolean) => callback(locked);
     ipcRenderer.on("wallet:lock-state", handler);
     return () => ipcRenderer.removeListener("wallet:lock-state", handler);
+  },
+  onBiometricPrompt: (callback) => {
+    const handler = (_: unknown, password: string) => callback(password);
+    ipcRenderer.on("wallet:biometric-prompt", handler);
+    return () => ipcRenderer.removeListener("wallet:biometric-prompt", handler);
   },
 };
 

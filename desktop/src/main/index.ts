@@ -99,6 +99,9 @@ function registerIpcHandlers(): void {
     await keyManager.unlock(password);
     lockManager.onUnlock();
     mainWindow?.webContents.send("wallet:lock-state", false);
+    if (keyManager.canEnableBiometric() && !keyManager.isBiometricAvailable()) {
+      mainWindow?.webContents.send("wallet:biometric-prompt", password);
+    }
   });
 
   ipcMain.handle("wallet:unlock-biometric", async () => {
@@ -179,12 +182,20 @@ function registerIpcHandlers(): void {
     return lockManager.getMode();
   });
 
-  ipcMain.handle("wallet:set-biometric", async (_, enabled: boolean) => {
-    await keyManager.setBiometricEnabled(enabled);
+  ipcMain.handle("wallet:set-biometric", async (_, enabled: boolean, password?: string) => {
+    await keyManager.setBiometricEnabled(enabled, password);
   });
 
   ipcMain.handle("wallet:biometric-available", async () => {
     return keyManager.isBiometricAvailable();
+  });
+
+  ipcMain.handle("wallet:biometric-label", async () => {
+    return keyManager.getBiometricLabel();
+  });
+
+  ipcMain.handle("wallet:can-enable-biometric", async () => {
+    return keyManager.canEnableBiometric();
   });
 
   ipcMain.handle("wallet:security-events", async () => {

@@ -12,10 +12,7 @@ async function init() {
   } else if (!status.isUnlocked) {
     document.getElementById("unlock-address").textContent = status.address;
     showScreen("unlock");
-    const bioAvailable = await api.getBiometricAvailable();
-    if (bioAvailable) {
-      document.getElementById("btn-biometric").style.display = "block";
-    }
+    await updateBiometricButton();
   } else {
     enterMainScreen(status);
   }
@@ -60,6 +57,18 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+async function updateBiometricButton() {
+  const btn = document.getElementById("btn-biometric");
+  const bioAvailable = await api.getBiometricAvailable();
+  if (bioAvailable) {
+    const label = await api.getBiometricLabel();
+    btn.textContent = label ? `Use ${label}` : "Use Biometrics";
+    btn.style.display = "block";
+  } else {
+    btn.style.display = "none";
+  }
+}
+
 async function syncSettingsFromStatus(status) {
   try {
     const allowance = await api.getAllowance();
@@ -71,6 +80,21 @@ async function syncSettingsFromStatus(status) {
   try {
     const mode = await api.getLockMode();
     document.getElementById("select-lock-mode").value = mode;
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    const canEnable = await api.canEnableBiometric();
+    const bioCard = document.getElementById("biometric-card");
+    if (canEnable) {
+      bioCard.style.display = "block";
+      const bioAvailable = await api.getBiometricAvailable();
+      document.getElementById("toggle-biometric").checked = bioAvailable;
+      const label = await api.getBiometricLabel();
+      document.getElementById("biometric-label").textContent = label || "Biometrics";
+    } else {
+      bioCard.style.display = "none";
+    }
   } catch (_) {
     /* ignore */
   }
@@ -208,6 +232,24 @@ function setupEventListeners() {
     await api.setLockMode(e.target.value);
   };
 
+  document.getElementById("toggle-biometric").onchange = async (e) => {
+    try {
+      if (e.target.checked) {
+        const password = prompt("Enter your wallet password to enable biometric unlock:");
+        if (!password) {
+          e.target.checked = false;
+          return;
+        }
+        await api.setBiometricEnabled(true, password);
+      } else {
+        await api.setBiometricEnabled(false);
+      }
+    } catch (err) {
+      e.target.checked = !e.target.checked;
+      alert(err.message || "Failed to change biometric setting");
+    }
+  };
+
   document.getElementById("btn-lock-wallet").onclick = async () => {
     await api.lock();
     showScreen("unlock");
@@ -310,6 +352,19 @@ function setupRealtimeEvents() {
   api.onLockStateChange((locked) => {
     if (locked) {
       showScreen("unlock");
+      updateBiometricButton();
+    }
+  });
+
+  api.onBiometricPrompt(async (password) => {
+    const label = await api.getBiometricLabel();
+    const name = label || "biometric unlock";
+    if (confirm(`Enable ${name} for quick unlock?`)) {
+      try {
+        await api.setBiometricEnabled(true, password);
+      } catch (err) {
+        console.error("Failed to enable biometric:", err);
+      }
     }
   });
 }

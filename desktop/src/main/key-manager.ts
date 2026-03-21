@@ -1,6 +1,7 @@
 import { join } from "node:path";
-import { readFile, writeFile, mkdir, access } from "node:fs/promises";
+import { readFile, writeFile, mkdir, access, unlink } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
+import { safeStorage, systemPreferences } from "electron";
 import type { Address, Hex } from "viem";
 
 /** @scure/* is ESM-only; dynamic import keeps CommonJS main compatible with Electron `require("electron")`. */
@@ -51,6 +52,29 @@ interface EncryptedStore {
   scrypt: { n: number; r: number; p: number };
 }
 
+export type BiometricType = "touchid" | "windows-hello" | "none";
+
+export function getBiometricType(): BiometricType {
+  if (process.platform === "darwin") return "touchid";
+  if (process.platform === "win32") return "windows-hello";
+  return "none";
+}
+
+function promptWindowsHello(reason: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const { execFile } = require("node:child_process") as typeof import("node:child_process");
+    const script = `
+      Add-Type -AssemblyName Windows.Security
+      $result = [Windows.Security.Credentials.UI.UserConsentVerifier,Windows.Security.Credentials.UI,ContentType=WindowsRuntime]::RequestVerificationAsync("${reason.replace(/"/g, '`"')}").GetAwaiter().GetResult()
+      if ($result -ne 'Verified') { exit 1 }
+    `;
+    execFile("powershell.exe", ["-NoProfile", "-Command", script], (err) => {
+      if (err) return reject(new Error("Windows Hello verification failed"));
+      resolve();
+    });
+  });
+}
+
 export interface KeyManagerOptions {
   /** scrypt N for new keystores (from config). E2E_LOW_SCRYPT=1 forces 2^14 for speed. */
   scryptN?: number;
@@ -83,6 +107,12 @@ export class KeyManager {
       this.address = this.store!.address as Address;
     } catch {
       this.store = null;
+    }
+    try {
+      await access(join(this.dataDir, "bio-credential.enc"));
+      this.biometricEnabled = true;
+    } catch {
+      this.biometricEnabled = false;
     }
   }
 
@@ -181,7 +211,28 @@ export class KeyManager {
   }
 
   async unlockBiometric(): Promise<void> {
-    throw new Error("Biometric unlock not implemented for this platform");
+    const bioType = getBiometricType();
+    if (bioType === "none") {
+      throw new Error("Biometric not available on this platform");
+    }
+
+    const credPath = join(this.dataDir, "bio-credential.enc");
+    let raw: string;
+    try {
+      raw = await readFile(credPath, "utf-8");
+    } catch {
+      throw new Error("Biometric credential not found. Please enable biometric first.");
+    }
+
+    if (bioType === "touchid") {
+      await systemPreferences.promptTouchID("unlock Claw Wallet");
+    } else if (bioType === "windows-hello") {
+      await promptWindowsHello("Unlock Claw Wallet");
+    }
+
+    const encrypted = Buffer.from(raw, "base64");
+    const password = safeStorage.decryptString(encrypted);
+    await this.unlock(password);
   }
 
   lock(): void {
@@ -198,11 +249,42 @@ export class KeyManager {
   }
 
   isBiometricAvailable(): boolean {
-    return false;
+    return getBiometricType() !== "none"
+      && safeStorage.isEncryptionAvailable()
+      && this.biometricEnabled;
   }
 
-  async setBiometricEnabled(enabled: boolean): Promise<void> {
-    this.biometricEnabled = enabled;
+  getBiometricLabel(): string | null {
+    const t = getBiometricType();
+    if (t === "touchid") return "Touch ID";
+    if (t === "windows-hello") return "Windows Hello";
+    return null;
+  }
+
+  canEnableBiometric(): boolean {
+    return getBiometricType() !== "none" && safeStorage.isEncryptionAvailable();
+  }
+
+  async setBiometricEnabled(enabled: boolean, password?: string): Promise<void> {
+    const credPath = join(this.dataDir, "bio-credential.enc");
+    if (enabled) {
+      if (!password) throw new Error("Password is required to enable biometric");
+      const encrypted = safeStorage.encryptString(password);
+      await writeFile(credPath, encrypted.toString("base64"), { mode: 0o600 });
+      this.biometricEnabled = true;
+    } else {
+      await this.clearBiometricCredential();
+    }
+  }
+
+  private async clearBiometricCredential(): Promise<void> {
+    const credPath = join(this.dataDir, "bio-credential.enc");
+    try {
+      await unlink(credPath);
+    } catch {
+      // file doesn't exist, that's fine
+    }
+    this.biometricEnabled = false;
   }
 
   private validatePassword(password: string): void {

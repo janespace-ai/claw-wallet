@@ -1,5 +1,9 @@
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 export interface RelayConfig {
   /** Base delay in ms before first reconnect attempt (default: 1000) */

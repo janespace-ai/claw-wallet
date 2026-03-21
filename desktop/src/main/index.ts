@@ -1,11 +1,15 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { KeyManager } from "./key-manager.js";
 import { SigningEngine } from "./signing-engine.js";
 import { RelayBridge } from "./relay-bridge.js";
 import { SecurityMonitor } from "./security-monitor.js";
 import { LockManager } from "./lock-manager.js";
 import { config } from "./config.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;

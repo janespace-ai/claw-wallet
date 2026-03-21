@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "description": "Claw Wallet Desktop - Electron-based secure wallet for OpenClaw Agent",
   "private": true,
+  "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
     "dev": "tsc && electron .",

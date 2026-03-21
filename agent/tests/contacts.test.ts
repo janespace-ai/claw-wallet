@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { getAddress } from "viem";
-import { ContactsManager } from "../contacts.js";
+import { ContactsManager } from "../src/contacts.js";
 import type { Address } from "viem";
 
 const ADDR_A = getAddress("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa") as Address;

@@ -11,7 +11,7 @@ import {
   serializeKeyPair,
   deserializeKeyPair,
   derivePairId,
-} from "../../e2ee/crypto.js";
+} from "../../src/e2ee/crypto.js";
 
 describe("E2EE crypto", () => {
   it("generates unique key pairs", () => {

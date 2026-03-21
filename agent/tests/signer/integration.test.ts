@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { SignerClient } from "../../signer/ipc-client.js";
+import { SignerClient } from "../../src/signer/ipc-client.js";
 
 describe("Signer IPC protocol", () => {
   it("SignerClient throws when signer is not running", async () => {

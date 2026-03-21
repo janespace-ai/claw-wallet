@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { ChainAdapter } from "../../chain.js";
-import type { SupportedChain } from "../../types.js";
+import { ChainAdapter } from "../../src/chain.js";
+import type { SupportedChain } from "../../src/types.js";
 import { createPublicClient, http, type Address } from "viem";
 import { mainnet } from "viem/chains";
 

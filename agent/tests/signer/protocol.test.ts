@@ -5,7 +5,7 @@ import {
   createError,
   parseRequest,
   RpcErrorCode,
-} from "../../signer/ipc-protocol.js";
+} from "../../src/signer/ipc-protocol.js";
 
 describe("IPC protocol", () => {
   it("creates valid request", () => {

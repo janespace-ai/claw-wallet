@@ -2,10 +2,10 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { mkdtemp, rm, stat, readFile } from "node:fs/promises";
-import { sanitizePath, secureWriteFile } from "../../validation.js";
-import { ContactsManager } from "../../contacts.js";
-import { TransactionHistory } from "../../history.js";
-import { PolicyEngine, createDefaultPolicy } from "../../policy.js";
+import { sanitizePath, secureWriteFile } from "../../src/validation.js";
+import { ContactsManager } from "../../src/contacts.js";
+import { TransactionHistory } from "../../src/history.js";
+import { PolicyEngine, createDefaultPolicy } from "../../src/policy.js";
 
 describe("security-file-system", () => {
   let tempDir: string;

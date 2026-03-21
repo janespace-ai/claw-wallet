@@ -12,19 +12,7 @@ import { TransferService } from "./transfer.js";
 import { SignerClient } from "./signer/ipc-client.js";
 import type { SupportedChain, WalletConfig, ToolDefinition, ChainConfig } from "./types.js";
 
-import { createWalletCreateTool } from "./tools/wallet-create.js";
-import { createWalletImportTool } from "./tools/wallet-import.js";
-import {
-  createWalletBalanceTool,
-  createWalletAddressTool,
-  createWalletEstimateGasTool,
-} from "./tools/wallet-balance.js";
-import { createWalletSendTool } from "./tools/wallet-send.js";
-import { createWalletContactsTools } from "./tools/wallet-contacts.js";
-import { createWalletPolicyTools } from "./tools/wallet-policy.js";
-import { createWalletApprovalTools } from "./tools/wallet-approval.js";
-import { createWalletHistoryTool } from "./tools/wallet-history.js";
-import { createWalletPairTool } from "./tools/wallet-pair.js";
+import { createAllTools } from "./tool-registry.js";
 
 export interface ClawWalletOptions {
   dataDir?: string;
@@ -135,54 +123,40 @@ export class ClawWallet {
   }
 
   getTools(): ToolDefinition[] {
-    const walletCreate = createWalletCreateTool(this.signerClient);
-    const walletImport = createWalletImportTool(this.signerClient);
+    const tools = createAllTools({
+      signerClient: this.signerClient,
+      chainAdapter: this.chainAdapter,
+      getAddress: () => this.getAddress(),
+      getTransferService: () => this.getTransferService(),
+      contacts: this.contacts,
+      policy: this.policy,
+      history: this.history,
+      defaultChain: this.defaultChain,
+    });
 
-    const originalCreateExecute = walletCreate.execute;
-    walletCreate.execute = async (args) => {
-      const result = await originalCreateExecute(args);
-      if (!(result as any).error) {
-        await this.reloadAddress();
-      }
-      return result;
+    const wrapWithReload = (name: string) => {
+      const tool = tools.find((t) => t.name === name);
+      if (!tool) return;
+      const original = tool.execute;
+      tool.execute = async (args) => {
+        const result = await original(args);
+        if (!(result as any).error) {
+          await this.reloadAddress();
+        }
+        return result;
+      };
     };
 
-    const originalImportExecute = walletImport.execute;
-    walletImport.execute = async (args) => {
-      const result = await originalImportExecute(args);
-      if (!(result as any).error) {
-        await this.reloadAddress();
-      }
-      return result;
-    };
+    wrapWithReload("wallet_create");
+    wrapWithReload("wallet_import");
+    wrapWithReload("wallet_pair");
 
-    const walletPair = createWalletPairTool(this.signerClient);
-    const originalPairExecute = walletPair.execute;
-    walletPair.execute = async (args) => {
-      const result = await originalPairExecute(args);
-      if (!(result as any).error) {
-        await this.reloadAddress();
-      }
-      return result;
-    };
-
-    return [
-      walletCreate,
-      walletImport,
-      walletPair,
-      createWalletAddressTool(() => this.getAddress()),
-      createWalletBalanceTool(this.chainAdapter, () => this.getAddress(), this.defaultChain),
-      createWalletEstimateGasTool(this.chainAdapter, this.defaultChain),
-      createWalletSendTool(() => this.getTransferService(), this.defaultChain),
-      ...createWalletContactsTools(this.contacts, this.defaultChain),
-      ...createWalletPolicyTools(this.policy),
-      ...createWalletApprovalTools(this.policy),
-      createWalletHistoryTool(this.history),
-    ];
+    return tools;
   }
 }
 
 export { ChainAdapter } from "./chain.js";
+export { createAllTools, type ToolDependencies } from "./tool-registry.js";
 export { PolicyEngine, createDefaultPolicy } from "./policy.js";
 export { ContactsManager } from "./contacts.js";
 export { TransactionHistory } from "./history.js";

@@ -6,8 +6,9 @@
   "type": "module",
   "main": "dist/main/index.js",
   "scripts": {
-    "dev": "tsc && electron .",
-    "build": "tsc",
+    "dev": "tsc && npm run copy-assets && electron .",
+    "build": "tsc && npm run copy-assets",
+    "copy-assets": "cp -r src/renderer dist/",
     "package": "electron-builder --config electron-builder.yml",
     "test": "vitest run"
   },

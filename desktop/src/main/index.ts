@@ -204,6 +204,8 @@ app.whenReady().then(async () => {
   registerIpcHandlers();
   await keyManager.initialize();
   await securityMonitor.initialize();
+  signingEngine.setDataDir(dataDir);
+  await signingEngine.loadAllowance();
 
   createWindow();
   if (!process.env.E2E_SKIP_TRAY) {

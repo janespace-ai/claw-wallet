@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import type { Address, Hex } from "viem";
 
 /** @scure/* is ESM-only; dynamic import keeps CommonJS main compatible with Electron `require("electron")`. */

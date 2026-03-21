@@ -18,6 +18,8 @@ interface PendingSignRequest {
   requestId: string;
   method: string;
   params: Record<string, unknown>;
+  /** USD estimate for allowance accounting after user approves an over-budget request */
+  estimatedUSD: number;
   resolve: (value: unknown) => void;
   reject: (reason: Error) => void;
 }
@@ -122,6 +124,7 @@ export class SigningEngine {
         requestId,
         method,
         params,
+        estimatedUSD,
         resolve,
         reject,
       };
@@ -137,7 +140,7 @@ export class SigningEngine {
     this.pendingRequests.delete(requestId);
 
     try {
-      const result = await this.signDirectly(pending.method, pending.params, 0);
+      const result = await this.signDirectly(pending.method, pending.params, pending.estimatedUSD);
       pending.resolve(result);
     } catch (err) {
       pending.reject(err as Error);

@@ -96,6 +96,17 @@ function isSameSubnet(ip1: string, ip2: string): boolean {
   return parts1[0] === parts2[0] && parts1[1] === parts2[1] && parts1[2] === parts2[2];
 }
 
+/** Agent should supply `estimatedUSD` on the request or in params for allowance checks; otherwise 0. */
+function parseEstimatedUsd(data: Record<string, unknown>, params: Record<string, unknown>): number {
+  const raw = data.estimatedUSD ?? data.estimatedUsd ?? params.estimatedUSD ?? params.estimatedUsd;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return raw;
+  if (typeof raw === "string" && raw.trim() !== "") {
+    const n = parseFloat(raw);
+    if (Number.isFinite(n) && n >= 0) return n;
+  }
+  return 0;
+}
+
 export class RelayBridge {
   private options: RelayBridgeOptions;
   private keyPair!: E2EEKeyPair;
@@ -411,13 +422,14 @@ export class RelayBridge {
     const requestId = data.requestId as string;
     const method = data.method as string;
     const params = (data.params ?? {}) as Record<string, unknown>;
+    const estimatedUSD = parseEstimatedUsd(data, params);
 
     try {
       const result = await this.options.signingEngine.handleSignRequest(
         requestId,
         method,
         params,
-        0,
+        estimatedUSD,
         (pendingReq) => {
           const txInfo: TransactionRequestInfo = {
             requestId: pendingReq.requestId,

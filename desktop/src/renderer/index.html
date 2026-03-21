@@ -152,6 +152,21 @@
       </div>
     </div>
 
+    <!-- Export mnemonic (password-gated) -->
+    <div id="modal-export" class="modal" style="display:none">
+      <div class="modal-content modal-export-wide">
+        <h3>Export Mnemonic</h3>
+        <p class="warning">Anyone with these words can control your wallet. Use in a private place.</p>
+        <input type="password" id="input-export-password" placeholder="Wallet password" autocomplete="off">
+        <div id="export-error" class="error"></div>
+        <div id="export-mnemonic-display" class="mnemonic-grid" style="display:none"></div>
+        <div class="modal-actions">
+          <button type="button" id="btn-export-confirm" class="btn primary">Reveal</button>
+          <button type="button" id="btn-export-cancel" class="btn secondary">Close</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Security alert modal -->
     <div id="modal-alert" class="modal" style="display:none">
       <div class="modal-content">

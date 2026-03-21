@@ -202,6 +202,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   max-width: 400px;
 }
 
+.modal-export-wide {
+  max-width: 520px;
+}
+
 .modal-content h3 { margin-bottom: 16px; }
 
 .modal-actions { display: flex; gap: 8px; margin-top: 16px; }

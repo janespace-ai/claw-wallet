@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 export interface WalletAPI {
-  createWallet: (password: string) => Promise<{ address: string }>;
+  createWallet: (password: string) => Promise<{ address: string; mnemonic: string }>;
   importWallet: (mnemonic: string, password: string) => Promise<{ address: string }>;
   unlock: (password: string) => Promise<void>;
   unlockBiometric: () => Promise<void>;

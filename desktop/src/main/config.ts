@@ -1,9 +1,5 @@
 import { readFileSync } from "node:fs";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { join } from "node:path";
 
 export interface RelayConfig {
   /** Base delay in ms before first reconnect attempt (default: 1000) */
@@ -31,6 +27,12 @@ export interface SecurityConfig {
   maxEvents: number;
 }
 
+/** Keystore KDF; keep N within OpenSSL/Electron memory limits (avoid 2^18). */
+export interface KeyringConfig {
+  /** scrypt cost parameter N (default 16384). Env CLAW_DESKTOP_SCRYPT_N overrides when set. */
+  scryptN: number;
+}
+
 export interface AppConfig {
   /** Relay server WebSocket URL, e.g. "ws://localhost:8080" */
   relayUrl: string;
@@ -46,6 +48,8 @@ export interface AppConfig {
   lock: LockConfig;
   /** Security monitor parameters */
   security: SecurityConfig;
+  /** Wallet keystore (scrypt) parameters */
+  keyring: KeyringConfig;
 }
 
 const DEFAULTS: AppConfig = {
@@ -67,13 +71,14 @@ const DEFAULTS: AppConfig = {
   security: {
     maxEvents: 1000,
   },
+  keyring: {
+    /** 2^14: fits Electron/BoringSSL scrypt memory cap; 2^16+ often hits MEMORY_LIMIT_EXCEEDED */
+    scryptN: 16384,
+  },
 };
 
 function loadConfigFile(): Record<string, unknown> {
-  const candidates = [
-    join(process.cwd(), "config.json"),
-    join(__dirname, "..", "..", "config.json"),
-  ];
+  const candidates = [join(process.cwd(), "config.json")];
 
   for (const path of candidates) {
     try {
@@ -96,6 +101,11 @@ function resolveConfig(): AppConfig {
   const fileSigning = (file.signing ?? {}) as Partial<SigningConfig>;
   const fileLock = (file.lock ?? {}) as Partial<LockConfig>;
   const fileSecurity = (file.security ?? {}) as Partial<SecurityConfig>;
+  const fileKeyring = (file.keyring ?? {}) as Partial<KeyringConfig>;
+
+  const envScrypt = process.env.CLAW_DESKTOP_SCRYPT_N;
+  const parsedEnvScrypt =
+    envScrypt && /^\d+$/.test(envScrypt) ? parseInt(envScrypt, 10) : undefined;
 
   return {
     relayUrl: (process.env.CLAW_DESKTOP_RELAY_URL as string) || (file.relayUrl as string) || DEFAULTS.relayUrl,
@@ -116,7 +126,18 @@ function resolveConfig(): AppConfig {
     security: {
       maxEvents: fileSecurity.maxEvents ?? DEFAULTS.security.maxEvents,
     },
+    keyring: {
+      scryptN: clampScryptN(parsedEnvScrypt ?? fileKeyring.scryptN ?? DEFAULTS.keyring.scryptN),
+    },
   };
+}
+
+/** Electron often rejects N≥2^17; N=2^16 can still exceed OpenSSL cap on some builds — cap at 2^16. */
+function clampScryptN(n: number): number {
+  const min = 2 ** 14;
+  const max = 2 ** 16;
+  if (!Number.isFinite(n) || n < min) return DEFAULTS.keyring.scryptN;
+  return Math.min(Math.max(Math.floor(n), min), max);
 }
 
 export const config = resolveConfig();

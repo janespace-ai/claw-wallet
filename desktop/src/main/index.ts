@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
-import { join, dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import { join } from "node:path";
+import type * as Electron from "electron";
 import { KeyManager } from "./key-manager.js";
 import { SigningEngine } from "./signing-engine.js";
 import { RelayBridge } from "./relay-bridge.js";
@@ -8,14 +8,16 @@ import { SecurityMonitor } from "./security-monitor.js";
 import { LockManager } from "./lock-manager.js";
 import { config } from "./config.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+/** Isolated profile + predictable window close behavior for Playwright E2E */
+if (process.env.E2E_USER_DATA) {
+  app.setPath("userData", process.env.E2E_USER_DATA);
+}
 
-let mainWindow: BrowserWindow | null = null;
-let tray: Tray | null = null;
+let mainWindow: InstanceType<typeof BrowserWindow> | null = null;
+let tray: InstanceType<typeof Tray> | null = null;
 
 const dataDir = join(app.getPath("userData"), "wallet-data");
-const keyManager = new KeyManager(dataDir);
+const keyManager = new KeyManager(dataDir, { scryptN: config.keyring.scryptN });
 const signingEngine = new SigningEngine(keyManager, {
   dailyLimitUsd: config.signing.dailyLimitUsd,
   perTxLimitUsd: config.signing.perTxLimitUsd,
@@ -30,13 +32,14 @@ const lockManager = new LockManager(keyManager, {
 let relayBridge: RelayBridge | null = null;
 
 function createWindow(): void {
+  const base = app.getAppPath();
   mainWindow = new BrowserWindow({
     width: 480,
     height: 720,
     minWidth: 400,
     minHeight: 600,
     webPreferences: {
-      preload: join(__dirname, "..", "preload", "index.js"),
+      preload: join(base, "dist", "preload", "index.js"),
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: true,
@@ -45,13 +48,13 @@ function createWindow(): void {
     show: false,
   });
 
-  mainWindow.loadFile(join(__dirname, "..", "renderer", "index.html"));
+  mainWindow.loadFile(join(base, "dist", "renderer", "index.html"));
 
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
   });
 
-  mainWindow.on("close", (e) => {
+  mainWindow.on("close", (e: Electron.Event) => {
     if (tray) {
       e.preventDefault();
       mainWindow?.hide();
@@ -84,7 +87,7 @@ function createTray(): void {
 function registerIpcHandlers(): void {
   ipcMain.handle("wallet:create", async (_, password: string) => {
     const result = await keyManager.createWallet(password);
-    return { address: result.address };
+    return { address: result.address, mnemonic: result.mnemonic };
   });
 
   ipcMain.handle("wallet:import", async (_, mnemonic: string, password: string) => {
@@ -160,8 +163,8 @@ function registerIpcHandlers(): void {
     signingEngine.reject(requestId);
   });
 
-  ipcMain.handle("wallet:set-allowance", async (_, config) => {
-    await signingEngine.setAllowance(config);
+  ipcMain.handle("wallet:set-allowance", async (_, allowanceConfig) => {
+    await signingEngine.setAllowance(allowanceConfig);
   });
 
   ipcMain.handle("wallet:get-allowance", async () => {
@@ -199,11 +202,13 @@ function registerIpcHandlers(): void {
 
 app.whenReady().then(async () => {
   registerIpcHandlers();
-  createWindow();
-  createTray();
-
   await keyManager.initialize();
   await securityMonitor.initialize();
+
+  createWindow();
+  if (!process.env.E2E_SKIP_TRAY) {
+    createTray();
+  }
 
   relayBridge = new RelayBridge({
     dataDir,

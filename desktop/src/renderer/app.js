@@ -22,6 +22,7 @@ async function init() {
 
   setupEventListeners();
   setupRealtimeEvents();
+  document.body.dataset.appReady = "true";
 }
 
 function showScreen(name) {
@@ -38,6 +39,41 @@ function enterMainScreen(status) {
   }
   loadPairedDevices();
   loadSecurityEvents();
+  syncSettingsFromStatus(status);
+}
+
+function renderMnemonicWords(container, mnemonic) {
+  const words = mnemonic.trim().split(/\s+/);
+  container.innerHTML = words
+    .map(
+      (w, i) =>
+        `<div class="word"><span class="num">${i + 1}</span> ${escapeHtml(w)}</div>`
+    )
+    .join("");
+}
+
+function escapeHtml(s) {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function syncSettingsFromStatus(status) {
+  try {
+    const allowance = await api.getAllowance();
+    document.getElementById("input-daily-limit").value = String(allowance.dailyLimitUSD);
+    document.getElementById("input-per-tx-limit").value = String(allowance.perTxLimitUSD);
+  } catch (_) {
+    /* ignore */
+  }
+  try {
+    const mode = await api.getLockMode();
+    document.getElementById("select-lock-mode").value = mode;
+  } catch (_) {
+    /* ignore */
+  }
 }
 
 function setupEventListeners() {
@@ -80,7 +116,7 @@ function setupEventListeners() {
     try {
       if (action === "create") {
         const result = await api.createWallet(password);
-        showMnemonic(result.mnemonic);
+        showMnemonicScreen(result.mnemonic);
       } else {
         const mnemonic = document.getElementById("input-mnemonic").value.trim();
         if (!mnemonic) {
@@ -96,15 +132,22 @@ function setupEventListeners() {
     }
   };
 
-  function showMnemonic(mnemonic) {
-    // mnemonic is passed back but we need to display it
-    // In production, createWallet returns address, mnemonic is shown separately
-    // For now, store and display
-    window._tempMnemonic = mnemonic;
-    // We'll show it via export flow instead
-    // Go directly to main
-    api.getStatus().then(status => enterMainScreen(status));
+  function showMnemonicScreen(mnemonic) {
+    const grid = document.getElementById("mnemonic-display");
+    renderMnemonicWords(grid, mnemonic);
+    document.getElementById("mnemonic-confirmed").checked = false;
+    document.getElementById("btn-mnemonic-done").disabled = true;
+    showScreen("mnemonic");
   }
+
+  document.getElementById("mnemonic-confirmed").onchange = (e) => {
+    document.getElementById("btn-mnemonic-done").disabled = !e.target.checked;
+  };
+
+  document.getElementById("btn-mnemonic-done").onclick = async () => {
+    const status = await api.getStatus();
+    enterMainScreen(status);
+  };
 
   // Unlock screen
   document.getElementById("btn-unlock").onclick = async () => {
@@ -168,6 +211,35 @@ function setupEventListeners() {
   document.getElementById("btn-lock-wallet").onclick = async () => {
     await api.lock();
     showScreen("unlock");
+  };
+
+  const modalExport = document.getElementById("modal-export");
+  document.getElementById("btn-export-mnemonic").onclick = () => {
+    document.getElementById("input-export-password").value = "";
+    document.getElementById("export-error").textContent = "";
+    const disp = document.getElementById("export-mnemonic-display");
+    disp.style.display = "none";
+    disp.innerHTML = "";
+    modalExport.style.display = "flex";
+  };
+
+  document.getElementById("btn-export-cancel").onclick = () => {
+    modalExport.style.display = "none";
+  };
+
+  document.getElementById("btn-export-confirm").onclick = async () => {
+    const pwd = document.getElementById("input-export-password").value;
+    const errEl = document.getElementById("export-error");
+    const disp = document.getElementById("export-mnemonic-display");
+    errEl.textContent = "";
+    try {
+      const { mnemonic } = await api.exportMnemonic(pwd);
+      errEl.textContent = "";
+      renderMnemonicWords(disp, mnemonic);
+      disp.style.display = "grid";
+    } catch (err) {
+      errEl.textContent = err.message || String(err);
+    }
   };
 
   // Transaction modal

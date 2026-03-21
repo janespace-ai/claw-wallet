@@ -1,16 +1,44 @@
 import { join } from "node:path";
 import { readFile, writeFile, mkdir, access } from "node:fs/promises";
 import { randomBytes, createHash } from "node:crypto";
-import { HDKey } from "@scure/bip32";
-import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from "@scure/bip39";
-import { wordlist } from "@scure/bip39/wordlists/english.js";
-import { privateKeyToAccount } from "viem/accounts";
 import type { Address, Hex } from "viem";
 
+/** @scure/* is ESM-only; dynamic import keeps CommonJS main compatible with Electron `require("electron")`. */
+let scurePromise: Promise<{
+  HDKey: typeof import("@scure/bip32").HDKey;
+  generateMnemonic: typeof import("@scure/bip39").generateMnemonic;
+  mnemonicToSeedSync: typeof import("@scure/bip39").mnemonicToSeedSync;
+  validateMnemonic: typeof import("@scure/bip39").validateMnemonic;
+  wordlist: typeof import("@scure/bip39/wordlists/english.js").wordlist;
+}> | null = null;
+
+function loadScure() {
+  if (!scurePromise) {
+    scurePromise = (async () => {
+      const [{ HDKey }, bip39, { wordlist }] = await Promise.all([
+        import("@scure/bip32"),
+        import("@scure/bip39"),
+        import("@scure/bip39/wordlists/english.js"),
+      ]);
+      return { HDKey, ...bip39, wordlist };
+    })();
+  }
+  return scurePromise;
+}
+
 const BIP44_ETH_PATH = "m/44'/60'/0'/0/0";
-const SCRYPT_N = 2 ** 18;
 const SCRYPT_R = 8;
 const SCRYPT_P = 1;
+
+/** Node default maxmem formula; explicit so scrypt never uses a too-small cap for chosen N. */
+function scryptOpts(n: number): { N: number; r: number; p: number; maxmem: number } {
+  return {
+    N: n,
+    r: SCRYPT_R,
+    p: SCRYPT_P,
+    maxmem: 32 * 1024 * 1024 + 128 * SCRYPT_R * n,
+  };
+}
 const SALT_SIZE = 32;
 const IV_SIZE = 12;
 
@@ -23,18 +51,27 @@ interface EncryptedStore {
   scrypt: { n: number; r: number; p: number };
 }
 
+export interface KeyManagerOptions {
+  /** scrypt N for new keystores (from config). E2E_LOW_SCRYPT=1 forces 2^14 for speed. */
+  scryptN?: number;
+}
+
 export class KeyManager {
   private dataDir: string;
   private storePath: string;
+  private readonly scryptN: number;
   private store: EncryptedStore | null = null;
   private decryptedMnemonic: string | null = null;
   private decryptedPrivateKey: Hex | null = null;
   private address: Address | null = null;
   private biometricEnabled = false;
 
-  constructor(dataDir: string) {
+  constructor(dataDir: string, options?: KeyManagerOptions) {
     this.dataDir = dataDir;
     this.storePath = join(dataDir, "keystore.enc.json");
+    /** Prefer 2^14 via config in Electron (OpenSSL MEMORY_LIMIT); E2E forces 2^14 for speed. */
+    this.scryptN =
+      process.env.E2E_LOW_SCRYPT === "1" ? 2 ** 14 : (options?.scryptN ?? 16384);
   }
 
   async initialize(): Promise<void> {
@@ -69,6 +106,7 @@ export class KeyManager {
     if (this.store) throw new Error("Wallet already exists");
     this.validatePassword(password);
 
+    const { HDKey, generateMnemonic, mnemonicToSeedSync, wordlist } = await loadScure();
     const mnemonic = generateMnemonic(wordlist, 128);
     const seed = mnemonicToSeedSync(mnemonic);
     const hdKey = HDKey.fromMasterSeed(seed);
@@ -77,6 +115,7 @@ export class KeyManager {
     if (!child.privateKey) throw new Error("Failed to derive private key");
 
     const privateKeyHex = `0x${Buffer.from(child.privateKey).toString("hex")}` as Hex;
+    const { privateKeyToAccount } = await import("viem/accounts");
     const account = privateKeyToAccount(privateKeyHex);
 
     await this.encryptAndSave(mnemonic, password, account.address);
@@ -95,6 +134,7 @@ export class KeyManager {
     if (this.store) throw new Error("Wallet already exists");
     this.validatePassword(password);
 
+    const { HDKey, mnemonicToSeedSync, validateMnemonic, wordlist } = await loadScure();
     if (!validateMnemonic(mnemonic, wordlist)) {
       throw new Error("Invalid mnemonic phrase");
     }
@@ -106,6 +146,7 @@ export class KeyManager {
     if (!child.privateKey) throw new Error("Failed to derive private key");
 
     const privateKeyHex = `0x${Buffer.from(child.privateKey).toString("hex")}` as Hex;
+    const { privateKeyToAccount } = await import("viem/accounts");
     const account = privateKeyToAccount(privateKeyHex);
 
     await this.encryptAndSave(mnemonic, password, account.address);
@@ -124,6 +165,7 @@ export class KeyManager {
     if (!this.store) throw new Error("No wallet found");
     if (this.isUnlocked()) return;
 
+    const { HDKey, mnemonicToSeedSync } = await loadScure();
     const mnemonic = await this.decryptStore(password);
     const seed = mnemonicToSeedSync(mnemonic);
     const hdKey = HDKey.fromMasterSeed(seed);
@@ -173,7 +215,7 @@ export class KeyManager {
     const { scryptSync, createCipheriv } = await import("node:crypto");
 
     const salt = randomBytes(SALT_SIZE);
-    const key = scryptSync(password, salt, 32, { N: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P });
+    const key = scryptSync(password, salt, 32, scryptOpts(this.scryptN));
     const iv = randomBytes(IV_SIZE);
 
     const cipher = createCipheriv("aes-256-gcm", key, iv);
@@ -186,7 +228,7 @@ export class KeyManager {
       iv: iv.toString("hex"),
       ciphertext: Buffer.concat([encrypted, authTag]).toString("hex"),
       address,
-      scrypt: { n: SCRYPT_N, r: SCRYPT_R, p: SCRYPT_P },
+      scrypt: { n: this.scryptN, r: SCRYPT_R, p: SCRYPT_P },
     };
 
     await writeFile(this.storePath, JSON.stringify(this.store, null, 2), { mode: 0o600 });
@@ -204,10 +246,14 @@ export class KeyManager {
     const ciphertext = combined.subarray(0, combined.length - 16);
     const authTag = combined.subarray(combined.length - 16);
 
+    const n = this.store.scrypt.n;
+    const r = this.store.scrypt.r;
+    const p = this.store.scrypt.p;
     const key = scryptSync(password, salt, 32, {
-      N: this.store.scrypt.n,
-      r: this.store.scrypt.r,
-      p: this.store.scrypt.p,
+      N: n,
+      r,
+      p,
+      maxmem: 32 * 1024 * 1024 + 128 * r * n,
     });
 
     const decipher = createDecipheriv("aes-256-gcm", key, iv);

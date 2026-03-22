@@ -71,6 +71,19 @@ export class SecurityMonitor {
     return this.sameMachineDetected;
   }
 
+  /**
+   * Register an alert shown via `wallet:security-alert` so `wallet:respond-alert` can resolve it.
+   * RelayBridge emits alerts with unique `alertId` before the renderer calls `respondToAlert`.
+   */
+  registerPendingAlert(alert: { alertId: string; type: string; timestamp: number }): void {
+    this.pendingAlerts.set(alert.alertId, {
+      alertId: alert.alertId,
+      type: alert.type,
+      resolved: false,
+      timestamp: alert.timestamp,
+    });
+  }
+
   async respondToAlert(alertId: string, action: "freeze" | "allow_once" | "trust"): Promise<void> {
     const alert = this.pendingAlerts.get(alertId);
     if (!alert) throw new Error("Alert not found");
@@ -84,6 +97,8 @@ export class SecurityMonitor {
       timestamp: Date.now(),
       details: { alertId, action },
     });
+
+    this.pendingAlerts.delete(alertId);
   }
 
   getEvents(): SecurityEvent[] {

@@ -56,7 +56,7 @@ function createWindow(): void {
   });
 
   mainWindow.on("close", (e: Electron.Event) => {
-    if (tray) {
+    if (tray && process.platform !== "darwin") {
       e.preventDefault();
       mainWindow?.hide();
     }
@@ -262,9 +262,7 @@ app.on("activate", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  app.quit();
 });
 
 app.on("before-quit", async () => {

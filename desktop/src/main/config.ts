@@ -15,6 +15,11 @@ export interface SigningConfig {
   perTxLimitUsd: number;
   /** Token symbols allowed for auto-approval (default: ["ETH","USDC","USDT"]) */
   tokenWhitelist: string[];
+  /**
+   * When true, `sign_transaction` within per-tx/daily allowance may be signed without a desktop prompt.
+   * When false, every chain transaction requires an in-app approval (recommended for wallets).
+   */
+  autoApproveWithinBudget: boolean;
 }
 
 export interface LockConfig {
@@ -64,6 +69,7 @@ const DEFAULTS: AppConfig = {
     dailyLimitUsd: 100,
     perTxLimitUsd: 50,
     tokenWhitelist: ["ETH", "USDC", "USDT"],
+    autoApproveWithinBudget: false,
   },
   lock: {
     strictIdleTimeoutMs: 5 * 60 * 1000,
@@ -119,6 +125,8 @@ function resolveConfig(): AppConfig {
       dailyLimitUsd: fileSigning.dailyLimitUsd ?? DEFAULTS.signing.dailyLimitUsd,
       perTxLimitUsd: fileSigning.perTxLimitUsd ?? DEFAULTS.signing.perTxLimitUsd,
       tokenWhitelist: fileSigning.tokenWhitelist ?? DEFAULTS.signing.tokenWhitelist,
+      autoApproveWithinBudget:
+        fileSigning.autoApproveWithinBudget ?? DEFAULTS.signing.autoApproveWithinBudget,
     },
     lock: {
       strictIdleTimeoutMs: fileLock.strictIdleTimeoutMs ?? DEFAULTS.lock.strictIdleTimeoutMs,

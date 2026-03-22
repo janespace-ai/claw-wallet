@@ -23,7 +23,9 @@
     "_comment_perTxLimitUsd": "Maximum USD value per single auto-approved transaction",
     "perTxLimitUsd": 50,
     "_comment_tokenWhitelist": "Token symbols allowed for auto-approval",
-    "tokenWhitelist": ["ETH", "USDC", "USDT"]
+    "tokenWhitelist": ["ETH", "USDC", "USDT"],
+    "_comment_autoApproveWithinBudget": "When true, transactions within daily/per-tx limits may sign without a desktop prompt. When false, every chain tx requires approval.",
+    "autoApproveWithinBudget": false
   },
 
   "_comment_lock": "Lock manager parameters",

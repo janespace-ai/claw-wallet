@@ -22,6 +22,7 @@ const signingEngine = new SigningEngine(keyManager, {
   dailyLimitUsd: config.signing.dailyLimitUsd,
   perTxLimitUsd: config.signing.perTxLimitUsd,
   tokenWhitelist: config.signing.tokenWhitelist,
+  autoApproveWithinBudget: config.signing.autoApproveWithinBudget,
 });
 const securityMonitor = new SecurityMonitor(dataDir, {
   maxEvents: config.security.maxEvents,
@@ -233,12 +234,15 @@ app.whenReady().then(async () => {
     reconnectMaxMs: config.relay.reconnectMaxMs,
     ipChangePolicy: config.ipChangePolicy,
     onTransactionRequest: (req) => {
+      console.log("[desktop] Showing tx approval modal for", req.requestId);
+      mainWindow?.show();
       mainWindow?.webContents.send("wallet:tx-request", req);
     },
     onConnectionStatus: (status) => {
       mainWindow?.webContents.send("wallet:connection-status", status);
     },
     onSecurityAlert: (alert) => {
+      securityMonitor.registerPendingAlert(alert);
       mainWindow?.webContents.send("wallet:security-alert", alert);
       mainWindow?.show();
     },

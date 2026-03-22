@@ -13,6 +13,7 @@ import { WalletConnection } from "./wallet-connection.js";
 import type { SupportedChain, WalletConfig, ToolDefinition, ChainConfig } from "./types.js";
 
 import { createAllTools } from "./tool-registry.js";
+import { readRelayUrlFromCwdConfig } from "./resolve-relay-url.js";
 
 export interface ClawWalletOptions {
   dataDir?: string;
@@ -42,7 +43,11 @@ export class ClawWallet {
     this.pollIntervalMs = options.pollIntervalMs || 30_000;
     this.onBalanceChange = options.onBalanceChange;
 
-    const relayUrl = options.relayUrl || process.env.RELAY_URL || "http://localhost:8080";
+    const relayUrl =
+      options.relayUrl ||
+      process.env.RELAY_URL ||
+      readRelayUrlFromCwdConfig() ||
+      "http://localhost:8080";
     this.walletConnection = new WalletConnection({
       relayUrl,
       dataDir: this.dataDir,
@@ -152,6 +157,7 @@ export class ClawWallet {
   }
 }
 
+export { readRelayUrlFromCwdConfig } from "./resolve-relay-url.js";
 export { ChainAdapter } from "./chain.js";
 export { createAllTools, type ToolDependencies } from "./tool-registry.js";
 export { PolicyEngine, createDefaultPolicy } from "./policy.js";

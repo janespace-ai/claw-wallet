@@ -29,6 +29,8 @@ export interface SigningEngineOptions {
   dailyLimitUsd?: number;
   perTxLimitUsd?: number;
   tokenWhitelist?: string[];
+  /** When true, on-chain txs within allowance may auto-sign without a prompt. Default false. */
+  autoApproveWithinBudget?: boolean;
   approvalTimeoutMs?: number;
   onApprovalExpired?: (requestId: string) => void;
 }
@@ -50,11 +52,13 @@ export class SigningEngine {
   private dataDir = "";
   private approvalTimeoutMs: number;
   private onApprovalExpired?: (requestId: string) => void;
+  private autoApproveWithinBudget: boolean;
 
   constructor(keyManager: KeyManager, options?: SigningEngineOptions) {
     this.keyManager = keyManager;
     this.approvalTimeoutMs = options?.approvalTimeoutMs ?? 10 * 60 * 1000;
     this.onApprovalExpired = options?.onApprovalExpired;
+    this.autoApproveWithinBudget = options?.autoApproveWithinBudget ?? false;
     this.allowance = {
       dailyLimitUSD: options?.dailyLimitUsd ?? DEFAULT_ALLOWANCE.dailyLimitUSD,
       perTxLimitUSD: options?.perTxLimitUsd ?? DEFAULT_ALLOWANCE.perTxLimitUSD,
@@ -121,8 +125,12 @@ export class SigningEngine {
     this.resetDailyIfNeeded();
 
     const withinBudget = this.checkBudget(estimatedUSD, params);
+    const canSilentSign =
+      method === "sign_transaction"
+        ? withinBudget && this.autoApproveWithinBudget
+        : withinBudget;
 
-    if (withinBudget) {
+    if (canSilentSign) {
       return this.signDirectly(method, params, estimatedUSD);
     }
 
@@ -210,9 +218,9 @@ export class SigningEngine {
     const account = privateKeyToAccount(privateKey);
 
     if (method === "sign_transaction") {
-      const signature = await account.signTransaction(params as any);
+      const signedTx = await account.signTransaction(params as any);
       this.dailyUsage.spentUSD += estimatedUSD;
-      return { signature, address: account.address };
+      return { signedTx, address: account.address };
     }
 
     if (method === "sign_message") {

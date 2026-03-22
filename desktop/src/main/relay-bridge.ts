@@ -98,7 +98,12 @@ function isSameSubnet(ip1: string, ip2: string): boolean {
 
 /** Agent should supply `estimatedUSD` on the request or in params for allowance checks; otherwise 0. */
 function parseEstimatedUsd(data: Record<string, unknown>, params: Record<string, unknown>): number {
-  const raw = data.estimatedUSD ?? data.estimatedUsd ?? params.estimatedUSD ?? params.estimatedUsd;
+  const raw =
+    data.estimatedUSD ??
+    data.estimatedUsd ??
+    params.estimatedUSD ??
+    params.estimatedUsd ??
+    params.amountUsd;
   if (typeof raw === "number" && Number.isFinite(raw) && raw >= 0) return raw;
   if (typeof raw === "string" && raw.trim() !== "") {
     const n = parseFloat(raw);
@@ -343,6 +348,7 @@ export class RelayBridge {
   }
 
   private handleEncryptedMessage(payloadBase64: string, sourceIP: string): void {
+    let decryptFailed = 0;
     for (const [deviceId, session] of this.sessions) {
       try {
         const payloadBytes = Buffer.from(payloadBase64, "base64");
@@ -360,8 +366,14 @@ export class RelayBridge {
 
         return;
       } catch {
+        decryptFailed++;
         continue;
       }
+    }
+    if (this.sessions.size > 0) {
+      console.warn(
+        `[relay-bridge] Encrypted payload could not be decrypted with any session (${decryptFailed}/${this.sessions.size}). Re-pair the Agent if keys changed.`
+      );
     }
   }
 
@@ -414,7 +426,12 @@ export class RelayBridge {
   ): Promise<void> {
     const device = this.pairings.devices.find(d => d.deviceId === deviceId);
     const session = this.sessions.get(deviceId);
-    if (!device || !session) return;
+    if (!device || !session) {
+      console.warn(
+        `[relay-bridge] sign request dropped: device=${Boolean(device)} session=${Boolean(session)} deviceId=${deviceId}`
+      );
+      return;
+    }
 
     if (this.isSessionFrozen(deviceId)) {
       const frozen = this.frozenSessions.get(deviceId);

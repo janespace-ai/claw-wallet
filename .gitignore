@@ -11,9 +11,12 @@ dist/
 
 # Local config (keep config.example.json in repo)
 desktop/config.json
+desktop/config.local.json
 server/config.json
 agent/config.json
-
+agent/config.local.json
+agent/skills/claw-wallet/wallet.local.json
+.pnpm-store/
 # Logs
 *.log
 npm-debug.log*

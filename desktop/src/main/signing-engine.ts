@@ -227,7 +227,9 @@ export class SigningEngine {
     const account = privateKeyToAccount(privateKey);
 
     if (method === "sign_transaction") {
-      const signedTx = await account.signTransaction(params as any);
+      const txParams = sanitizeTxParams(params);
+      console.log(`[signing-engine] signTransaction with sanitized params:`, JSON.stringify(txParams));
+      const signedTx = await account.signTransaction(txParams as any);
       this.dailyUsage.spentUSD += estimatedUSD;
       return { signedTx, address: account.address };
     }
@@ -247,4 +249,56 @@ export class SigningEngine {
       this.dailyUsage = { date: today, spentUSD: 0 };
     }
   }
+}
+
+const VALID_TX_FIELDS = new Set([
+  "to", "value", "gas", "gasPrice", "maxFeePerGas", "maxPriorityFeePerGas",
+  "nonce", "data", "chainId", "type", "accessList",
+  "blobs", "blobVersionedHashes", "sidecars", "authorizationList",
+]);
+
+function toBigInt(v: unknown): bigint | undefined {
+  if (typeof v === "bigint") return v;
+  if (typeof v === "number") return BigInt(v);
+  if (typeof v === "string" && v.trim() !== "") {
+    try {
+      return BigInt(v);
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function sanitizeTxParams(raw: Record<string, unknown>): Record<string, unknown> {
+  const tx: Record<string, unknown> = {};
+
+  for (const key of VALID_TX_FIELDS) {
+    if (raw[key] !== undefined && raw[key] !== null) {
+      tx[key] = raw[key];
+    }
+  }
+
+  const bigintFields = ["value", "gas", "gasPrice", "maxFeePerGas", "maxPriorityFeePerGas", "nonce"];
+  for (const field of bigintFields) {
+    if (tx[field] !== undefined) {
+      const converted = toBigInt(tx[field]);
+      if (converted !== undefined) {
+        tx[field] = converted;
+      } else {
+        delete tx[field];
+      }
+    }
+  }
+
+  if (!tx.type && !tx.maxFeePerGas && !tx.accessList && !tx.blobs && !tx.authorizationList) {
+    if (tx.gasPrice) {
+      tx.type = "legacy";
+    } else {
+      tx.type = "legacy";
+      if (!tx.gasPrice) tx.gasPrice = 1000000000n;
+    }
+  }
+
+  return tx;
 }

@@ -111,12 +111,26 @@ export class WalletConnection {
 
     await this.savePairing();
 
+    const pendingPairId = `pending-${shortCode.toUpperCase()}`;
+    const pairCompleteRequestId = `pair-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     try {
-      await this.sendToWalletRaw(pairId, keyPair, pairInfo.commPubKey, {
-        type: "pair_complete",
-        machineId: getMachineId(),
-        agentPublicKey: agentPubHex,
-      }, 15_000);
+      await fetchWithTimeout(
+        `${this.relayUrl}/relay/${encodeURIComponent(pendingPairId)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            requestId: pairCompleteRequestId,
+            timeout: 15,
+            data: {
+              type: "pair_complete",
+              machineId: getMachineId(),
+              agentPublicKey: agentPubHex,
+            },
+          }),
+        },
+        15_000,
+      );
     } catch (err) {
       console.warn(`[wallet-connection] pair_complete delivery failed (non-fatal): ${(err as Error).message}`);
     }

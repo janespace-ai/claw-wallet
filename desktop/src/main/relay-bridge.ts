@@ -224,6 +224,11 @@ export class RelayBridge {
     const msg = envelope.data as Record<string, unknown>;
     if (!msg) return;
 
+    if (msg.type === "pair_complete" && typeof msg.agentPublicKey === "string") {
+      this.handlePlainPairComplete(msg, sourceIP);
+      return;
+    }
+
     if (msg.type === "handshake" && typeof msg.publicKey === "string") {
       const machineId = (msg.machineId as string) ?? "";
       const reconnect = (msg.reconnect as boolean) ?? false;
@@ -235,6 +240,22 @@ export class RelayBridge {
       this.handleEncryptedMessage(msg.payload, sourceIP);
       return;
     }
+  }
+
+  private handlePlainPairComplete(msg: Record<string, unknown>, sourceIP: string): void {
+    const agentPubKeyHex = msg.agentPublicKey as string;
+    const deviceId = createHash("sha256").update(agentPubKeyHex).digest("hex").slice(0, 16);
+
+    const agentPubKey = Buffer.from(agentPubKeyHex, "hex");
+    const sharedKey = deriveSharedKey(this.keyPair.privateKey, agentPubKey);
+    const walletAddress = this.options.keyManager.getAddress() ?? "";
+    const pairId = derivePairId(walletAddress, agentPubKeyHex);
+
+    const session = createSession(sharedKey, pairId);
+    this.sessions.set(deviceId, session);
+    sharedKey.fill(0);
+
+    this.completePairing(deviceId, msg, sourceIP);
   }
 
   private handleHandshake(agentPubKeyHex: string, sourceIP: string, machineId: string, reconnect: boolean): void {

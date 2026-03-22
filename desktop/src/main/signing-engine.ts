@@ -114,6 +114,8 @@ export class SigningEngine {
     estimatedUSD: number,
     onNeedApproval: (req: PendingSignRequest) => void,
   ): Promise<unknown> {
+    console.log(`[signing-engine] handleSignRequest: requestId=${requestId} method=${method} estimatedUSD=${estimatedUSD}`);
+
     if (this.isFrozen()) {
       throw new Error("Wallet is frozen due to security alert. Please wait or dismiss the alert.");
     }
@@ -131,9 +133,11 @@ export class SigningEngine {
         : withinBudget;
 
     if (canSilentSign) {
+      console.log(`[signing-engine] auto-approve within budget for requestId=${requestId}`);
       return this.signDirectly(method, params, estimatedUSD);
     }
 
+    console.log(`[signing-engine] needs manual approval for requestId=${requestId} (withinBudget=${withinBudget})`);
     return new Promise((resolve, reject) => {
       const pending: PendingSignRequest = {
         requestId,
@@ -158,6 +162,7 @@ export class SigningEngine {
   }
 
   async approve(requestId: string): Promise<void> {
+    console.log(`[signing-engine] approve: requestId=${requestId} pending=${this.pendingRequests.has(requestId)}`);
     const pending = this.pendingRequests.get(requestId);
     if (!pending) throw new Error("No pending request found");
 
@@ -165,14 +170,18 @@ export class SigningEngine {
     this.pendingRequests.delete(requestId);
 
     try {
+      console.log(`[signing-engine] signDirectly START requestId=${requestId} method=${pending.method}`);
       const result = await this.signDirectly(pending.method, pending.params, pending.estimatedUSD);
+      console.log(`[signing-engine] signDirectly OK requestId=${requestId}`);
       pending.resolve(result);
     } catch (err) {
+      console.error(`[signing-engine] signDirectly FAILED requestId=${requestId}: ${(err as Error).message}`);
       pending.reject(err as Error);
     }
   }
 
   reject(requestId: string): void {
+    console.log(`[signing-engine] reject: requestId=${requestId}`);
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
     if (pending.expiryTimer) clearTimeout(pending.expiryTimer);

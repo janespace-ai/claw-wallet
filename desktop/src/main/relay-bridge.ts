@@ -181,9 +181,13 @@ export class RelayBridge {
     if (device?.agentPublicKey) {
       const walletAddress = this.options.keyManager.getAddress() ?? "";
       pairId = derivePairId(walletAddress, device.agentPublicKey);
+    } else if (this.pendingPairCode) {
+      pairId = `pending-${this.pendingPairCode}`;
     } else {
-      pairId = device?.pairId ?? `pending-${Date.now()}`;
+      return;
     }
+    const pairIdShort = pairId.length > 8 ? pairId.slice(0, 8) : pairId;
+    console.log(`[relay-bridge] connecting ws pairId=${pairIdShort}…`);
     const url = `${this.relayUrl}/ws?pairId=${encodeURIComponent(pairId)}`;
 
     try {
@@ -376,6 +380,8 @@ export class RelayBridge {
     }
 
     await this.savePairings();
+    this.pendingPairCode = null;
+    this.reconnectWithNewPairId();
   }
 
   private async handleSignRequest(
@@ -496,6 +502,20 @@ export class RelayBridge {
   private sendRaw(data: unknown): void {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
     this.ws.send(JSON.stringify(data));
+  }
+
+  private reconnectWithNewPairId(): void {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+    if (this.ws) {
+      this.ws.removeAllListeners();
+      this.ws.close();
+      this.ws = null;
+    }
+    this.reconnectAttempt = 0;
+    this.connect();
   }
 
   private scheduleReconnect(): void {

@@ -117,8 +117,8 @@ export class WalletConnection {
         machineId: getMachineId(),
         agentPublicKey: agentPubHex,
       }, 15_000);
-    } catch {
-      // Wallet may not be online yet during pairing; that's ok
+    } catch (err) {
+      console.warn(`[wallet-connection] pair_complete delivery failed (non-fatal): ${(err as Error).message}`);
     }
 
     keyPair.privateKey.fill(0);

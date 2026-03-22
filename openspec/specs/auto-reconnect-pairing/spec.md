@@ -31,6 +31,14 @@ The pairId SHALL be derived deterministically from the wallet address and Agent'
 ### Requirement: Automatic reconnection with identity verification
 On reconnection, the Desktop Wallet SHALL perform three-level identity verification before restoring the E2EE session.
 
+#### Scenario: Desktop reconnects with correct pairId on startup
+- **WHEN** the Desktop Wallet starts and has paired devices with stored `agentPublicKey`
+- **THEN** it SHALL derive the pairId using `derivePairId(walletAddress, agentPublicKey)` and connect to the Relay WebSocket using this derived pairId
+
+#### Scenario: Desktop reconnects after pairing completion
+- **WHEN** the Desktop completes a new pairing and stores the `agentPublicKey`
+- **THEN** it SHALL immediately close any existing WebSocket connection and reconnect using the newly derived pairId
+
 #### Scenario: Level 1 — Public key continuity (hard check)
 - **WHEN** a reconnection handshake is received and the sender's public key does NOT match the stored `commPublicKey` for that device
 - **THEN** the Desktop SHALL reject the connection, destroy any pending session, and emit a `key_mismatch` security event requiring re-pairing

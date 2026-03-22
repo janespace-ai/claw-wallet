@@ -228,7 +228,7 @@ export class SigningEngine {
 
     if (method === "sign_transaction") {
       const txParams = sanitizeTxParams(params);
-      console.log(`[signing-engine] signTransaction with sanitized params:`, JSON.stringify(txParams));
+      console.log(`[signing-engine] signTransaction with sanitized params:`, JSON.stringify(txParams, (_, v) => typeof v === "bigint" ? v.toString() : v));
       const signedTx = await account.signTransaction(txParams as any);
       this.dailyUsage.spentUSD += estimatedUSD;
       return { signedTx, address: account.address };

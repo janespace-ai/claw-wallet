@@ -166,7 +166,9 @@ export class RelayBridge {
     this.pendingPairCode = data.shortCode;
     const expiresAt = Date.now() + data.expiresIn * 1000;
 
-    if (!this.ws) {
+    if (this.ws) {
+      this.reconnectWithNewPairId();
+    } else {
       this.connect();
     }
 

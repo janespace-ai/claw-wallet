@@ -144,8 +144,25 @@ export class RelayBridge {
     await mkdir(this.options.dataDir, { recursive: true });
     this.keyPair = await loadOrCreateKeyPair(this.options.dataDir);
     await this.loadPairings();
+    this.restoreSessions();
     if (this.pairings.devices.length > 0) {
       this.connect();
+    }
+  }
+
+  private restoreSessions(): void {
+    const walletAddress = this.options.keyManager.getAddress() ?? "";
+    for (const device of this.pairings.devices) {
+      if (!device.agentPublicKey) continue;
+      const agentPubKey = Buffer.from(device.agentPublicKey, "hex");
+      const sharedKey = deriveSharedKey(this.keyPair.privateKey, agentPubKey);
+      const pairId = derivePairId(walletAddress, device.agentPublicKey);
+      const session = createSession(sharedKey, pairId);
+      this.sessions.set(device.deviceId, session);
+      sharedKey.fill(0);
+    }
+    if (this.sessions.size > 0) {
+      console.log(`[relay-bridge] restored ${this.sessions.size} E2EE session(s)`);
     }
   }
 
@@ -348,6 +365,10 @@ export class RelayBridge {
   }
 
   private handleEncryptedMessage(payloadBase64: string, sourceIP: string): void {
+    if (this.sessions.size === 0) {
+      console.warn("[relay-bridge] received encrypted message but no E2EE sessions available");
+      return;
+    }
     let decryptFailed = 0;
     for (const [deviceId, session] of this.sessions) {
       try {

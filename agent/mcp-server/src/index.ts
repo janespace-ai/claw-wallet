@@ -10,7 +10,7 @@ import { registerTools } from "./adapter.js";
 
 const dataDir = process.env.DATA_DIR || join(homedir(), ".claw-wallet");
 const defaultChain = (process.env.DEFAULT_CHAIN as SupportedChain) || "base";
-const relayUrl = process.env.RELAY_URL || "ws://localhost:8080";
+const relayUrl = process.env.RELAY_URL || "http://localhost:8080";
 
 const wallet = new ClawWallet({
   dataDir,

@@ -1,6 +1,6 @@
 {
   "_comment_relayUrl": "URL of the Relay Server for agent-to-wallet communication (env: RELAY_URL)",
-  "relayUrl": "ws://localhost:8080",
+  "relayUrl": "http://localhost:8080",
 
   "_comment_dataDir": "Directory for storing pairing, contacts, policy, and history data (env: DATA_DIR)",
   "dataDir": "~/.claw-wallet",

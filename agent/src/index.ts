@@ -42,7 +42,7 @@ export class ClawWallet {
     this.pollIntervalMs = options.pollIntervalMs || 30_000;
     this.onBalanceChange = options.onBalanceChange;
 
-    const relayUrl = options.relayUrl || process.env.RELAY_URL || "ws://localhost:8080";
+    const relayUrl = options.relayUrl || process.env.RELAY_URL || "http://localhost:8080";
     this.walletConnection = new WalletConnection({
       relayUrl,
       dataDir: this.dataDir,

@@ -33,7 +33,7 @@ Add the following to `~/.openclaw/openclaw.json` in the `mcpServers` section:
       "args": ["-y", "@claw-wallet/mcp-server"],
       "transport": "stdio",
       "env": {
-        "RELAY_URL": "wss://your-relay-server.example.com",
+        "RELAY_URL": "https://your-relay-server.example.com",
         "DATA_DIR": "~/.claw-wallet",
         "DEFAULT_CHAIN": "base"
       }

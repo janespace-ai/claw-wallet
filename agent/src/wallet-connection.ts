@@ -35,7 +35,9 @@ export class WalletConnection {
   private loaded = false;
 
   constructor(options: WalletConnectionOptions) {
-    this.relayUrl = options.relayUrl.replace(/\/+$/, "");
+    let url = options.relayUrl.replace(/\/+$/, "");
+    url = url.replace(/^ws(s?):\/\//, "http$1://");
+    this.relayUrl = url;
     this.dataDir = options.dataDir;
   }
 
@@ -53,8 +55,7 @@ export class WalletConnection {
   }
 
   async pair(shortCode: string): Promise<{ address: string; paired: boolean; pairId: string }> {
-    const httpUrl = this.relayUrl.replace(/^ws/, "http");
-    const response = await fetch(`${httpUrl}/pair/${encodeURIComponent(shortCode)}`);
+    const response = await fetch(`${this.relayUrl}/pair/${encodeURIComponent(shortCode)}`);
     if (!response.ok) {
       throw new Error(`Pairing code invalid or expired (HTTP ${response.status})`);
     }
@@ -143,8 +144,7 @@ export class WalletConnection {
       payload,
     };
 
-    const httpUrl = this.relayUrl.replace(/^ws/, "http");
-    const response = await fetch(`${httpUrl}/relay/${encodeURIComponent(pairId)}`, {
+    const response = await fetch(`${this.relayUrl}/relay/${encodeURIComponent(pairId)}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId, data: message }),

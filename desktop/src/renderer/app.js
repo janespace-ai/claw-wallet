@@ -1,5 +1,21 @@
 const api = window.walletAPI;
 
+const WEI_DECIMALS = 18;
+const TOKEN_DECIMALS = { ETH: 18, USDC: 6, USDT: 6, DAI: 18, WETH: 18 };
+
+function formatTokenAmount(rawValue, token) {
+  if (!rawValue || rawValue === "0") return "0";
+  const decimals = TOKEN_DECIMALS[token?.toUpperCase()] ?? WEI_DECIMALS;
+  const str = String(rawValue).replace(/^0x/, "");
+  const value = BigInt(/^[0-9]+$/.test(str) ? str : "0");
+  const divisor = 10n ** BigInt(decimals);
+  const whole = value / divisor;
+  const frac = value % divisor;
+  if (frac === 0n) return whole.toString();
+  const fracStr = frac.toString().padStart(decimals, "0").replace(/0+$/, "");
+  return `${whole}.${fracStr}`;
+}
+
 let currentMode = "setup";
 let currentTxRequest = null;
 let currentAlert = null;
@@ -322,7 +338,7 @@ function setupRealtimeEvents() {
     details.innerHTML = `
       <p><strong>Method:</strong> ${req.method}</p>
       <p><strong>To:</strong> <span class="address">${req.to}</span></p>
-      <p><strong>Amount:</strong> ${req.value} ${req.token}</p>
+      <p><strong>Amount:</strong> ${formatTokenAmount(req.value, req.token)} ${req.token}</p>
       <p><strong>Chain:</strong> ${req.chain}</p>
       <p><strong>From Device:</strong> ${req.fromDevice}</p>
       <p><strong>Source IP:</strong> ${req.sourceIP}</p>

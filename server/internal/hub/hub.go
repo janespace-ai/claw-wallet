@@ -447,6 +447,7 @@ func (h *Hub) HandleRelay(_ context.Context, c *app.RequestContext) {
 
 	var body struct {
 		RequestID string          `json:"requestId"`
+		Timeout   *int            `json:"timeout"`
 		Data      json.RawMessage `json:"data"`
 	}
 	if err := c.BindJSON(&body); err != nil || body.RequestID == "" {
@@ -454,12 +455,23 @@ func (h *Hub) HandleRelay(_ context.Context, c *app.RequestContext) {
 		return
 	}
 
+	timeoutSec := 30
+	if body.Timeout != nil {
+		timeoutSec = *body.Timeout
+		if timeoutSec < 5 {
+			timeoutSec = 5
+		}
+		if timeoutSec > 600 {
+			timeoutSec = 600
+		}
+	}
+
 	envelope, _ := json.Marshal(map[string]interface{}{
 		"sourceIP": clientIP,
 		"data":     body.Data,
 	})
 
-	resp, err := h.SendAndWait(pairID, body.RequestID, envelope, 120*time.Second)
+	resp, err := h.SendAndWait(pairID, body.RequestID, envelope, time.Duration(timeoutSec)*time.Second)
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrNoPeer):

@@ -388,3 +388,29 @@ func TestSendAndWaitConcurrent(t *testing.T) {
 		}
 	}
 }
+
+func TestSendAndWaitCustomTimeout(t *testing.T) {
+	h := New(config.Default())
+	s := setupTestServer(h)
+	defer s.Close()
+
+	conn := dial(t, s, "custom-timeout-pair")
+	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
+
+	envelope, _ := json.Marshal(map[string]interface{}{
+		"sourceIP": "1.2.3.4",
+		"data":     json.RawMessage(`{"requestId":"req-short","method":"test"}`),
+	})
+
+	start := time.Now()
+	_, err := h.SendAndWait("custom-timeout-pair", "req-short", envelope, 500*time.Millisecond)
+	elapsed := time.Since(start)
+
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("expected ErrTimeout, got %v", err)
+	}
+	if elapsed > 2*time.Second {
+		t.Fatalf("expected timeout around 500ms, took %v", elapsed)
+	}
+}

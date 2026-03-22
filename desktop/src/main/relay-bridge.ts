@@ -392,6 +392,7 @@ export class RelayBridge {
       this.sendEncrypted(session, {
         requestId: data.requestId,
         error: `Session frozen: ${frozen?.reason ?? "security policy"}. Re-pairing required.`,
+        errorCode: "SESSION_FROZEN",
       });
       return;
     }
@@ -411,6 +412,7 @@ export class RelayBridge {
         this.sendEncrypted(session, {
           requestId: data.requestId,
           error: "IP change detected. Session frozen by policy.",
+          errorCode: "SESSION_FROZEN",
         });
         return;
       }
@@ -451,9 +453,15 @@ export class RelayBridge {
         result,
       });
     } catch (err) {
+      const msg = (err as Error).message;
+      let errorCode = "SIGN_ERROR";
+      if (msg.includes("locked")) errorCode = "WALLET_LOCKED";
+      else if (msg.includes("rejected by user")) errorCode = "USER_REJECTED";
+      else if (msg.includes("Approval timeout")) errorCode = "APPROVAL_TIMEOUT";
       this.sendEncrypted(session, {
         requestId,
-        error: (err as Error).message,
+        error: msg,
+        errorCode,
       });
     }
   }

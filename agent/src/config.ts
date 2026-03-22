@@ -11,6 +11,10 @@ export interface AgentPolicyConfig {
 }
 
 export interface AgentConfig {
+  /** Timeout in ms for pairing code validation (default: 10000 = 10s) */
+  pairTimeoutMs: number;
+  /** Timeout in ms for general relay requests (default: 30000 = 30s) */
+  relayTimeoutMs: number;
   /** Timeout in ms waiting for Desktop Wallet to sign a transaction (default: 120000 = 2min) */
   signTimeoutMs: number;
   /** Base delay in ms before first reconnect attempt (default: 1000) */
@@ -22,6 +26,8 @@ export interface AgentConfig {
 }
 
 const DEFAULTS: AgentConfig = {
+  pairTimeoutMs: 10_000,
+  relayTimeoutMs: 30_000,
   signTimeoutMs: 120_000,
   reconnectBaseMs: 1000,
   reconnectMaxMs: 30000,
@@ -61,6 +67,8 @@ function resolveConfig(): AgentConfig {
   };
 
   return {
+    pairTimeoutMs: envInt("CLAW_AGENT_PAIR_TIMEOUT_MS") ?? (file.pairTimeoutMs as number) ?? DEFAULTS.pairTimeoutMs,
+    relayTimeoutMs: envInt("CLAW_AGENT_RELAY_TIMEOUT_MS") ?? (file.relayTimeoutMs as number) ?? DEFAULTS.relayTimeoutMs,
     signTimeoutMs: envInt("CLAW_AGENT_SIGN_TIMEOUT_MS") ?? (file.signTimeoutMs as number) ?? DEFAULTS.signTimeoutMs,
     reconnectBaseMs: envInt("CLAW_AGENT_RECONNECT_BASE_MS") ?? (file.reconnectBaseMs as number) ?? DEFAULTS.reconnectBaseMs,
     reconnectMaxMs: envInt("CLAW_AGENT_RECONNECT_MAX_MS") ?? (file.reconnectMaxMs as number) ?? DEFAULTS.reconnectMaxMs,

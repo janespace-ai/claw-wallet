@@ -13,6 +13,7 @@ import {
   type E2EEKeyPair,
 } from "./e2ee/crypto.js";
 import { getMachineId } from "./e2ee/machine-id.js";
+import { agentConfig } from "./config.js";
 
 interface PairingData {
   pairId: string;
@@ -28,11 +29,34 @@ export interface WalletConnectionOptions {
   dataDir: string;
 }
 
+async function fetchWithTimeout(
+  url: string,
+  options: RequestInit,
+  timeoutMs: number,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new Error(`Request timeout (${Math.round(timeoutMs / 1000)}s)`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+const SIGN_METHODS = new Set(["sign_transaction", "sign_message"]);
+
 export class WalletConnection {
   private relayUrl: string;
   private dataDir: string;
   private pairing: PairingData | null = null;
   private loaded = false;
+  private healthOk = false;
+  private healthCheckedAt = 0;
 
   constructor(options: WalletConnectionOptions) {
     let url = options.relayUrl.replace(/\/+$/, "");
@@ -55,7 +79,11 @@ export class WalletConnection {
   }
 
   async pair(shortCode: string): Promise<{ address: string; paired: boolean; pairId: string }> {
-    const response = await fetch(`${this.relayUrl}/pair/${encodeURIComponent(shortCode)}`);
+    const response = await fetchWithTimeout(
+      `${this.relayUrl}/pair/${encodeURIComponent(shortCode)}`,
+      {},
+      agentConfig.pairTimeoutMs,
+    );
     if (!response.ok) {
       throw new Error(`Pairing code invalid or expired (HTTP ${response.status})`);
     }
@@ -88,7 +116,7 @@ export class WalletConnection {
         type: "pair_complete",
         machineId: getMachineId(),
         agentPublicKey: agentPubHex,
-      });
+      }, 15_000);
     } catch {
       // Wallet may not be online yet during pairing; that's ok
     }
@@ -103,6 +131,12 @@ export class WalletConnection {
       throw new Error("No wallet paired. Use wallet_pair to connect a Desktop Wallet.");
     }
 
+    await this.checkHealth();
+
+    const timeoutMs = SIGN_METHODS.has(method)
+      ? agentConfig.signTimeoutMs
+      : agentConfig.relayTimeoutMs;
+
     const keyPair = deserializeKeyPair(this.pairing.commKeyPair);
     const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
@@ -111,6 +145,7 @@ export class WalletConnection {
       keyPair,
       this.pairing.peerPublicKey,
       { requestId, method, params },
+      timeoutMs,
     );
 
     keyPair.privateKey.fill(0);
@@ -122,11 +157,29 @@ export class WalletConnection {
     return response.result;
   }
 
+  private async checkHealth(): Promise<void> {
+    const now = Date.now();
+    if (this.healthOk && now - this.healthCheckedAt < 30_000) {
+      return;
+    }
+
+    try {
+      const resp = await fetchWithTimeout(`${this.relayUrl}/health`, {}, 5_000);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      this.healthOk = true;
+      this.healthCheckedAt = now;
+    } catch {
+      this.healthOk = false;
+      throw new Error("Relay Server unreachable");
+    }
+  }
+
   private async sendToWalletRaw(
     pairId: string,
     keyPair: E2EEKeyPair,
     peerPubHex: string,
     data: unknown,
+    timeoutMs: number,
   ): Promise<unknown> {
     const peerPub = Buffer.from(peerPubHex, "hex");
     const sharedKey = deriveSharedKey(keyPair.privateKey, peerPub);
@@ -144,11 +197,17 @@ export class WalletConnection {
       payload,
     };
 
-    const response = await fetch(`${this.relayUrl}/relay/${encodeURIComponent(pairId)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, data: message }),
-    });
+    const timeoutSec = Math.ceil(timeoutMs / 1000);
+
+    const response = await fetchWithTimeout(
+      `${this.relayUrl}/relay/${encodeURIComponent(pairId)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, timeout: timeoutSec, data: message }),
+      },
+      timeoutMs,
+    );
 
     destroySession(session);
 

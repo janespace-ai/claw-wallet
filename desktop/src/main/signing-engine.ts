@@ -22,12 +22,15 @@ interface PendingSignRequest {
   estimatedUSD: number;
   resolve: (value: unknown) => void;
   reject: (reason: Error) => void;
+  expiryTimer?: ReturnType<typeof setTimeout>;
 }
 
 export interface SigningEngineOptions {
   dailyLimitUsd?: number;
   perTxLimitUsd?: number;
   tokenWhitelist?: string[];
+  approvalTimeoutMs?: number;
+  onApprovalExpired?: (requestId: string) => void;
 }
 
 const DEFAULT_ALLOWANCE: AllowanceConfig = {
@@ -45,9 +48,13 @@ export class SigningEngine {
   private frozen = false;
   private frozenUntil = 0;
   private dataDir = "";
+  private approvalTimeoutMs: number;
+  private onApprovalExpired?: (requestId: string) => void;
 
   constructor(keyManager: KeyManager, options?: SigningEngineOptions) {
     this.keyManager = keyManager;
+    this.approvalTimeoutMs = options?.approvalTimeoutMs ?? 10 * 60 * 1000;
+    this.onApprovalExpired = options?.onApprovalExpired;
     this.allowance = {
       dailyLimitUSD: options?.dailyLimitUsd ?? DEFAULT_ALLOWANCE.dailyLimitUSD,
       perTxLimitUSD: options?.perTxLimitUsd ?? DEFAULT_ALLOWANCE.perTxLimitUSD,
@@ -128,6 +135,15 @@ export class SigningEngine {
         resolve,
         reject,
       };
+
+      pending.expiryTimer = setTimeout(() => {
+        if (this.pendingRequests.has(requestId)) {
+          this.pendingRequests.delete(requestId);
+          reject(new Error("Approval timeout: transaction expired after 10 minutes"));
+          this.onApprovalExpired?.(requestId);
+        }
+      }, this.approvalTimeoutMs);
+
       this.pendingRequests.set(requestId, pending);
       onNeedApproval(pending);
     });
@@ -137,6 +153,7 @@ export class SigningEngine {
     const pending = this.pendingRequests.get(requestId);
     if (!pending) throw new Error("No pending request found");
 
+    if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
     this.pendingRequests.delete(requestId);
 
     try {
@@ -150,6 +167,7 @@ export class SigningEngine {
   reject(requestId: string): void {
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
+    if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
     this.pendingRequests.delete(requestId);
     pending.reject(new Error("Transaction rejected by user"));
   }

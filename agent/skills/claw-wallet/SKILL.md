@@ -80,6 +80,15 @@ wallet_approval_reject { id: "abc123" }              → reject
 
 ## Error Handling
 
-- "No wallet configured" → Tell user to run `wallet_pair` after creating a wallet in the Desktop App
-- "no wallet connected" → Desktop Wallet may be offline; ask user to check it's running
-- Transaction blocked → Explain the policy limit and show the approval ID
+| Error / Code | Meaning | Action |
+|-------------|---------|--------|
+| "No wallet paired" | Agent has no pairing data | Tell user to run `wallet_pair` |
+| "Relay Server unreachable" | Cannot reach the Relay Server | Check Relay URL and server status |
+| "Request timeout (Ns)" | Operation timed out | Retry; for sign requests check if Wallet App is running |
+| "no wallet connected" (HTTP 404) | Desktop Wallet is offline | Ask user to open the Desktop Wallet App |
+| `WALLET_LOCKED` | Wallet App is locked | Ask user to unlock in the Desktop App |
+| `USER_REJECTED` | User explicitly rejected the transaction | Inform user; do not retry |
+| `APPROVAL_TIMEOUT` | User didn't approve within 10 minutes | Ask user to retry and approve promptly |
+| `SESSION_FROZEN` | Security policy froze the session | Re-pairing required |
+| `SIGN_ERROR` | Signing failed (unsupported method, key issue) | Report error details |
+| Transaction blocked by policy | Spending limit exceeded | Explain the limit, show approval ID |

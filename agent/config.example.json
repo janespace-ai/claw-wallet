@@ -8,6 +8,15 @@
   "_comment_defaultChain": "Default blockchain for operations: base or ethereum (env: DEFAULT_CHAIN)",
   "defaultChain": "base",
 
+  "_comment_pairTimeoutMs": "Timeout in ms for pairing code validation requests (env: CLAW_AGENT_PAIR_TIMEOUT_MS)",
+  "pairTimeoutMs": 10000,
+
+  "_comment_relayTimeoutMs": "Timeout in ms for general relay requests to Desktop Wallet (env: CLAW_AGENT_RELAY_TIMEOUT_MS)",
+  "relayTimeoutMs": 30000,
+
+  "_comment_signTimeoutMs": "Timeout in ms waiting for Desktop Wallet to sign a transaction, includes user approval time (env: CLAW_AGENT_SIGN_TIMEOUT_MS)",
+  "signTimeoutMs": 120000,
+
   "_comment_policy": "Default policy parameters for transaction approval",
   "policy": {
     "_comment_perTxLimitUsd": "Maximum USD value per single transaction before requiring manual approval",

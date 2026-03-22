@@ -460,7 +460,7 @@ export class RelayBridge {
         requestId: data.requestId,
         error: `Session frozen: ${frozen?.reason ?? "security policy"}. Re-pairing required.`,
         errorCode: "SESSION_FROZEN",
-      });
+      }, data.requestId as string);
       return;
     }
 
@@ -480,7 +480,7 @@ export class RelayBridge {
           requestId: data.requestId,
           error: "IP change detected. Session frozen by policy.",
           errorCode: "SESSION_FROZEN",
-        });
+        }, data.requestId as string);
         return;
       }
     }
@@ -518,7 +518,7 @@ export class RelayBridge {
       this.sendEncrypted(session, {
         requestId,
         result,
-      });
+      }, requestId);
     } catch (err) {
       const msg = (err as Error).message;
       let errorCode = "SIGN_ERROR";
@@ -529,7 +529,7 @@ export class RelayBridge {
         requestId,
         error: msg,
         errorCode,
-      });
+      }, requestId);
     }
   }
 
@@ -552,12 +552,16 @@ export class RelayBridge {
     return true;
   }
 
-  private sendEncrypted(session: E2EESession, data: unknown): void {
+  private sendEncrypted(session: E2EESession, data: unknown, requestId?: string): void {
     const encrypted = encryptJSON(session, data);
-    this.sendRaw({
+    const msg: Record<string, unknown> = {
       type: "encrypted",
       payload: Buffer.from(encrypted).toString("base64"),
-    });
+    };
+    if (requestId) {
+      msg.requestId = requestId;
+    }
+    this.sendRaw(msg);
   }
 
   private sendRaw(data: unknown): void {

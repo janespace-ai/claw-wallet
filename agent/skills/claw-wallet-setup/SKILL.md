@@ -46,10 +46,9 @@ Add the following to `~/.openclaw/openclaw.json` in the `mcpServers` section:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `RELAY_URL` | Yes | — | WebSocket URL of the Relay Server |
-| `DATA_DIR` | No | `~/.claw-wallet` | Directory for contacts, policy, and history |
+| `RELAY_URL` | No | `ws://localhost:8080` | WebSocket URL of the Relay Server |
+| `DATA_DIR` | No | `~/.claw-wallet` | Directory for pairing, contacts, policy, and history |
 | `DEFAULT_CHAIN` | No | `base` | Default blockchain (base or ethereum) |
-| `SIGNER_SOCKET` | No | auto-detected | Unix socket path for Desktop Wallet signer |
 
 ## Step 2: Restart Gateway
 
@@ -69,17 +68,14 @@ You should see `claw-wallet` in the list.
 2. Go to the **Pairing** tab
 3. Click **Generate Pairing Code**
 4. Tell the agent the code, e.g.: "pair with code ABC123"
-5. The agent calls `wallet_pair` to establish the E2EE connection
+5. The agent calls `wallet_pair` to establish the E2EE connection via HTTP relay
 
-After pairing, all wallet tools become fully functional.
+After pairing, all wallet tools become fully functional. The agent communicates with your Desktop Wallet through the Relay Server using stateless HTTP requests — no persistent connections needed on the agent side.
 
 ## Troubleshooting
 
-### "RELAY_URL environment variable is required"
-The MCP server cannot start without a relay URL. Add `RELAY_URL` to the `env` section of the `claw-wallet` MCP config.
-
 ### "No wallet configured"
-The Desktop Wallet has no wallet yet. Ask the user to create one in the Desktop App, or use `wallet_create` / `wallet_import`.
+The Desktop Wallet has no wallet yet. Ask the user to create one in the Desktop App, then pair with `wallet_pair`.
 
 ### Tools not appearing
 1. Check `openclaw mcp list` — is `claw-wallet` listed?
@@ -89,8 +85,11 @@ The Desktop Wallet has no wallet yet. Ask the user to create one in the Desktop 
 ### Relay connection failures
 1. Verify the Relay Server is running and accessible at the configured URL
 2. Check for firewall or network issues
-3. Try `curl -I https://your-relay-server.example.com` to test connectivity
+3. Try `curl -I https://your-relay-server.example.com/health` to test connectivity
 4. Restart the gateway to force a reconnection
 
 ### Desktop Wallet not paired
 Run `wallet_pair` with a fresh pairing code from the Desktop App. Codes expire after 5 minutes.
+
+### "no wallet connected for this pairId"
+The Desktop Wallet is not online or not connected to the Relay Server. Ensure the Desktop App is running and connected.

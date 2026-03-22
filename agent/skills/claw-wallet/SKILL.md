@@ -80,6 +80,6 @@ wallet_approval_reject { id: "abc123" }              → reject
 
 ## Error Handling
 
-- "No wallet configured" → Tell user to run `wallet_create` or `wallet_import`
-- "Relay disconnected" → Suggest checking the Relay Server and restarting the gateway
+- "No wallet configured" → Tell user to run `wallet_pair` after creating a wallet in the Desktop App
+- "no wallet connected" → Desktop Wallet may be offline; ask user to check it's running
 - Transaction blocked → Explain the policy limit and show the approval ID

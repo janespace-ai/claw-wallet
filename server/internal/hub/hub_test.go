@@ -2,9 +2,11 @@ package hub
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -261,5 +263,128 @@ func TestPairConnRateLimit(t *testing.T) {
 	}
 	if resp != nil && resp.StatusCode != http.StatusTooManyRequests {
 		t.Fatalf("expected 429, got %d", resp.StatusCode)
+	}
+}
+
+func TestSendAndWaitSuccess(t *testing.T) {
+	h := New(config.Default())
+	s := setupTestServer(h)
+	defer s.Close()
+
+	conn := dial(t, s, "saw-pair")
+	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
+
+	go func() {
+		msg := readJSON(t, conn, 5*time.Second)
+		data := msg["data"].(map[string]interface{})
+		reqID := data["requestId"].(string)
+		resp, _ := json.Marshal(map[string]interface{}{
+			"requestId": reqID,
+			"result":    map[string]string{"signature": "0xabc"},
+		})
+		conn.WriteMessage(websocket.TextMessage, resp)
+	}()
+
+	envelope, _ := json.Marshal(map[string]interface{}{
+		"sourceIP": "1.2.3.4",
+		"data":     json.RawMessage(`{"requestId":"req-1","method":"sign_transaction"}`),
+	})
+
+	resp, err := h.SendAndWait("saw-pair", "req-1", envelope, 5*time.Second)
+	if err != nil {
+		t.Fatalf("SendAndWait failed: %v", err)
+	}
+
+	var parsed map[string]interface{}
+	if err := json.Unmarshal(resp, &parsed); err != nil {
+		t.Fatalf("failed to parse response: %v", err)
+	}
+	if parsed["requestId"] != "req-1" {
+		t.Fatalf("expected requestId req-1, got %v", parsed["requestId"])
+	}
+}
+
+func TestSendAndWaitNoPeer(t *testing.T) {
+	h := New(config.Default())
+
+	_, err := h.SendAndWait("nonexistent-pair", "req-1", []byte(`{}`), time.Second)
+	if !errors.Is(err, ErrNoPeer) {
+		t.Fatalf("expected ErrNoPeer, got %v", err)
+	}
+}
+
+func TestSendAndWaitTimeout(t *testing.T) {
+	h := New(config.Default())
+	s := setupTestServer(h)
+	defer s.Close()
+
+	conn := dial(t, s, "timeout-pair")
+	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
+
+	envelope, _ := json.Marshal(map[string]interface{}{
+		"sourceIP": "1.2.3.4",
+		"data":     json.RawMessage(`{"requestId":"req-timeout","method":"sign"}`),
+	})
+
+	_, err := h.SendAndWait("timeout-pair", "req-timeout", envelope, 200*time.Millisecond)
+	if !errors.Is(err, ErrTimeout) {
+		t.Fatalf("expected ErrTimeout, got %v", err)
+	}
+}
+
+func TestSendAndWaitConcurrent(t *testing.T) {
+	h := New(config.Default())
+	s := setupTestServer(h)
+	defer s.Close()
+
+	conn := dial(t, s, "concurrent-pair")
+	defer conn.Close()
+	time.Sleep(50 * time.Millisecond)
+
+	go func() {
+		for i := 0; i < 3; i++ {
+			msg := readJSON(t, conn, 5*time.Second)
+			data := msg["data"].(map[string]interface{})
+			reqID := data["requestId"].(string)
+			resp, _ := json.Marshal(map[string]interface{}{
+				"requestId": reqID,
+				"result":    reqID + "-done",
+			})
+			conn.WriteMessage(websocket.TextMessage, resp)
+		}
+	}()
+
+	var wg sync.WaitGroup
+	errs := make([]error, 3)
+	results := make([]string, 3)
+
+	for i := 0; i < 3; i++ {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			reqID := "concurrent-" + string(rune('a'+idx))
+			envelope, _ := json.Marshal(map[string]interface{}{
+				"sourceIP": "1.2.3.4",
+				"data":     json.RawMessage(`{"requestId":"` + reqID + `","method":"sign"}`),
+			})
+			resp, err := h.SendAndWait("concurrent-pair", reqID, envelope, 5*time.Second)
+			errs[idx] = err
+			if err == nil {
+				results[idx] = string(resp)
+			}
+		}(i)
+	}
+
+	wg.Wait()
+
+	for i, err := range errs {
+		if err != nil {
+			t.Fatalf("concurrent request %d failed: %v", i, err)
+		}
+		if results[i] == "" {
+			t.Fatalf("concurrent request %d returned empty result", i)
+		}
 	}
 }

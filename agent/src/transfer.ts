@@ -1,7 +1,7 @@
 import type { Address, Hex } from "viem";
 import { parseEther, parseUnits } from "viem";
 import { ChainAdapter } from "./chain.js";
-import { SignerClient } from "./signer/ipc-client.js";
+import { WalletConnection } from "./wallet-connection.js";
 import { PolicyEngine } from "./policy.js";
 import { ContactsManager } from "./contacts.js";
 import { TransactionHistory } from "./history.js";
@@ -28,7 +28,7 @@ export class TransferService {
   constructor(
     private chainAdapter: ChainAdapter,
     private walletAddress: Address,
-    private signerClient: SignerClient,
+    private walletConnection: WalletConnection,
     private policy: PolicyEngine,
     private contacts: ContactsManager,
     private history: TransactionHistory
@@ -60,7 +60,7 @@ export class TransferService {
     }
 
     const chain = this.chainAdapter.getChain(params.chain);
-    const result = await this.signerClient.call("sign_transaction", {
+    const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to,
       value: value.toString(),
       gas: gasEstimate.gas.toString(),
@@ -131,7 +131,7 @@ export class TransferService {
     }
 
     const chain = this.chainAdapter.getChain(params.chain);
-    const result = await this.signerClient.call("sign_transaction", {
+    const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to: tokenAddress,
       data: transferData,
       gas: gasEstimate.gas.toString(),

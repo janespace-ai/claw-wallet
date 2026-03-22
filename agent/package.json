@@ -41,12 +41,10 @@
     "@noble/hashes": "^2.0.1",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3",
-    "viem": "^2.47.4",
-    "ws": "^8.19.0"
+    "viem": "^2.47.4"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
-    "@types/ws": "^8.18.1",
     "vitest": "^4.1.0"
   }
 }

@@ -1,7 +1,9 @@
 package hub
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"log"
 	"net/http"
 	"sync"
@@ -9,6 +11,7 @@ import (
 
 	"github.com/anthropic/claw-wallet-relay/internal/config"
 	"github.com/anthropic/claw-wallet-relay/internal/iputil"
+	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/gorilla/websocket"
 )
 
@@ -29,6 +32,8 @@ type Hub struct {
 	msgRate      map[string]*rateBucket
 	pairIPs      map[string]map[string]int
 	pairConnRate map[string]*rateBucket
+	pendingHTTP  map[string]chan []byte
+	relayRate    map[string]*rateBucket
 	cfg          config.Config
 }
 
@@ -43,6 +48,8 @@ func New(cfg config.Config) *Hub {
 		msgRate:      make(map[string]*rateBucket),
 		pairIPs:      make(map[string]map[string]int),
 		pairConnRate: make(map[string]*rateBucket),
+		pendingHTTP:  make(map[string]chan []byte),
+		relayRate:    make(map[string]*rateBucket),
 		cfg:          cfg,
 	}
 	go h.cleanupRateBuckets()
@@ -231,6 +238,8 @@ func (h *Hub) readPump(c *Client) {
 			default:
 			}
 		}
+
+		h.notifyPendingHTTPDisconnect(c.PairID)
 	}()
 
 	c.Conn.SetReadLimit(h.cfg.WS.ReadLimitBytes)
@@ -249,6 +258,10 @@ func (h *Hub) readPump(c *Client) {
 		addr := c.Conn.RemoteAddr().String()
 		if !h.checkMsgRate(addr) {
 			log.Printf("rate limit exceeded: %s", addr)
+			continue
+		}
+
+		if h.tryRouteToHTTP(message) {
 			continue
 		}
 
@@ -301,4 +314,174 @@ func (h *Hub) writePump(c *Client) {
 			}
 		}
 	}
+}
+
+var (
+	ErrNoPeer    = errors.New("no wallet connected for this pairId")
+	ErrTimeout   = errors.New("wallet response timeout")
+	ErrPeerGone  = errors.New("wallet disconnected")
+	ErrRateLimit = errors.New("relay rate limit exceeded")
+)
+
+func (h *Hub) tryRouteToHTTP(message []byte) bool {
+	var peek struct {
+		RequestID string `json:"requestId"`
+	}
+	if err := json.Unmarshal(message, &peek); err != nil || peek.RequestID == "" {
+		return false
+	}
+
+	h.mu.RLock()
+	ch, ok := h.pendingHTTP[peek.RequestID]
+	h.mu.RUnlock()
+	if !ok {
+		return false
+	}
+
+	select {
+	case ch <- message:
+	default:
+	}
+	return true
+}
+
+func (h *Hub) notifyPendingHTTPDisconnect(pairID string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	remaining := len(h.pairs[pairID])
+	if remaining > 0 {
+		return
+	}
+
+	for reqID, ch := range h.pendingHTTP {
+		select {
+		case ch <- nil:
+		default:
+		}
+		delete(h.pendingHTTP, reqID)
+	}
+}
+
+func (h *Hub) checkRelayRate(ip string) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	now := time.Now()
+	bucket, ok := h.relayRate[ip]
+	if !ok || now.After(bucket.resetAt) {
+		h.relayRate[ip] = &rateBucket{count: 1, resetAt: now.Add(time.Minute)}
+		return true
+	}
+	bucket.count++
+	return bucket.count <= 30
+}
+
+func (h *Hub) SendAndWait(pairID string, requestID string, message []byte, timeout time.Duration) ([]byte, error) {
+	h.mu.RLock()
+	peers := h.pairs[pairID]
+	h.mu.RUnlock()
+
+	if len(peers) == 0 {
+		return nil, ErrNoPeer
+	}
+
+	ch := make(chan []byte, 1)
+	h.mu.Lock()
+	h.pendingHTTP[requestID] = ch
+	h.mu.Unlock()
+
+	defer func() {
+		h.mu.Lock()
+		delete(h.pendingHTTP, requestID)
+		h.mu.Unlock()
+	}()
+
+	sent := false
+	for _, peer := range peers {
+		select {
+		case peer.Send <- message:
+			sent = true
+		default:
+		}
+	}
+	if !sent {
+		return nil, ErrNoPeer
+	}
+
+	select {
+	case resp := <-ch:
+		if resp == nil {
+			return nil, ErrPeerGone
+		}
+		return resp, nil
+	case <-time.After(timeout):
+		return nil, ErrTimeout
+	}
+}
+
+func (h *Hub) HandleRelay(_ context.Context, c *app.RequestContext) {
+	pairID := c.Param("pairId")
+	if pairID == "" {
+		c.JSON(http.StatusBadRequest, map[string]string{"error": "missing pairId"})
+		return
+	}
+
+	clientIP := string(c.GetHeader("X-Forwarded-For"))
+	if clientIP != "" {
+		if idx := indexOf(clientIP, ','); idx >= 0 {
+			clientIP = clientIP[:idx]
+		}
+	}
+	if clientIP == "" {
+		clientIP = string(c.GetHeader("X-Real-IP"))
+	}
+	if clientIP == "" {
+		clientIP = c.ClientIP()
+	}
+
+	if !h.checkRelayRate(clientIP) {
+		c.JSON(http.StatusTooManyRequests, map[string]string{"error": "relay rate limit exceeded"})
+		return
+	}
+
+	var body struct {
+		RequestID string          `json:"requestId"`
+		Data      json.RawMessage `json:"data"`
+	}
+	if err := c.BindJSON(&body); err != nil || body.RequestID == "" {
+		c.JSON(http.StatusBadRequest, map[string]string{"error": "invalid request body, requires requestId and data"})
+		return
+	}
+
+	envelope, _ := json.Marshal(map[string]interface{}{
+		"sourceIP": clientIP,
+		"data":     body.Data,
+	})
+
+	resp, err := h.SendAndWait(pairID, body.RequestID, envelope, 120*time.Second)
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrNoPeer):
+			c.JSON(http.StatusNotFound, map[string]string{"error": "no wallet connected for this pairId"})
+		case errors.Is(err, ErrTimeout):
+			c.JSON(http.StatusGatewayTimeout, map[string]string{"error": "wallet response timeout"})
+		case errors.Is(err, ErrPeerGone):
+			c.JSON(http.StatusBadGateway, map[string]string{"error": "wallet disconnected"})
+		default:
+			c.JSON(http.StatusInternalServerError, map[string]string{"error": "internal error"})
+		}
+		return
+	}
+
+	c.Data(http.StatusOK, "application/json", resp)
+}
+
+func indexOf(s string, ch byte) int {
+	for i := 0; i < len(s); i++ {
+		if s[i] == ch {
+			return i
+		}
+	}
+	return -1
 }

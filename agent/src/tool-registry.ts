@@ -5,7 +5,7 @@ import type { PolicyEngine } from "./policy.js";
 import type { ContactsManager } from "./contacts.js";
 import type { TransactionHistory } from "./history.js";
 import type { TransferService } from "./transfer.js";
-import type { SignerClient } from "./signer/ipc-client.js";
+import type { WalletConnection } from "./wallet-connection.js";
 import type { SupportedChain, ToolDefinition } from "./types.js";
 
 import { createWalletCreateTool } from "./tools/wallet-create.js";
@@ -23,7 +23,7 @@ import { createWalletHistoryTool } from "./tools/wallet-history.js";
 import { createWalletPairTool } from "./tools/wallet-pair.js";
 
 export interface ToolDependencies {
-  signerClient: SignerClient;
+  walletConnection: WalletConnection;
   chainAdapter: ChainAdapter;
   getAddress: () => Address | null;
   getTransferService: () => TransferService | null;
@@ -35,9 +35,9 @@ export interface ToolDependencies {
 
 export function createAllTools(deps: ToolDependencies): ToolDefinition[] {
   return [
-    createWalletCreateTool(deps.signerClient),
-    createWalletImportTool(deps.signerClient),
-    createWalletPairTool(deps.signerClient),
+    createWalletCreateTool(),
+    createWalletImportTool(),
+    createWalletPairTool(deps.walletConnection),
     createWalletAddressTool(deps.getAddress),
     createWalletBalanceTool(deps.chainAdapter, deps.getAddress, deps.defaultChain),
     createWalletEstimateGasTool(deps.chainAdapter, deps.defaultChain),

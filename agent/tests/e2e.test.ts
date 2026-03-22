@@ -39,13 +39,14 @@ describe("claw-wallet E2E (Phase 2 — no local signer)", () => {
     console.log(`  Tools registered: ${tools.length}`);
   });
 
-  it("2. wallet_create — returns guidance to use Electron App (signer not connected)", async () => {
+  it("2. wallet_create — returns guidance to use Desktop Wallet App", async () => {
     const tools = wallet.getTools();
     const createTool = tools.find((t) => t.name === "wallet_create")!;
     const result = (await createTool.execute({})) as any;
 
-    expect(result.error).toBeDefined();
-    console.log(`  Create result: ${result.error?.substring(0, 80)}`);
+    expect(result.message).toBeDefined();
+    expect(result.message).toContain("Desktop Wallet App");
+    console.log(`  Create result: ${result.message?.substring(0, 80)}`);
   });
 
   it("3. wallet_policy_get — returns default policy", async () => {

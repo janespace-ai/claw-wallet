@@ -1,12 +1,12 @@
 {
-  "_comment_signTimeoutMs": "Timeout in ms waiting for Desktop Wallet to sign a transaction (env: CLAW_AGENT_SIGN_TIMEOUT_MS)",
-  "signTimeoutMs": 120000,
+  "_comment_relayUrl": "URL of the Relay Server for agent-to-wallet communication (env: RELAY_URL)",
+  "relayUrl": "ws://localhost:8080",
 
-  "_comment_reconnectBaseMs": "Base delay in ms before first reconnect attempt (env: CLAW_AGENT_RECONNECT_BASE_MS)",
-  "reconnectBaseMs": 1000,
+  "_comment_dataDir": "Directory for storing pairing, contacts, policy, and history data (env: DATA_DIR)",
+  "dataDir": "~/.claw-wallet",
 
-  "_comment_reconnectMaxMs": "Maximum reconnect delay in ms, caps exponential backoff (env: CLAW_AGENT_RECONNECT_MAX_MS)",
-  "reconnectMaxMs": 30000,
+  "_comment_defaultChain": "Default blockchain for operations: base or ethereum (env: DEFAULT_CHAIN)",
+  "defaultChain": "base",
 
   "_comment_policy": "Default policy parameters for transaction approval",
   "policy": {

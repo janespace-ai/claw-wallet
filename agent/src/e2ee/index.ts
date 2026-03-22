@@ -7,11 +7,11 @@ export {
   encryptJSON,
   decryptJSON,
   destroySession,
+  serializeKeyPair,
+  deserializeKeyPair,
+  derivePairId,
   type E2EEKeyPair,
   type E2EESession,
 } from "./crypto.js";
 
-export {
-  RelayTransport,
-  type RelayTransportOptions,
-} from "./transport.js";
+export { getMachineId } from "./machine-id.js";

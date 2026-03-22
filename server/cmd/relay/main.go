@@ -34,6 +34,8 @@ func main() {
 	srv.POST("/pair/create", pairStore.HandleCreate)
 	srv.GET("/pair/:code", pairStore.HandleResolve)
 
+	srv.POST("/relay/:pairId", h.HandleRelay)
+
 	srv.GET("/health", adaptor.HertzHandler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		fmt.Fprintf(w, `{"status":"ok"}`)
@@ -42,6 +44,7 @@ func main() {
 	log.Printf("Claw Wallet Relay Server starting on %s", addr)
 	log.Printf("  WebSocket: /ws?pairId=<id>")
 	log.Printf("  Pairing:   POST /pair/create, GET /pair/<code>")
+	log.Printf("  Relay:     POST /relay/<pairId>")
 	log.Printf("  Health:    GET /health")
 
 	srv.Spin()

@@ -9,7 +9,7 @@ import { ContactsManager } from "./contacts.js";
 import { TransactionHistory } from "./history.js";
 import { BalanceMonitor } from "./monitor.js";
 import { TransferService } from "./transfer.js";
-import { SignerClient } from "./signer/ipc-client.js";
+import { WalletConnection } from "./wallet-connection.js";
 import type { SupportedChain, WalletConfig, ToolDefinition, ChainConfig } from "./types.js";
 
 import { createAllTools } from "./tool-registry.js";
@@ -18,7 +18,7 @@ export interface ClawWalletOptions {
   dataDir?: string;
   defaultChain?: SupportedChain;
   chains?: Partial<Record<SupportedChain, ChainConfig>>;
-  signerSocketPath?: string;
+  relayUrl?: string;
   pollIntervalMs?: number;
   onBalanceChange?: (event: any) => void;
 }
@@ -29,7 +29,7 @@ export class ClawWallet {
   private contacts: ContactsManager;
   private history: TransactionHistory;
   private monitor: BalanceMonitor | null = null;
-  private signerClient: SignerClient;
+  private walletConnection: WalletConnection;
   private walletAddress: Address | null = null;
   private dataDir: string;
   private defaultChain: SupportedChain;
@@ -42,9 +42,11 @@ export class ClawWallet {
     this.pollIntervalMs = options.pollIntervalMs || 30_000;
     this.onBalanceChange = options.onBalanceChange;
 
-    const socketPath = options.signerSocketPath ||
-      join("/tmp", `claw-signer-${process.getuid?.() ?? 0}.sock`);
-    this.signerClient = new SignerClient(socketPath);
+    const relayUrl = options.relayUrl || process.env.RELAY_URL || "ws://localhost:8080";
+    this.walletConnection = new WalletConnection({
+      relayUrl,
+      dataDir: this.dataDir,
+    });
 
     this.chainAdapter = new ChainAdapter(options.chains);
     this.policy = new PolicyEngine(join(this.dataDir, "policy.json"));
@@ -54,16 +56,15 @@ export class ClawWallet {
 
   async initialize(): Promise<void> {
     await mkdir(this.dataDir, { recursive: true });
+    await this.walletConnection.initialize();
     await this.policy.load();
     await this.contacts.load();
     await this.history.load();
 
-    try {
-      const result = await this.signerClient.call("get_address") as { address: Address };
-      this.walletAddress = result.address;
+    const addr = this.walletConnection.getAddress();
+    if (addr) {
+      this.walletAddress = addr as Address;
       this.startMonitor();
-    } catch {
-      // Signer not running or no wallet yet
     }
   }
 
@@ -104,7 +105,7 @@ export class ClawWallet {
     return new TransferService(
       this.chainAdapter,
       this.walletAddress,
-      this.signerClient,
+      this.walletConnection,
       this.policy,
       this.contacts,
       this.history
@@ -112,19 +113,17 @@ export class ClawWallet {
   }
 
   async reloadAddress(): Promise<void> {
-    try {
-      const result = await this.signerClient.call("get_address") as { address: Address };
-      this.walletAddress = result.address;
+    const addr = this.walletConnection.getAddress();
+    if (addr) {
+      this.walletAddress = addr as Address;
       this.stopMonitor();
       this.startMonitor();
-    } catch {
-      // Signer not available
     }
   }
 
   getTools(): ToolDefinition[] {
     const tools = createAllTools({
-      signerClient: this.signerClient,
+      walletConnection: this.walletConnection,
       chainAdapter: this.chainAdapter,
       getAddress: () => this.getAddress(),
       getTransferService: () => this.getTransferService(),
@@ -147,8 +146,6 @@ export class ClawWallet {
       };
     };
 
-    wrapWithReload("wallet_create");
-    wrapWithReload("wallet_import");
     wrapWithReload("wallet_pair");
 
     return tools;
@@ -162,6 +159,5 @@ export { ContactsManager } from "./contacts.js";
 export { TransactionHistory } from "./history.js";
 export { BalanceMonitor } from "./monitor.js";
 export { TransferService, PolicyBlockedError } from "./transfer.js";
-export { SignerClient } from "./signer/ipc-client.js";
-export { RelaySigner, type RelaySignerOptions } from "./signer/relay-client.js";
+export { WalletConnection, type WalletConnectionOptions } from "./wallet-connection.js";
 export type * from "./types.js";

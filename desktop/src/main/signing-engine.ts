@@ -114,6 +114,8 @@ export class SigningEngine {
     estimatedUSD: number,
     onNeedApproval: (req: PendingSignRequest) => void,
   ): Promise<unknown> {
+    console.log(`[signing-engine] handleSignRequest: requestId=${requestId} method=${method} estimatedUSD=${estimatedUSD}`);
+
     if (this.isFrozen()) {
       throw new Error("Wallet is frozen due to security alert. Please wait or dismiss the alert.");
     }
@@ -131,9 +133,11 @@ export class SigningEngine {
         : withinBudget;
 
     if (canSilentSign) {
+      console.log(`[signing-engine] auto-approve within budget for requestId=${requestId}`);
       return this.signDirectly(method, params, estimatedUSD);
     }
 
+    console.log(`[signing-engine] needs manual approval for requestId=${requestId} (withinBudget=${withinBudget})`);
     return new Promise((resolve, reject) => {
       const pending: PendingSignRequest = {
         requestId,
@@ -158,6 +162,7 @@ export class SigningEngine {
   }
 
   async approve(requestId: string): Promise<void> {
+    console.log(`[signing-engine] approve: requestId=${requestId} pending=${this.pendingRequests.has(requestId)}`);
     const pending = this.pendingRequests.get(requestId);
     if (!pending) throw new Error("No pending request found");
 
@@ -165,14 +170,18 @@ export class SigningEngine {
     this.pendingRequests.delete(requestId);
 
     try {
+      console.log(`[signing-engine] signDirectly START requestId=${requestId} method=${pending.method}`);
       const result = await this.signDirectly(pending.method, pending.params, pending.estimatedUSD);
+      console.log(`[signing-engine] signDirectly OK requestId=${requestId}`);
       pending.resolve(result);
     } catch (err) {
+      console.error(`[signing-engine] signDirectly FAILED requestId=${requestId}: ${(err as Error).message}`);
       pending.reject(err as Error);
     }
   }
 
   reject(requestId: string): void {
+    console.log(`[signing-engine] reject: requestId=${requestId}`);
     const pending = this.pendingRequests.get(requestId);
     if (!pending) return;
     if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
@@ -218,7 +227,9 @@ export class SigningEngine {
     const account = privateKeyToAccount(privateKey);
 
     if (method === "sign_transaction") {
-      const signedTx = await account.signTransaction(params as any);
+      const txParams = sanitizeTxParams(params);
+      console.log(`[signing-engine] signTransaction with sanitized params:`, JSON.stringify(txParams, (_, v) => typeof v === "bigint" ? v.toString() : v));
+      const signedTx = await account.signTransaction(txParams as any);
       this.dailyUsage.spentUSD += estimatedUSD;
       return { signedTx, address: account.address };
     }
@@ -238,4 +249,56 @@ export class SigningEngine {
       this.dailyUsage = { date: today, spentUSD: 0 };
     }
   }
+}
+
+const VALID_TX_FIELDS = new Set([
+  "to", "value", "gas", "gasPrice", "maxFeePerGas", "maxPriorityFeePerGas",
+  "nonce", "data", "chainId", "type", "accessList",
+  "blobs", "blobVersionedHashes", "sidecars", "authorizationList",
+]);
+
+function toBigInt(v: unknown): bigint | undefined {
+  if (typeof v === "bigint") return v;
+  if (typeof v === "number") return BigInt(v);
+  if (typeof v === "string" && v.trim() !== "") {
+    try {
+      return BigInt(v);
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
+}
+
+function sanitizeTxParams(raw: Record<string, unknown>): Record<string, unknown> {
+  const tx: Record<string, unknown> = {};
+
+  for (const key of VALID_TX_FIELDS) {
+    if (raw[key] !== undefined && raw[key] !== null) {
+      tx[key] = raw[key];
+    }
+  }
+
+  const bigintFields = ["value", "gas", "gasPrice", "maxFeePerGas", "maxPriorityFeePerGas", "nonce"];
+  for (const field of bigintFields) {
+    if (tx[field] !== undefined) {
+      const converted = toBigInt(tx[field]);
+      if (converted !== undefined) {
+        tx[field] = converted;
+      } else {
+        delete tx[field];
+      }
+    }
+  }
+
+  if (!tx.type && !tx.maxFeePerGas && !tx.accessList && !tx.blobs && !tx.authorizationList) {
+    if (tx.gasPrice) {
+      tx.type = "legacy";
+    } else {
+      tx.type = "legacy";
+      if (!tx.gasPrice) tx.gasPrice = 1000000000n;
+    }
+  }
+
+  return tx;
 }

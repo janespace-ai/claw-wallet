@@ -220,8 +220,13 @@ func (h *Hub) cleanupRateBuckets() {
 
 func (h *Hub) readPump(c *Client) {
 	readTimeout := config.ParseDuration(h.cfg.WS.ReadTimeout, 60*time.Second)
+	pairIdShort := c.PairID
+	if len(pairIdShort) > 8 {
+		pairIdShort = pairIdShort[:8]
+	}
 
 	defer func() {
+		log.Printf("[relay] readPump: pairId=%s ip=%s disconnecting", pairIdShort, c.IP)
 		h.unregister(c)
 		c.Conn.Close()
 
@@ -252,6 +257,7 @@ func (h *Hub) readPump(c *Client) {
 	for {
 		_, message, err := c.Conn.ReadMessage()
 		if err != nil {
+			log.Printf("[relay] readPump: pairId=%s read error: %v", pairIdShort, err)
 			break
 		}
 
@@ -335,32 +341,49 @@ func (h *Hub) tryRouteToHTTP(message []byte) bool {
 	ch, ok := h.pendingHTTP[peek.RequestID]
 	h.mu.RUnlock()
 	if !ok {
+		log.Printf("[relay] tryRouteToHTTP: requestId=%s NOT found in pendingHTTP (already expired or cleaned up)", peek.RequestID)
 		return false
 	}
 
 	select {
 	case ch <- message:
+		log.Printf("[relay] tryRouteToHTTP: routed response for requestId=%s back to HTTP caller", peek.RequestID)
 	default:
+		log.Printf("[relay] tryRouteToHTTP: channel full for requestId=%s, response dropped", peek.RequestID)
 	}
 	return true
 }
 
 func (h *Hub) notifyPendingHTTPDisconnect(pairID string) {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	remaining := len(h.pairs[pairID])
-	if remaining > 0 {
-		return
+	pairIdShort := pairID
+	if len(pairIdShort) > 8 {
+		pairIdShort = pairIdShort[:8]
 	}
 
-	for reqID, ch := range h.pendingHTTP {
-		select {
-		case ch <- nil:
-		default:
+	// Delay 5 seconds to allow reconnection before cancelling pending HTTP requests
+	time.AfterFunc(5*time.Second, func() {
+		h.mu.Lock()
+		defer h.mu.Unlock()
+
+		remaining := len(h.pairs[pairID])
+		if remaining > 0 {
+			log.Printf("[relay] notifyPendingHTTPDisconnect: pairId=%s has %d active client(s) after grace period, keeping pendingHTTP", pairIdShort, remaining)
+			return
 		}
-		delete(h.pendingHTTP, reqID)
-	}
+
+		pendingCount := len(h.pendingHTTP)
+		if pendingCount == 0 {
+			return
+		}
+		log.Printf("[relay] notifyPendingHTTPDisconnect: pairId=%s still has 0 clients after grace period, cancelling %d pendingHTTP entries", pairIdShort, pendingCount)
+		for reqID, ch := range h.pendingHTTP {
+			select {
+			case ch <- nil:
+			default:
+			}
+			delete(h.pendingHTTP, reqID)
+		}
+	})
 }
 
 func (h *Hub) checkRelayRate(ip string) bool {
@@ -378,13 +401,21 @@ func (h *Hub) checkRelayRate(ip string) bool {
 }
 
 func (h *Hub) SendAndWait(pairID string, requestID string, message []byte, timeout time.Duration) ([]byte, error) {
+	pairIdShort := pairID
+	if len(pairIdShort) > 8 {
+		pairIdShort = pairIdShort[:8]
+	}
+
 	h.mu.RLock()
 	peers := h.pairs[pairID]
 	h.mu.RUnlock()
 
 	if len(peers) == 0 {
+		log.Printf("[relay] SendAndWait: pairId=%s requestId=%s → no peers connected", pairIdShort, requestID)
 		return nil, ErrNoPeer
 	}
+
+	log.Printf("[relay] SendAndWait: pairId=%s requestId=%s peers=%d timeout=%v", pairIdShort, requestID, len(peers), timeout)
 
 	ch := make(chan []byte, 1)
 	h.mu.Lock()
@@ -402,20 +433,26 @@ func (h *Hub) SendAndWait(pairID string, requestID string, message []byte, timeo
 		select {
 		case peer.Send <- message:
 			sent = true
+			log.Printf("[relay] SendAndWait: sent to peer ip=%s for requestId=%s", peer.IP, requestID)
 		default:
+			log.Printf("[relay] SendAndWait: peer ip=%s send buffer full, skipped", peer.IP)
 		}
 	}
 	if !sent {
+		log.Printf("[relay] SendAndWait: requestId=%s → could not send to any peer (all buffers full)", requestID)
 		return nil, ErrNoPeer
 	}
 
 	select {
 	case resp := <-ch:
 		if resp == nil {
+			log.Printf("[relay] SendAndWait: requestId=%s → peer gone (nil response)", requestID)
 			return nil, ErrPeerGone
 		}
+		log.Printf("[relay] SendAndWait: requestId=%s → got response (%d bytes)", requestID, len(resp))
 		return resp, nil
 	case <-time.After(timeout):
+		log.Printf("[relay] SendAndWait: requestId=%s → TIMEOUT after %v", requestID, timeout)
 		return nil, ErrTimeout
 	}
 }
@@ -425,6 +462,11 @@ func (h *Hub) HandleRelay(_ context.Context, c *app.RequestContext) {
 	if pairID == "" {
 		c.JSON(http.StatusBadRequest, map[string]string{"error": "missing pairId"})
 		return
+	}
+
+	pairIdShort := pairID
+	if len(pairIdShort) > 8 {
+		pairIdShort = pairIdShort[:8]
 	}
 
 	clientIP := string(c.GetHeader("X-Forwarded-For"))
@@ -466,6 +508,8 @@ func (h *Hub) HandleRelay(_ context.Context, c *app.RequestContext) {
 		}
 	}
 
+	log.Printf("[relay] HandleRelay: pairId=%s requestId=%s ip=%s timeout=%ds dataLen=%d", pairIdShort, body.RequestID, clientIP, timeoutSec, len(body.Data))
+
 	envelope, _ := json.Marshal(map[string]interface{}{
 		"sourceIP": clientIP,
 		"data":     body.Data,
@@ -473,6 +517,7 @@ func (h *Hub) HandleRelay(_ context.Context, c *app.RequestContext) {
 
 	resp, err := h.SendAndWait(pairID, body.RequestID, envelope, time.Duration(timeoutSec)*time.Second)
 	if err != nil {
+		log.Printf("[relay] HandleRelay: pairId=%s requestId=%s → error: %v", pairIdShort, body.RequestID, err)
 		switch {
 		case errors.Is(err, ErrNoPeer):
 			c.JSON(http.StatusNotFound, map[string]string{"error": "no wallet connected for this pairId"})
@@ -486,6 +531,7 @@ func (h *Hub) HandleRelay(_ context.Context, c *app.RequestContext) {
 		return
 	}
 
+	log.Printf("[relay] HandleRelay: pairId=%s requestId=%s → success (%d bytes)", pairIdShort, body.RequestID, len(resp))
 	c.Data(http.StatusOK, "application/json", resp)
 }
 

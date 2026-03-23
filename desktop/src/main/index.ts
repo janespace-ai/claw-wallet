@@ -56,7 +56,7 @@ function createWindow(): void {
   });
 
   mainWindow.on("close", (e: Electron.Event) => {
-    if (tray) {
+    if (tray && process.platform !== "darwin") {
       e.preventDefault();
       mainWindow?.hide();
     }
@@ -158,11 +158,14 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("wallet:approve-tx", async (_, requestId: string) => {
+    console.log(`[desktop] IPC approve-tx: requestId=${requestId}`);
     if (!relayBridge) throw new Error("Relay not initialized");
     await signingEngine.approve(requestId);
+    console.log(`[desktop] IPC approve-tx: done requestId=${requestId}`);
   });
 
   ipcMain.handle("wallet:reject-tx", async (_, requestId: string) => {
+    console.log(`[desktop] IPC reject-tx: requestId=${requestId}`);
     if (!relayBridge) throw new Error("Relay not initialized");
     signingEngine.reject(requestId);
   });
@@ -262,9 +265,7 @@ app.on("activate", () => {
 });
 
 app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") {
-    app.quit();
-  }
+  app.quit();
 });
 
 app.on("before-quit", async () => {

@@ -129,6 +129,8 @@ export class RelayBridge {
   private reconnectBaseMs: number;
   private reconnectMaxMs: number;
 
+  private pendingOutbound: string[] = [];
+
   constructor(options: RelayBridgeOptions) {
     this.options = options;
     this.pairingsPath = join(options.dataDir, "pairings.enc.json");
@@ -144,8 +146,25 @@ export class RelayBridge {
     await mkdir(this.options.dataDir, { recursive: true });
     this.keyPair = await loadOrCreateKeyPair(this.options.dataDir);
     await this.loadPairings();
+    this.restoreSessions();
     if (this.pairings.devices.length > 0) {
       this.connect();
+    }
+  }
+
+  private restoreSessions(): void {
+    const walletAddress = this.options.keyManager.getAddress() ?? "";
+    for (const device of this.pairings.devices) {
+      if (!device.agentPublicKey) continue;
+      const agentPubKey = Buffer.from(device.agentPublicKey, "hex");
+      const sharedKey = deriveSharedKey(this.keyPair.privateKey, agentPubKey);
+      const pairId = derivePairId(walletAddress, device.agentPublicKey);
+      const session = createSession(sharedKey, pairId);
+      this.sessions.set(device.deviceId, session);
+      sharedKey.fill(0);
+    }
+    if (this.sessions.size > 0) {
+      console.log(`[relay-bridge] restored ${this.sessions.size} E2EE session(s)`);
     }
   }
 
@@ -205,8 +224,10 @@ export class RelayBridge {
     }
 
     this.ws.on("open", () => {
+      console.log(`[relay-bridge] ws OPEN pairId=${pairIdShort}`);
       this.reconnectAttempt = 0;
       this.emitConnectionStatus(true);
+      this.flushPendingOutbound();
     });
 
     this.ws.on("message", (rawData: WebSocket.RawData) => {
@@ -215,13 +236,15 @@ export class RelayBridge {
       } catch {}
     });
 
-    this.ws.on("close", () => {
+    this.ws.on("close", (code: number, reason: Buffer) => {
+      console.log(`[relay-bridge] ws CLOSED pairId=${pairIdShort} code=${code} reason=${reason.toString()}`);
       this.ws = null;
       this.emitConnectionStatus(false);
       if (!this.destroyed) this.scheduleReconnect();
     });
 
-    this.ws.on("error", () => {
+    this.ws.on("error", (err: Error) => {
+      console.error(`[relay-bridge] ws ERROR pairId=${pairIdShort}: ${err.message}`);
       this.ws?.close();
     });
   }
@@ -230,6 +253,8 @@ export class RelayBridge {
     const sourceIP = envelope.sourceIP ?? "unknown";
     const msg = envelope.data as Record<string, unknown>;
     if (!msg) return;
+
+    console.log(`[relay-bridge] handleMessage: type=${msg.type} sourceIP=${sourceIP}`);
 
     if (msg.type === "pair_complete" && typeof msg.agentPublicKey === "string") {
       this.handlePlainPairComplete(msg, sourceIP);
@@ -348,11 +373,17 @@ export class RelayBridge {
   }
 
   private handleEncryptedMessage(payloadBase64: string, sourceIP: string): void {
+    if (this.sessions.size === 0) {
+      console.warn("[relay-bridge] received encrypted message but no E2EE sessions available");
+      return;
+    }
     let decryptFailed = 0;
     for (const [deviceId, session] of this.sessions) {
       try {
         const payloadBytes = Buffer.from(payloadBase64, "base64");
         const data = decryptJSON<Record<string, unknown>>(session, payloadBytes);
+
+        console.log(`[relay-bridge] decrypted message: type=${data.type} requestId=${data.requestId ?? "N/A"} method=${data.method ?? "N/A"}`);
 
         if (data.type === "pair_complete") {
           this.completePairing(deviceId, data, sourceIP);
@@ -360,7 +391,9 @@ export class RelayBridge {
         }
 
         if (data.requestId && data.method) {
-          this.handleSignRequest(deviceId, data, sourceIP);
+          this.handleSignRequest(deviceId, data, sourceIP).catch((err) => {
+            console.error(`[relay-bridge] handleSignRequest unhandled error for ${data.requestId}:`, (err as Error).message);
+          });
           return;
         }
 
@@ -439,7 +472,7 @@ export class RelayBridge {
         requestId: data.requestId,
         error: `Session frozen: ${frozen?.reason ?? "security policy"}. Re-pairing required.`,
         errorCode: "SESSION_FROZEN",
-      });
+      }, data.requestId as string);
       return;
     }
 
@@ -459,7 +492,7 @@ export class RelayBridge {
           requestId: data.requestId,
           error: "IP change detected. Session frozen by policy.",
           errorCode: "SESSION_FROZEN",
-        });
+        }, data.requestId as string);
         return;
       }
     }
@@ -471,6 +504,8 @@ export class RelayBridge {
     const method = data.method as string;
     const params = (data.params ?? {}) as Record<string, unknown>;
     const estimatedUSD = parseEstimatedUsd(data, params);
+
+    console.log(`[relay-bridge] handleSignRequest START requestId=${requestId} method=${method} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);
 
     try {
       const result = await this.options.signingEngine.handleSignRequest(
@@ -494,12 +529,14 @@ export class RelayBridge {
         },
       );
 
+      console.log(`[relay-bridge] handleSignRequest APPROVED requestId=${requestId} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);
       this.sendEncrypted(session, {
         requestId,
         result,
-      });
+      }, requestId);
     } catch (err) {
       const msg = (err as Error).message;
+      console.error(`[relay-bridge] handleSignRequest ERROR requestId=${requestId}: ${msg}`);
       let errorCode = "SIGN_ERROR";
       if (msg.includes("locked")) errorCode = "WALLET_LOCKED";
       else if (msg.includes("rejected by user")) errorCode = "USER_REJECTED";
@@ -508,7 +545,7 @@ export class RelayBridge {
         requestId,
         error: msg,
         errorCode,
-      });
+      }, requestId);
     }
   }
 
@@ -531,17 +568,38 @@ export class RelayBridge {
     return true;
   }
 
-  private sendEncrypted(session: E2EESession, data: unknown): void {
+  private sendEncrypted(session: E2EESession, data: unknown, requestId?: string): void {
     const encrypted = encryptJSON(session, data);
-    this.sendRaw({
+    const msg: Record<string, unknown> = {
       type: "encrypted",
       payload: Buffer.from(encrypted).toString("base64"),
-    });
+    };
+    if (requestId) {
+      msg.requestId = requestId;
+    }
+    console.log(`[relay-bridge] sendEncrypted: requestId=${requestId ?? "N/A"} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);
+    this.sendRaw(msg);
   }
 
   private sendRaw(data: unknown): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
+      const state = this.ws ? `readyState=${this.ws.readyState}` : "ws=null";
+      console.warn(`[relay-bridge] sendRaw: WS not open (${state}), buffering message for retry`);
+      this.pendingOutbound.push(JSON.stringify(data));
+      return;
+    }
     this.ws.send(JSON.stringify(data));
+  }
+
+  private flushPendingOutbound(): void {
+    if (this.pendingOutbound.length === 0) return;
+    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) return;
+
+    const queued = this.pendingOutbound.splice(0);
+    console.log(`[relay-bridge] flushing ${queued.length} buffered outbound message(s)`);
+    for (const raw of queued) {
+      this.ws.send(raw);
+    }
   }
 
   private reconnectWithNewPairId(): void {

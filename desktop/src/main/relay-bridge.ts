@@ -204,11 +204,11 @@ export class RelayBridge {
 
     const device = this.pairings.devices[0];
     let pairId: string;
-    if (device?.agentPublicKey) {
+    if (this.pendingPairCode) {
+      pairId = `pending-${this.pendingPairCode}`;
+    } else if (device?.agentPublicKey) {
       const walletAddress = this.options.keyManager.getAddress() ?? "";
       pairId = derivePairId(walletAddress, device.agentPublicKey);
-    } else if (this.pendingPairCode) {
-      pairId = `pending-${this.pendingPairCode}`;
     } else {
       return;
     }

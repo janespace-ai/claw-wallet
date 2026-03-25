@@ -36,6 +36,64 @@ A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Priv
 
 ---
 
+## 📦 Two Ways to Use
+
+### 🔧 Option 1: Direct SDK Integration (for your code)
+
+Install and use directly in your Node.js application:
+
+```bash
+npm install claw-wallet
+```
+
+```typescript
+import { ClawWallet } from 'claw-wallet';
+
+const wallet = new ClawWallet({
+  relayUrl: 'http://localhost:8080',
+  dataDir: '~/.claw-wallet',
+  defaultChain: 'base',
+});
+
+await wallet.initialize();
+const tools = wallet.getTools();
+
+// Directly call any tool
+const pairTool = tools.find(t => t.name === 'wallet_pair');
+await pairTool.execute({ shortCode: 'ABC12345' });
+```
+
+**Advantages:**
+- ✅ No MCP Server needed
+- ✅ Direct integration into your code
+- ✅ Full control over tool calls
+- ✅ Perfect for Node.js apps, scripts, automation
+
+See [agent/examples/](./agent/examples/README.md) for complete examples.
+
+### 🤖 Option 2: MCP Server (for AI assistants)
+
+Use with Cursor, Claude Desktop, or any MCP-compatible AI assistant:
+
+```bash
+npx -y @claw-wallet/mcp-server
+```
+
+Configure in your AI assistant, then use natural language:
+- "Pair wallet with code ABC12345"
+- "Check my ETH balance"
+- "Send 0.1 ETH to Bob"
+
+**Advantages:**
+- ✅ Standardized MCP protocol
+- ✅ Natural language interaction
+- ✅ No code needed
+- ✅ Perfect for AI assistant environments
+
+See [agent/skills/claw-wallet-setup/](./agent/skills/claw-wallet-setup/SKILL.md) for setup instructions.
+
+---
+
 ## User Interaction Flow
 
 ### First-Time Setup: Pairing

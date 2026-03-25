@@ -212,8 +212,7 @@ export class RelayBridge {
     } else {
       return;
     }
-    const pairIdShort = pairId.length > 8 ? pairId.slice(0, 8) : pairId;
-    console.log(`[relay-bridge] connecting ws pairId=${pairIdShort}…`);
+    console.log(`[relay-bridge] connecting ws pairId=${pairId}`);
     const url = `${this.relayUrl}/ws?pairId=${encodeURIComponent(pairId)}`;
 
     try {
@@ -224,7 +223,7 @@ export class RelayBridge {
     }
 
     this.ws.on("open", () => {
-      console.log(`[relay-bridge] ws OPEN pairId=${pairIdShort}`);
+      console.log(`[relay-bridge] ws OPEN pairId=${pairId}`);
       this.reconnectAttempt = 0;
       this.emitConnectionStatus(true);
       this.flushPendingOutbound();
@@ -237,14 +236,14 @@ export class RelayBridge {
     });
 
     this.ws.on("close", (code: number, reason: Buffer) => {
-      console.log(`[relay-bridge] ws CLOSED pairId=${pairIdShort} code=${code} reason=${reason.toString()}`);
+      console.log(`[relay-bridge] ws CLOSED pairId=${pairId} code=${code} reason=${reason.toString()}`);
       this.ws = null;
       this.emitConnectionStatus(false);
       if (!this.destroyed) this.scheduleReconnect();
     });
 
     this.ws.on("error", (err: Error) => {
-      console.error(`[relay-bridge] ws ERROR pairId=${pairIdShort}: ${err.message}`);
+      console.error(`[relay-bridge] ws ERROR pairId=${pairId}: ${err.message}`);
       this.ws?.close();
     });
   }

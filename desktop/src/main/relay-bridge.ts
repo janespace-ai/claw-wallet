@@ -187,7 +187,13 @@ export class RelayBridge {
     }
 
     const data = await response.json() as { shortCode: string; expiresIn: number };
+    
+    if (!data.shortCode || data.shortCode.trim() === '') {
+      throw new Error('Server returned empty pairing code');
+    }
+    
     this.pendingPairCode = data.shortCode;
+    console.log(`[relay-bridge] generatePairCode: code=${data.shortCode} expires in ${data.expiresIn}s`);
     const expiresAt = Date.now() + data.expiresIn * 1000;
 
     if (this.ws) {
@@ -206,10 +212,13 @@ export class RelayBridge {
     let pairId: string;
     if (this.pendingPairCode) {
       pairId = `pending-${this.pendingPairCode}`;
+      console.log(`[relay-bridge] connect: using pendingPairCode=${this.pendingPairCode}`);
     } else if (device?.agentPublicKey) {
       const walletAddress = this.options.keyManager.getAddress() ?? "";
       pairId = derivePairId(walletAddress, device.agentPublicKey);
+      console.log(`[relay-bridge] connect: using device pairId`);
     } else {
+      console.log(`[relay-bridge] connect: no pairId available, aborting`);
       return;
     }
     console.log(`[relay-bridge] connecting ws pairId=${pairId}`);
@@ -447,6 +456,7 @@ export class RelayBridge {
     }
 
     await this.savePairings();
+    console.log(`[relay-bridge] completePairing: clearing pendingPairCode (was: ${this.pendingPairCode})`);
     this.pendingPairCode = null;
     this.reconnectWithNewPairId();
   }

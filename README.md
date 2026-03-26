@@ -469,6 +469,64 @@ wallet/
 
 Any ERC-20 token can be used by passing its contract address. Chains are extensible — add any EVM-compatible chain through configuration.
 
+### Web3 Network Configuration
+
+Both Agent and Desktop support custom RPC endpoint configuration for production and local development.
+
+#### Production Configuration
+
+Create `config.json` with your preferred RPC providers:
+
+```json
+{
+  "relayUrl": "https://relay.your-domain.com",
+  "defaultChain": "base",
+  "chains": {
+    "ethereum": {
+      "rpcUrl": "https://ethereum.publicnode.com"
+    },
+    "base": {
+      "rpcUrl": "https://mainnet.base.org"
+    }
+  }
+}
+```
+
+#### Local Development
+
+Use Hardhat or Anvil for local blockchain testing:
+
+```json
+{
+  "relayUrl": "http://localhost:8080",
+  "defaultChain": "ethereum",
+  "chains": {
+    "ethereum": {
+      "rpcUrl": "http://localhost:8545"
+    },
+    "base": {
+      "rpcUrl": "http://localhost:8546"
+    }
+  }
+}
+```
+
+Start local nodes:
+
+```bash
+# Ethereum simulation (Chain ID: 1)
+npx hardhat node --chain-id 1 --port 8545
+
+# Base simulation (Chain ID: 8453)
+npx hardhat node --chain-id 8453 --port 8546
+```
+
+See [LOCAL_DEVELOPMENT.md](./LOCAL_DEVELOPMENT.md) for complete setup guide.
+
+#### Default Behavior
+
+If `chains` configuration is not provided, the system uses viem's built-in public RPC endpoints.
+
 ---
 
 ## Development

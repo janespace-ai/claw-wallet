@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
+export interface ChainConfig {
+  /** RPC URL for this chain */
+  rpcUrl: string;
+}
+
 export interface RelayConfig {
   /** Base delay in ms before first reconnect attempt (default: 1000) */
   reconnectBaseMs: number;
@@ -45,6 +50,8 @@ export interface AppConfig {
   ipChangePolicy: "block" | "warn" | "allow";
   /** Lock mode: "convenience" allows biometric, "strict" enforces password + idle timeout */
   lockMode: "convenience" | "strict";
+  /** Web3 network RPC configuration (optional) */
+  chains?: Partial<Record<"ethereum" | "base", ChainConfig>>;
   /** Relay connection tuning */
   relay: RelayConfig;
   /** Signing engine budget parameters */
@@ -108,6 +115,17 @@ function resolveConfig(): AppConfig {
   const fileLock = (file.lock ?? {}) as Partial<LockConfig>;
   const fileSecurity = (file.security ?? {}) as Partial<SecurityConfig>;
   const fileKeyring = (file.keyring ?? {}) as Partial<KeyringConfig>;
+  const fileChains = file.chains as Partial<Record<"ethereum" | "base", ChainConfig>> | undefined;
+
+  // Validate chains structure if present
+  if (fileChains) {
+    for (const [chainName, chainConfig] of Object.entries(fileChains)) {
+      if (!chainConfig.rpcUrl || typeof chainConfig.rpcUrl !== "string") {
+        console.warn(`[config] Invalid rpcUrl for chain ${chainName}, skipping`);
+        delete fileChains[chainName as keyof typeof fileChains];
+      }
+    }
+  }
 
   const envScrypt = process.env.CLAW_DESKTOP_SCRYPT_N;
   const parsedEnvScrypt =
@@ -117,6 +135,7 @@ function resolveConfig(): AppConfig {
     relayUrl: (process.env.CLAW_DESKTOP_RELAY_URL as string) || (file.relayUrl as string) || DEFAULTS.relayUrl,
     ipChangePolicy: (process.env.CLAW_DESKTOP_IP_POLICY as AppConfig["ipChangePolicy"]) || (file.ipChangePolicy as AppConfig["ipChangePolicy"]) || DEFAULTS.ipChangePolicy,
     lockMode: (process.env.CLAW_DESKTOP_LOCK_MODE as AppConfig["lockMode"]) || (file.lockMode as AppConfig["lockMode"]) || DEFAULTS.lockMode,
+    chains: fileChains && Object.keys(fileChains).length > 0 ? fileChains : undefined,
     relay: {
       reconnectBaseMs: fileRelay.reconnectBaseMs ?? DEFAULTS.relay.reconnectBaseMs,
       reconnectMaxMs: fileRelay.reconnectMaxMs ?? DEFAULTS.relay.reconnectMaxMs,

@@ -42,6 +42,41 @@ Add the following to `~/.openclaw/openclaw.json` in the `mcpServers` section:
 }
 ```
 
+### Alternative: Using config.json
+
+For more complex setups (e.g., custom RPC endpoints), create a `config.json` in the agent's working directory:
+
+```json
+{
+  "relayUrl": "https://your-relay-server.example.com",
+  "dataDir": "~/.claw-wallet",
+  "defaultChain": "base",
+  "chains": {
+    "ethereum": {
+      "rpcUrl": "https://ethereum.publicnode.com"
+    },
+    "base": {
+      "rpcUrl": "https://mainnet.base.org"
+    }
+  }
+}
+```
+
+Then update your MCP config to omit env variables:
+
+```json
+{
+  "mcpServers": {
+    "claw-wallet": {
+      "command": "npx",
+      "args": ["-y", "@claw-wallet/mcp-server"],
+      "transport": "stdio",
+      "cwd": "/path/to/config-directory"
+    }
+  }
+}
+```
+
 ### Environment Variables
 
 | Variable | Required | Default | Description |
@@ -49,6 +84,8 @@ Add the following to `~/.openclaw/openclaw.json` in the `mcpServers` section:
 | `RELAY_URL` | No | `ws://localhost:8080` | WebSocket URL of the Relay Server |
 | `DATA_DIR` | No | `~/.claw-wallet` | Directory for pairing, contacts, policy, and history |
 | `DEFAULT_CHAIN` | No | `base` | Default blockchain (base or ethereum) |
+
+**Note:** If `config.json` exists, it will be loaded from the working directory. Environment variables override config file values.
 
 ## Step 2: Restart Gateway
 

@@ -17,6 +17,11 @@ const wallet = new ClawWallet({
   relayUrl: 'http://localhost:8080',
   dataDir: '~/.claw-wallet',
   defaultChain: 'base',
+  // 可选: 自定义 RPC 端点
+  chains: {
+    ethereum: { rpcUrl: 'https://ethereum.publicnode.com' },
+    base: { rpcUrl: 'https://mainnet.base.org' }
+  }
 });
 
 await wallet.initialize();
@@ -95,6 +100,10 @@ class ClawWallet {
     relayUrl?: string;           // Relay Server URL (默认: http://localhost:8080)
     dataDir?: string;            // 数据目录 (默认: ~/.openclaw/wallet)
     defaultChain?: 'base' | 'ethereum';  // 默认链 (默认: base)
+    chains?: {                   // 可选: 自定义 RPC 端点
+      ethereum?: { rpcUrl: string };
+      base?: { rpcUrl: string };
+    };
     pollIntervalMs?: number;     // 余额轮询间隔 (默认: 30000)
     onBalanceChange?: (event) => void;   // 余额变化回调
   });
@@ -152,3 +161,57 @@ interface ToolDefinition {
 - 没有 MCP 协议开销
 - 没有进程间通信
 - 直接内存调用
+
+## 🌐 Web3 网络配置
+
+### 生产环境配置
+
+在 `config.json` 中配置生产 RPC 端点:
+
+```json
+{
+  "relayUrl": "https://relay.your-domain.com",
+  "defaultChain": "base",
+  "chains": {
+    "ethereum": {
+      "rpcUrl": "https://ethereum.publicnode.com"
+    },
+    "base": {
+      "rpcUrl": "https://mainnet.base.org"
+    }
+  }
+}
+```
+
+### 本地开发配置
+
+使用 Hardhat 或 Anvil 本地节点:
+
+```json
+{
+  "relayUrl": "http://localhost:8080",
+  "defaultChain": "ethereum",
+  "chains": {
+    "ethereum": {
+      "rpcUrl": "http://localhost:8545"
+    },
+    "base": {
+      "rpcUrl": "http://localhost:8546"
+    }
+  }
+}
+```
+
+**启动本地节点:**
+
+```bash
+# Ethereum 模拟 (链 ID: 1)
+npx hardhat node --chain-id 1 --port 8545
+
+# Base 模拟 (链 ID: 8453)
+npx hardhat node --chain-id 8453 --port 8546
+```
+
+### 默认行为
+
+如果不配置 `chains`,SDK 会使用 viem 的内置公共 RPC 端点。

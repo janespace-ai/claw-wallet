@@ -6,17 +6,19 @@
   "dataDir": "~/.claw-wallet",
 
   "_comment_defaultChain": "Default blockchain for operations: base or ethereum (env: DEFAULT_CHAIN)",
-  "defaultChain": "base",
+  "defaultChain": "ethereum",
 
-  "_comment_chains": "Web3 network RPC configuration (optional) - if not provided, uses viem's built-in public RPCs",
+  "_comment_chains": "Web3 network configuration - Local development environment uses localhost nodes",
   "chains": {
     "ethereum": {
-      "_comment": "Ethereum Mainnet RPC URL - leave empty to use default public RPC",
-      "rpcUrl": "https://ethereum.publicnode.com"
+      "_comment": "Local Ethereum node (Hardhat/Anvil) simulating mainnet",
+      "_comment_setup": "Start with: npx hardhat node --chain-id 1 --port 8545",
+      "rpcUrl": "http://localhost:8545"
     },
     "base": {
-      "_comment": "Base Mainnet RPC URL - leave empty to use default public RPC",
-      "rpcUrl": "https://mainnet.base.org"
+      "_comment": "Local Base node (Hardhat/Anvil) simulating mainnet",
+      "_comment_setup": "Start with: npx hardhat node --chain-id 8453 --port 8546",
+      "rpcUrl": "http://localhost:8546"
     }
   },
 
@@ -29,12 +31,12 @@
   "_comment_signTimeoutMs": "Timeout in ms waiting for Desktop Wallet to sign a transaction, includes user approval time (env: CLAW_AGENT_SIGN_TIMEOUT_MS)",
   "signTimeoutMs": 120000,
 
-  "_comment_policy": "Default policy parameters for transaction approval",
+  "_comment_policy": "Default policy parameters for transaction approval - higher limits for local testing",
   "policy": {
     "_comment_perTxLimitUsd": "Maximum USD value per single transaction before requiring manual approval",
-    "perTxLimitUsd": 100,
+    "perTxLimitUsd": 1000,
     "_comment_dailyLimitUsd": "Maximum total USD value of transactions per day",
-    "dailyLimitUsd": 500,
+    "dailyLimitUsd": 10000,
     "_comment_mode": "Policy mode: \"supervised\" requires whitelist, \"autonomous\" allows any address within limits",
     "mode": "supervised"
   }

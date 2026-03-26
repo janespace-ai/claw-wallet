@@ -1,6 +1,6 @@
 {
   "_comment_relayUrl": "Relay server WebSocket URL (env: CLAW_DESKTOP_RELAY_URL)",
-  "relayUrl": "ws://localhost:8080",
+  "relayUrl": "wss://relay.your-domain.com",
 
   "_comment_ipChangePolicy": "IP change policy: \"block\" rejects, \"warn\" alerts, \"allow\" ignores",
   "ipChangePolicy": "warn",
@@ -8,14 +8,14 @@
   "_comment_lockMode": "Lock mode: \"convenience\" allows biometric, \"strict\" enforces password + idle timeout",
   "lockMode": "convenience",
 
-  "_comment_chains": "Web3 network RPC configuration (optional) - if not provided, uses default public RPCs",
+  "_comment_chains": "Web3 network configuration - Production environment uses official public RPC endpoints",
   "chains": {
     "ethereum": {
-      "_comment": "Ethereum Mainnet RPC URL - leave empty to use default public RPC",
+      "_comment": "Ethereum Mainnet - Official public RPC endpoint",
       "rpcUrl": "https://ethereum.publicnode.com"
     },
     "base": {
-      "_comment": "Base Mainnet RPC URL - leave empty to use default public RPC",
+      "_comment": "Base Mainnet - Official public RPC endpoint",
       "rpcUrl": "https://mainnet.base.org"
     }
   },

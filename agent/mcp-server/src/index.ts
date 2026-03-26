@@ -2,20 +2,35 @@
 
 import { join } from "node:path";
 import { homedir } from "node:os";
+import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { ClawWallet } from "claw-wallet";
-import type { SupportedChain } from "claw-wallet";
+import type { SupportedChain, ChainConfig } from "claw-wallet";
 import { registerTools } from "./adapter.js";
 
-const dataDir = process.env.DATA_DIR || join(homedir(), ".claw-wallet");
-const defaultChain = (process.env.DEFAULT_CHAIN as SupportedChain) || "base";
-const relayUrl = process.env.RELAY_URL || "http://localhost:8080";
+function loadConfig(): Record<string, unknown> {
+  try {
+    const configPath = join(process.cwd(), "config.json");
+    const raw = readFileSync(configPath, "utf-8");
+    return JSON.parse(raw);
+  } catch {
+    return {};
+  }
+}
+
+const config = loadConfig();
+
+const dataDir = process.env.DATA_DIR || (config.dataDir as string) || join(homedir(), ".claw-wallet");
+const defaultChain = (process.env.DEFAULT_CHAIN as SupportedChain) || (config.defaultChain as SupportedChain) || "base";
+const relayUrl = process.env.RELAY_URL || (config.relayUrl as string) || "http://localhost:8080";
+const chains = config.chains as Partial<Record<SupportedChain, ChainConfig>> | undefined;
 
 const wallet = new ClawWallet({
   dataDir,
   defaultChain,
   relayUrl,
+  chains,
 });
 
 await wallet.initialize();

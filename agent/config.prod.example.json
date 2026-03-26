@@ -1,6 +1,6 @@
 {
   "_comment_relayUrl": "URL of the Relay Server for agent-to-wallet communication (env: RELAY_URL)",
-  "relayUrl": "http://localhost:8080",
+  "relayUrl": "https://relay.your-domain.com",
 
   "_comment_dataDir": "Directory for storing pairing, contacts, policy, and history data (env: DATA_DIR)",
   "dataDir": "~/.claw-wallet",
@@ -8,14 +8,14 @@
   "_comment_defaultChain": "Default blockchain for operations: base or ethereum (env: DEFAULT_CHAIN)",
   "defaultChain": "base",
 
-  "_comment_chains": "Web3 network RPC configuration (optional) - if not provided, uses viem's built-in public RPCs",
+  "_comment_chains": "Web3 network configuration - Production environment uses official public RPC endpoints",
   "chains": {
     "ethereum": {
-      "_comment": "Ethereum Mainnet RPC URL - leave empty to use default public RPC",
+      "_comment": "Ethereum Mainnet - Official public RPC endpoint",
       "rpcUrl": "https://ethereum.publicnode.com"
     },
     "base": {
-      "_comment": "Base Mainnet RPC URL - leave empty to use default public RPC",
+      "_comment": "Base Mainnet - Official public RPC endpoint",
       "rpcUrl": "https://mainnet.base.org"
     }
   },

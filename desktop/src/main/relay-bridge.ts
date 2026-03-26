@@ -213,19 +213,24 @@ export class RelayBridge {
 
     const device = this.pairings.devices[0];
     let pairId: string;
+    
+    // Capture pairId at connection time to avoid race conditions
+    // where pendingPairCode might be cleared by completePairing() before WebSocket opens
     if (this.pendingPairCode) {
       pairId = `pending-${this.pendingPairCode}`;
-      console.log(`[relay-bridge] connect: using pendingPairCode=${this.pendingPairCode}`);
+      console.log(`[relay-bridge] connect: using pendingPairCode=${this.pendingPairCode} -> pairId=${pairId}`);
     } else if (device?.agentPublicKey) {
       const walletAddress = this.options.keyManager.getAddress() ?? "";
       pairId = derivePairId(walletAddress, device.agentPublicKey);
-      console.log(`[relay-bridge] connect: using device pairId`);
+      console.log(`[relay-bridge] connect: using device pairId=${pairId}`);
     } else {
       console.log(`[relay-bridge] connect: no pairId available, aborting`);
       return;
     }
-    console.log(`[relay-bridge] connecting ws pairId=${pairId}`);
+    
+    // Build URL with the captured pairId
     const url = `${this.relayUrl}/ws?pairId=${encodeURIComponent(pairId)}`;
+    console.log(`[relay-bridge] connecting to ${url}`);
 
     try {
       this.ws = new WebSocket(url);
@@ -234,6 +239,7 @@ export class RelayBridge {
       return;
     }
 
+    // Use captured pairId in all WebSocket event handlers
     this.ws.on("open", () => {
       console.log(`[relay-bridge] ws OPEN pairId=${pairId}`);
       this.reconnectAttempt = 0;

@@ -173,6 +173,7 @@ export class RelayBridge {
     if (!address) throw new Error("No wallet found");
 
     const httpUrl = this.relayUrl.replace(/^ws/, "http");
+    console.log(`[relay-bridge] generatePairCode: creating pairing code at ${httpUrl}${PAIR_CODE_ENDPOINT}`);
     const response = await fetch(`${httpUrl}${PAIR_CODE_ENDPOINT}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -197,8 +198,10 @@ export class RelayBridge {
     const expiresAt = Date.now() + data.expiresIn * 1000;
 
     if (this.ws) {
+      console.log(`[relay-bridge] generatePairCode: existing connection found, triggering reconnect`);
       this.reconnectWithNewPairId();
     } else {
+      console.log(`[relay-bridge] generatePairCode: no existing connection, connecting now`);
       this.connect();
     }
 
@@ -458,7 +461,12 @@ export class RelayBridge {
     await this.savePairings();
     console.log(`[relay-bridge] completePairing: clearing pendingPairCode (was: ${this.pendingPairCode})`);
     this.pendingPairCode = null;
-    this.reconnectWithNewPairId();
+    
+    // Delay reconnection to ensure pairing response is sent first
+    console.log(`[relay-bridge] completePairing: scheduling reconnect in 200ms to allow response to be sent`);
+    setTimeout(() => {
+      this.reconnectWithNewPairId();
+    }, 200);
   }
 
   private async handleSignRequest(
@@ -616,13 +624,24 @@ export class RelayBridge {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    
     if (this.ws) {
+      console.log(`[relay-bridge] reconnectWithNewPairId: closing existing connection before reconnecting`);
       this.ws.removeAllListeners();
+      
+      // Wait for WebSocket to fully close before reconnecting
+      this.ws.once('close', () => {
+        console.log(`[relay-bridge] reconnectWithNewPairId: old connection closed, reconnecting now`);
+        this.ws = null;
+        this.reconnectAttempt = 0;
+        this.connect();
+      });
+      
       this.ws.close();
-      this.ws = null;
+    } else {
+      this.reconnectAttempt = 0;
+      this.connect();
     }
-    this.reconnectAttempt = 0;
-    this.connect();
   }
 
   private scheduleReconnect(): void {

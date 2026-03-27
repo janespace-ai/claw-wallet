@@ -7,6 +7,7 @@ import type { TransactionHistory } from "./history.js";
 import type { TransferService } from "./transfer.js";
 import type { WalletConnection } from "./wallet-connection.js";
 import type { SupportedChain, ToolDefinition } from "./types.js";
+import { logger } from "./logger.js";
 
 import { createWalletCreateTool } from "./tools/wallet-create.js";
 import { createWalletImportTool } from "./tools/wallet-import.js";
@@ -34,7 +35,7 @@ export interface ToolDependencies {
 }
 
 export function createAllTools(deps: ToolDependencies): ToolDefinition[] {
-  return [
+  const tools = [
     createWalletCreateTool(),
     createWalletImportTool(),
     createWalletPairTool(deps.walletConnection),
@@ -47,4 +48,29 @@ export function createAllTools(deps: ToolDependencies): ToolDefinition[] {
     ...createWalletApprovalTools(deps.policy),
     createWalletHistoryTool(deps.history),
   ];
+
+  // Wrap all tools with logging
+  return tools.map(tool => ({
+    ...tool,
+    execute: async (args: any) => {
+      logger.log("TOOL", `Executing ${tool.name}`, { args });
+      const startTime = Date.now();
+      try {
+        const result = await tool.execute(args);
+        const duration = Date.now() - startTime;
+        logger.log("TOOL", `${tool.name} completed in ${duration}ms`, { result });
+        return result;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        logger.error("TOOL", `${tool.name} failed after ${duration}ms`, {
+          error: error instanceof Error ? {
+            message: error.message,
+            stack: error.stack,
+            name: error.name
+          } : String(error)
+        });
+        throw error;
+      }
+    }
+  }));
 }

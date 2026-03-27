@@ -12,7 +12,9 @@ class Logger {
       mkdirSync(logDir, { recursive: true });
     }
     
-    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").split("T")[0];
+    // Include time in filename to avoid overwriting on restart
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, 19); // YYYY-MM-DDTHH-MM-SS
     this.logFile = logFile || join(logDir, `agent-${timestamp}.log`);
     this.logToConsole = true;
 

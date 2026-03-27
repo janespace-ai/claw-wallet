@@ -14,6 +14,7 @@ import type { SupportedChain, WalletConfig, ToolDefinition, ChainConfig } from "
 
 import { createAllTools } from "./tool-registry.js";
 import { readRelayUrlFromCwdConfig } from "./resolve-relay-url.js";
+import { logger } from "./logger.js";
 
 export interface ClawWalletOptions {
   dataDir?: string;
@@ -48,6 +49,15 @@ export class ClawWallet {
       process.env.RELAY_URL ||
       readRelayUrlFromCwdConfig() ||
       "http://localhost:8080";
+      
+    logger.log("ClawWallet", "Initializing", { 
+      dataDir: this.dataDir, 
+      defaultChain: this.defaultChain, 
+      relayUrl,
+      pollIntervalMs: this.pollIntervalMs 
+    });
+    logger.log("ClawWallet", `Log file: ${logger.getLogFile()}`);
+      
     this.walletConnection = new WalletConnection({
       relayUrl,
       dataDir: this.dataDir,
@@ -60,6 +70,7 @@ export class ClawWallet {
   }
 
   async initialize(): Promise<void> {
+    logger.log("ClawWallet", "Starting initialization...");
     await mkdir(this.dataDir, { recursive: true });
     await this.walletConnection.initialize();
     await this.policy.load();
@@ -70,6 +81,9 @@ export class ClawWallet {
     if (addr) {
       this.walletAddress = addr as Address;
       this.startMonitor();
+      logger.log("ClawWallet", "Initialization complete", { address: addr });
+    } else {
+      logger.log("ClawWallet", "Initialization complete (no wallet paired)");
     }
   }
 
@@ -166,4 +180,5 @@ export { TransactionHistory } from "./history.js";
 export { BalanceMonitor } from "./monitor.js";
 export { TransferService, PolicyBlockedError } from "./transfer.js";
 export { WalletConnection, type WalletConnectionOptions } from "./wallet-connection.js";
+export { logger } from "./logger.js";
 export type * from "./types.js";

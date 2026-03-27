@@ -15,6 +15,7 @@ import type { SupportedChain, WalletConfig, ToolDefinition, ChainConfig } from "
 import { createAllTools } from "./tool-registry.js";
 import { readRelayUrlFromCwdConfig } from "./resolve-relay-url.js";
 import { logger } from "./logger.js";
+import { agentConfig } from "./config.js";
 
 export interface ClawWalletOptions {
   dataDir?: string;
@@ -39,13 +40,14 @@ export class ClawWallet {
   private onBalanceChange?: (event: any) => void;
 
   constructor(options: ClawWalletOptions = {}) {
-    this.dataDir = options.dataDir || join(homedir(), ".openclaw", "wallet");
-    this.defaultChain = options.defaultChain || "base";
+    this.dataDir = options.dataDir || agentConfig.dataDir || join(homedir(), ".openclaw", "wallet");
+    this.defaultChain = options.defaultChain || agentConfig.defaultChain || "base";
     this.pollIntervalMs = options.pollIntervalMs || 30_000;
     this.onBalanceChange = options.onBalanceChange;
 
     const relayUrl =
       options.relayUrl ||
+      agentConfig.relayUrl ||
       process.env.RELAY_URL ||
       readRelayUrlFromCwdConfig() ||
       "http://localhost:8080";
@@ -63,7 +65,9 @@ export class ClawWallet {
       dataDir: this.dataDir,
     });
 
-    this.chainAdapter = new ChainAdapter(options.chains);
+    // Use chains config from options first, then fall back to agentConfig
+    const chains = options.chains || agentConfig.chains;
+    this.chainAdapter = new ChainAdapter(chains);
     this.policy = new PolicyEngine(join(this.dataDir, "policy.json"));
     this.contacts = new ContactsManager(join(this.dataDir, "contacts.json"));
     this.history = new TransactionHistory(join(this.dataDir, "history.json"));

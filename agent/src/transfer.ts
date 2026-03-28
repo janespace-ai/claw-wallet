@@ -8,6 +8,7 @@ import { TransactionHistory } from "./history.js";
 import type { SupportedChain, TxRecord } from "./types.js";
 import { KNOWN_TOKENS } from "./types.js";
 import { validateAddress, validateAmount, validateTokenSymbol } from "./validation.js";
+import { logger } from "./logger.js";
 
 export interface SendParams {
   to: string;
@@ -35,45 +36,82 @@ export class TransferService {
   ) {}
 
   async sendETH(params: SendParams): Promise<SendResult> {
+    logger.log("TransferService", "sendETH START", { params });
+    
     validateAmount(params.amount);
+    logger.debug("TransferService", "Amount validated");
+    
     const to = await this.resolveRecipient(params.to, params.chain);
+    logger.log("TransferService", "Recipient resolved", { to });
+    
     const value = parseEther(params.amount);
+    logger.debug("TransferService", "Parsed amount", { value: value.toString() });
 
+    logger.log("TransferService", "Fetching balance...");
     const { wei: balance } = await this.chainAdapter.getBalance(this.walletAddress, params.chain);
+    logger.log("TransferService", "Balance fetched", { balance: balance.toString() });
+    
+    logger.log("TransferService", "Estimating gas...");
     const gasEstimate = await this.chainAdapter.estimateGas(
       { to, value },
       params.chain
     );
+    logger.log("TransferService", "Gas estimated", { 
+      gas: gasEstimate.gas.toString(),
+      gasPrice: gasEstimate.gasPrice.toString(),
+      totalCost: gasEstimate.totalCostFormatted 
+    });
 
     if (balance < value + gasEstimate.totalCostWei) {
       const available = Number(balance) / 1e18;
-      throw new Error(
-        `Insufficient ETH balance. Available: ${available.toFixed(6)} ETH, ` +
-        `needed: ${params.amount} ETH + ~${gasEstimate.totalCostFormatted} ETH gas`
-      );
+      const error = `Insufficient ETH balance. Available: ${available.toFixed(6)} ETH, ` +
+        `needed: ${params.amount} ETH + ~${gasEstimate.totalCostFormatted} ETH gas`;
+      logger.error("TransferService", error);
+      throw new Error(error);
     }
 
+    logger.log("TransferService", "Checking policy...");
     const amountUsd = parseFloat(params.amount);
     const policyResult = this.policy.checkTransaction(to, amountUsd, "ETH", params.chain);
     if (!policyResult.allowed) {
+      logger.warn("TransferService", "Policy blocked transaction", { reason: policyResult.reason });
       throw new PolicyBlockedError(policyResult.reason!, policyResult.approvalId);
     }
+    logger.log("TransferService", "Policy check passed");
 
-    const chain = this.chainAdapter.getChain(params.chain);
+    logger.log("TransferService", "Fetching chainId and nonce from RPC...");
+    const [chainId, nonce] = await Promise.all([
+      this.chainAdapter.getChainId(params.chain),
+      this.chainAdapter.getNonce(this.walletAddress, params.chain),
+    ]);
+    logger.log("TransferService", "Calling sendToWallet (sign_transaction)...", { 
+      chainId,
+      nonce,
+      to,
+      value: value.toString() 
+    });
+    
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to,
       value: value.toString(),
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
+      nonce: nonce.toString(),
       type: "legacy",
-      chainId: chain.id,
+      chainId,
       amount: params.amount,
       amountUsd,
       token: "ETH",
       chain: params.chain,
     }) as { signedTx: Hex };
+    
+    logger.log("TransferService", "Transaction signed, broadcasting...");
 
     const receipt = await this.chainAdapter.broadcastTransaction(result.signedTx, params.chain);
+    logger.log("TransferService", "Transaction broadcast complete", { 
+      hash: receipt.transactionHash,
+      status: receipt.status 
+    });
 
     const record: TxRecord = {
       hash: receipt.transactionHash,
@@ -90,6 +128,7 @@ export class TransferService {
     };
     this.history.addRecord(record);
 
+    logger.log("TransferService", "sendETH COMPLETE");
     return {
       hash: receipt.transactionHash,
       status: receipt.status === "success" ? "confirmed" : "failed",
@@ -132,14 +171,14 @@ export class TransferService {
       throw new PolicyBlockedError(policyResult.reason!, policyResult.approvalId);
     }
 
-    const chain = this.chainAdapter.getChain(params.chain);
+    const chainId = await this.chainAdapter.getChainId(params.chain);
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to: tokenAddress,
       data: transferData,
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
       type: "legacy",
-      chainId: chain.id,
+      chainId,
       amount: params.amount,
       amountUsd,
       token: tokenInfo.symbol,

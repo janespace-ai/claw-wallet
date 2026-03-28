@@ -173,6 +173,7 @@ export class RelayBridge {
     if (!address) throw new Error("No wallet found");
 
     const httpUrl = this.relayUrl.replace(/^ws/, "http");
+    console.log(`[relay-bridge] generatePairCode: creating pairing code at ${httpUrl}${PAIR_CODE_ENDPOINT}`);
     const response = await fetch(`${httpUrl}${PAIR_CODE_ENDPOINT}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -187,12 +188,20 @@ export class RelayBridge {
     }
 
     const data = await response.json() as { shortCode: string; expiresIn: number };
+    
+    if (!data.shortCode || data.shortCode.trim() === '') {
+      throw new Error('Server returned empty pairing code');
+    }
+    
     this.pendingPairCode = data.shortCode;
+    console.log(`[relay-bridge] generatePairCode: code=${data.shortCode} expires in ${data.expiresIn}s`);
     const expiresAt = Date.now() + data.expiresIn * 1000;
 
     if (this.ws) {
+      console.log(`[relay-bridge] generatePairCode: existing connection found, triggering reconnect`);
       this.reconnectWithNewPairId();
     } else {
+      console.log(`[relay-bridge] generatePairCode: no existing connection, connecting now`);
       this.connect();
     }
 
@@ -204,17 +213,24 @@ export class RelayBridge {
 
     const device = this.pairings.devices[0];
     let pairId: string;
-    if (device?.agentPublicKey) {
+    
+    // Capture pairId at connection time to avoid race conditions
+    // where pendingPairCode might be cleared by completePairing() before WebSocket opens
+    if (this.pendingPairCode) {
+      pairId = `pending-${this.pendingPairCode}`;
+      console.log(`[relay-bridge] connect: using pendingPairCode=${this.pendingPairCode} -> pairId=${pairId}`);
+    } else if (device?.agentPublicKey) {
       const walletAddress = this.options.keyManager.getAddress() ?? "";
       pairId = derivePairId(walletAddress, device.agentPublicKey);
-    } else if (this.pendingPairCode) {
-      pairId = `pending-${this.pendingPairCode}`;
+      console.log(`[relay-bridge] connect: using device pairId=${pairId}`);
     } else {
+      console.log(`[relay-bridge] connect: no pairId available, aborting`);
       return;
     }
-    const pairIdShort = pairId.length > 8 ? pairId.slice(0, 8) : pairId;
-    console.log(`[relay-bridge] connecting ws pairId=${pairIdShort}…`);
+    
+    // Build URL with the captured pairId
     const url = `${this.relayUrl}/ws?pairId=${encodeURIComponent(pairId)}`;
+    console.log(`[relay-bridge] connecting to ${url}`);
 
     try {
       this.ws = new WebSocket(url);
@@ -223,8 +239,9 @@ export class RelayBridge {
       return;
     }
 
+    // Use captured pairId in all WebSocket event handlers
     this.ws.on("open", () => {
-      console.log(`[relay-bridge] ws OPEN pairId=${pairIdShort}`);
+      console.log(`[relay-bridge] ws OPEN pairId=${pairId}`);
       this.reconnectAttempt = 0;
       this.emitConnectionStatus(true);
       this.flushPendingOutbound();
@@ -237,14 +254,14 @@ export class RelayBridge {
     });
 
     this.ws.on("close", (code: number, reason: Buffer) => {
-      console.log(`[relay-bridge] ws CLOSED pairId=${pairIdShort} code=${code} reason=${reason.toString()}`);
+      console.log(`[relay-bridge] ws CLOSED pairId=${pairId} code=${code} reason=${reason.toString()}`);
       this.ws = null;
       this.emitConnectionStatus(false);
       if (!this.destroyed) this.scheduleReconnect();
     });
 
     this.ws.on("error", (err: Error) => {
-      console.error(`[relay-bridge] ws ERROR pairId=${pairIdShort}: ${err.message}`);
+      console.error(`[relay-bridge] ws ERROR pairId=${pairId}: ${err.message}`);
       this.ws?.close();
     });
   }
@@ -430,7 +447,6 @@ export class RelayBridge {
       this.options.securityMonitor.recordSameMachine(agentMachineId);
     }
 
-    const existingIdx = this.pairings.devices.findIndex(d => d.deviceId === deviceId);
     const device: PairedDevice = {
       deviceId,
       pairId: `pair-${deviceId}`,
@@ -441,15 +457,21 @@ export class RelayBridge {
       lastSeen: new Date().toISOString(),
     };
 
-    if (existingIdx >= 0) {
-      this.pairings.devices[existingIdx] = device;
-    } else {
-      this.pairings.devices.push(device);
-    }
+    // Always replace the entire devices list with the new device.
+    // A Desktop only pairs with one Agent at a time; keeping stale entries
+    // causes connect() to read devices[0] with an outdated agentPublicKey,
+    // which produces a mismatched pairId after Agent key rotation.
+    this.pairings.devices = [device];
 
     await this.savePairings();
+    console.log(`[relay-bridge] completePairing: clearing pendingPairCode (was: ${this.pendingPairCode})`);
     this.pendingPairCode = null;
-    this.reconnectWithNewPairId();
+    
+    // Delay reconnection to ensure pairing response is sent first
+    console.log(`[relay-bridge] completePairing: scheduling reconnect in 200ms to allow response to be sent`);
+    setTimeout(() => {
+      this.reconnectWithNewPairId();
+    }, 200);
   }
 
   private async handleSignRequest(
@@ -607,13 +629,24 @@ export class RelayBridge {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
+    
     if (this.ws) {
+      console.log(`[relay-bridge] reconnectWithNewPairId: closing existing connection before reconnecting`);
       this.ws.removeAllListeners();
+      
+      // Wait for WebSocket to fully close before reconnecting
+      this.ws.once('close', () => {
+        console.log(`[relay-bridge] reconnectWithNewPairId: old connection closed, reconnecting now`);
+        this.ws = null;
+        this.reconnectAttempt = 0;
+        this.connect();
+      });
+      
       this.ws.close();
-      this.ws = null;
+    } else {
+      this.reconnectAttempt = 0;
+      this.connect();
     }
-    this.reconnectAttempt = 0;
-    this.connect();
   }
 
   private scheduleReconnect(): void {

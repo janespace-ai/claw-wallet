@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { SupportedChain, ChainConfig } from "./types.js";
 
 export interface AgentPolicyConfig {
   /** Maximum USD value per single transaction before requiring approval (default: 100) */
@@ -23,9 +24,17 @@ export interface AgentConfig {
   reconnectMaxMs: number;
   /** Default policy parameters */
   policy: AgentPolicyConfig;
+  /** Chain-specific RPC configurations */
+  chains?: Partial<Record<SupportedChain, ChainConfig>>;
+  /** Data directory for storing wallet data */
+  dataDir?: string;
+  /** Default chain for operations */
+  defaultChain?: SupportedChain;
+  /** Relay server URL */
+  relayUrl?: string;
 }
 
-const DEFAULTS: AgentConfig = {
+const DEFAULTS: Omit<AgentConfig, "chains" | "dataDir" | "defaultChain" | "relayUrl"> = {
   pairTimeoutMs: 10_000,
   relayTimeoutMs: 30_000,
   signTimeoutMs: 120_000,
@@ -77,6 +86,10 @@ function resolveConfig(): AgentConfig {
       dailyLimitUsd: filePolicy.dailyLimitUsd ?? DEFAULTS.policy.dailyLimitUsd,
       mode: filePolicy.mode ?? DEFAULTS.policy.mode,
     },
+    chains: file.chains as Partial<Record<SupportedChain, ChainConfig>> | undefined,
+    dataDir: (file.dataDir as string) || undefined,
+    defaultChain: (file.defaultChain as SupportedChain) || undefined,
+    relayUrl: (file.relayUrl as string) || undefined,
   };
 }
 

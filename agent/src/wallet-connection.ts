@@ -14,6 +14,7 @@ import {
 } from "./e2ee/crypto.js";
 import { getMachineId } from "./e2ee/machine-id.js";
 import { agentConfig } from "./config.js";
+import { logger } from "./logger.js";
 
 interface PairingData {
   pairId: string;
@@ -63,11 +64,14 @@ export class WalletConnection {
     url = url.replace(/^ws(s?):\/\//, "http$1://");
     this.relayUrl = url;
     this.dataDir = options.dataDir;
+    logger.log("WalletConnection", "Initialized", { relayUrl: this.relayUrl, dataDir: this.dataDir });
   }
 
   async initialize(): Promise<void> {
+    logger.log("WalletConnection", "Initializing...");
     await mkdir(this.dataDir, { recursive: true });
     await this.loadPairing();
+    logger.log("WalletConnection", "Initialized", { hasPairing: this.hasPairing(), address: this.getAddress() });
   }
 
   hasPairing(): boolean {
@@ -79,26 +83,34 @@ export class WalletConnection {
   }
 
   async pair(shortCode: string): Promise<{ address: string; paired: boolean; pairId: string }> {
+    logger.log("WalletConnection", "Starting pair", { shortCode });
+    
+    const pairUrl = `${this.relayUrl}/pair/${encodeURIComponent(shortCode)}`;
+    logger.debug("WalletConnection", "Fetching pairing info", { url: pairUrl });
+    
     const response = await fetchWithTimeout(
-      `${this.relayUrl}/pair/${encodeURIComponent(shortCode)}`,
+      pairUrl,
       {},
       agentConfig.pairTimeoutMs,
     );
+    
     if (!response.ok) {
+      logger.error("WalletConnection", "Pairing failed", { status: response.status, shortCode });
       throw new Error(`Pairing code invalid or expired (HTTP ${response.status})`);
     }
 
     const pairInfo = (await response.json()) as { walletAddr: string; commPubKey: string };
+    logger.log("WalletConnection", "Received pairing info", { walletAddr: pairInfo.walletAddr });
 
-    let keyPair: E2EEKeyPair;
-    if (this.pairing?.commKeyPair) {
-      keyPair = deserializeKeyPair(this.pairing.commKeyPair);
-    } else {
-      keyPair = generateKeyPair();
-    }
+    // Always generate a new key pair for each pairing session.
+    // Reusing the old key pair would cause pairId mismatch when Desktop re-pairs
+    // with a new short code, because pairId is derived from walletAddr + agentPubKey.
+    const keyPair = generateKeyPair();
+    logger.debug("WalletConnection", "Generated new key pair for pairing");
 
     const agentPubHex = Buffer.from(keyPair.publicKey).toString("hex");
     const pairId = derivePairId(pairInfo.walletAddr, agentPubHex);
+    logger.log("WalletConnection", "Computed pairId", { pairId });
 
     this.pairing = {
       pairId,
@@ -110,12 +122,21 @@ export class WalletConnection {
     };
 
     await this.savePairing();
+    logger.log("WalletConnection", "Saved pairing data");
 
     const pendingPairId = `pending-${shortCode.toUpperCase()}`;
     const pairCompleteRequestId = `pair-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const relayUrl = `${this.relayUrl}/relay/${encodeURIComponent(pendingPairId)}`;
+    
+    logger.log("WalletConnection", "Sending pair_complete", { 
+      pendingPairId, 
+      requestId: pairCompleteRequestId,
+      relayUrl 
+    });
+    
     try {
       await fetchWithTimeout(
-        `${this.relayUrl}/relay/${encodeURIComponent(pendingPairId)}`,
+        relayUrl,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -131,17 +152,22 @@ export class WalletConnection {
         },
         15_000,
       );
+      logger.log("WalletConnection", "pair_complete sent successfully");
     } catch (err) {
-      console.warn(`[wallet-connection] pair_complete delivery failed (non-fatal): ${(err as Error).message}`);
+      logger.warn("WalletConnection", "pair_complete delivery failed (non-fatal)", { error: (err as Error).message });
     }
 
     keyPair.privateKey.fill(0);
 
+    logger.log("WalletConnection", "Pairing complete", { address: pairInfo.walletAddr, pairId });
     return { address: pairInfo.walletAddr, paired: true, pairId };
   }
 
   async sendToWallet(method: string, params?: Record<string, unknown>): Promise<unknown> {
+    logger.log("WalletConnection", "sendToWallet called", { method, params });
+    
     if (!this.pairing) {
+      logger.error("WalletConnection", "No wallet paired");
       throw new Error("No wallet paired. Use wallet_pair to connect a Desktop Wallet.");
     }
 
@@ -153,6 +179,13 @@ export class WalletConnection {
 
     const keyPair = deserializeKeyPair(this.pairing.commKeyPair);
     const requestId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+    logger.log("WalletConnection", "Sending request to wallet", { 
+      method, 
+      requestId, 
+      pairId: this.pairing.pairId,
+      timeoutMs 
+    });
 
     const result = await this.sendToWalletRaw(
       this.pairing.pairId,
@@ -166,24 +199,31 @@ export class WalletConnection {
 
     const response = result as Record<string, unknown>;
     if (response.error) {
+      logger.error("WalletConnection", "Wallet returned error", { error: response.error });
       throw new Error(response.error as string);
     }
+    
+    logger.log("WalletConnection", "Received response from wallet", { requestId, hasResult: !!response.result });
     return response.result;
   }
 
   private async checkHealth(): Promise<void> {
     const now = Date.now();
     if (this.healthOk && now - this.healthCheckedAt < 30_000) {
+      logger.debug("WalletConnection", "Health check cached OK");
       return;
     }
 
+    logger.debug("WalletConnection", "Checking relay health", { url: `${this.relayUrl}/health` });
     try {
       const resp = await fetchWithTimeout(`${this.relayUrl}/health`, {}, 5_000);
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       this.healthOk = true;
       this.healthCheckedAt = now;
-    } catch {
+      logger.log("WalletConnection", "Relay health OK");
+    } catch (err) {
       this.healthOk = false;
+      logger.error("WalletConnection", "Relay Server unreachable", { error: (err as Error).message });
       throw new Error("Relay Server unreachable");
     }
   }
@@ -195,6 +235,8 @@ export class WalletConnection {
     data: unknown,
     timeoutMs: number,
   ): Promise<unknown> {
+    logger.debug("WalletConnection", "sendToWalletRaw START", { pairId, timeoutMs });
+    
     const peerPub = Buffer.from(peerPubHex, "hex");
     const sharedKey = deriveSharedKey(keyPair.privateKey, peerPub);
     const session = createSession(sharedKey, pairId);
@@ -212,9 +254,16 @@ export class WalletConnection {
     };
 
     const timeoutSec = Math.ceil(timeoutMs / 1000);
+    const relayUrl = `${this.relayUrl}/relay/${encodeURIComponent(pairId)}`;
+
+    logger.log("WalletConnection", "Sending encrypted request to relay", { 
+      url: relayUrl,
+      requestId, 
+      timeoutSec 
+    });
 
     const response = await fetchWithTimeout(
-      `${this.relayUrl}/relay/${encodeURIComponent(pairId)}`,
+      relayUrl,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -223,14 +272,21 @@ export class WalletConnection {
       timeoutMs,
     );
 
+    logger.debug("WalletConnection", "Received response from relay", { 
+      status: response.status,
+      ok: response.ok 
+    });
+
     destroySession(session);
 
     if (!response.ok) {
       const err = (await response.json().catch(() => ({}))) as Record<string, string>;
+      logger.error("WalletConnection", "Relay request failed", { status: response.status, error: err.error });
       throw new Error(err.error ?? `Relay request failed (HTTP ${response.status})`);
     }
 
     const respBody = (await response.json()) as Record<string, unknown>;
+    logger.debug("WalletConnection", "Parsing response", { type: respBody.type });
 
     if (respBody.type === "encrypted" && typeof respBody.payload === "string") {
       const respKeyPair = deserializeKeyPair(this.pairing!.commKeyPair);
@@ -242,9 +298,12 @@ export class WalletConnection {
       const respBytes = Buffer.from(respBody.payload as string, "base64");
       const decrypted = decryptJSON(respSession, respBytes);
       destroySession(respSession);
+      
+      logger.log("WalletConnection", "Successfully decrypted response");
       return decrypted;
     }
 
+    logger.log("WalletConnection", "Returning unencrypted response");
     return respBody;
   }
 

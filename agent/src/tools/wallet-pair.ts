@@ -16,6 +16,13 @@ export function createWalletPairTool(walletConnection: WalletConnection): ToolDe
       required: ["shortCode"],
     },
     execute: async (args) => {
+      console.log(`[wallet-pair] execute called with args:`, JSON.stringify(args));
+      
+      if (!args.shortCode || typeof args.shortCode !== 'string' || args.shortCode.trim() === '') {
+        console.error(`[wallet-pair] Invalid shortCode:`, args.shortCode);
+        return { error: 'shortCode is required and must be a non-empty string' };
+      }
+      
       try {
         const result = await walletConnection.pair(args.shortCode as string);
         return {
@@ -24,6 +31,7 @@ export function createWalletPairTool(walletConnection: WalletConnection): ToolDe
           message: `Successfully paired with wallet. Address: ${result.address}`,
         };
       } catch (err) {
+        console.error(`[wallet-pair] Pairing failed:`, err);
         return { error: (err as Error).message };
       }
     },

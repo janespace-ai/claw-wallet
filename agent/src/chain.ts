@@ -82,7 +82,9 @@ export class ChainAdapter {
 
     client = createPublicClient({
       chain: config.chain,
-      transport: http(config.rpcUrl),
+      transport: http(config.rpcUrl, {
+        timeout: 30_000, // 30 second timeout
+      }),
     });
 
     this.clients.set(chainName, client);
@@ -90,8 +92,16 @@ export class ChainAdapter {
   }
 
   async getBalance(address: Address, chainName: SupportedChain): Promise<{ wei: bigint; formatted: string }> {
+    const config = this.chainConfigs.get(chainName);
+    const { log } = await import("./logger.js");
+    log("ChainAdapter", `Fetching balance for ${address} on ${chainName} (RPC: ${config?.rpcUrl || "default"})`);
+    
     const client = this.getClient(chainName);
+    log("ChainAdapter", `Client created, calling getBalance...`);
+    
     let wei = await client.getBalance({ address });
+    log("ChainAdapter", `Balance fetched: ${wei.toString()} wei`);
+    
     if (wei < 0n) wei = 0n;
     return { wei, formatted: formatEther(wei) };
   }
@@ -179,6 +189,18 @@ export class ChainAdapter {
     const config = this.chainConfigs.get(chainName);
     if (!config) throw new Error(`Unsupported chain: ${chainName}`);
     return config.chain;
+  }
+
+  async getChainId(chainName: SupportedChain): Promise<number> {
+    const client = this.getClient(chainName);
+    const chainId = await client.getChainId();
+    return chainId;
+  }
+
+  async getNonce(address: Address, chainName: SupportedChain): Promise<number> {
+    const client = this.getClient(chainName);
+    const nonce = await client.getTransactionCount({ address });
+    return nonce;
   }
 
   getSupportedChains(): SupportedChain[] {

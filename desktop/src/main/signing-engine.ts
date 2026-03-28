@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
 import { KeyManager } from "./key-manager.js";
+import type { SigningHistory } from "./signing-history.js";
 
 export interface AllowanceConfig {
   dailyLimitUSD: number;
@@ -44,6 +45,7 @@ const DEFAULT_ALLOWANCE: AllowanceConfig = {
 
 export class SigningEngine {
   private keyManager: KeyManager;
+  private signingHistory: SigningHistory | null;
   private allowance: AllowanceConfig;
   private dailyUsage: DailyUsage = { date: "", spentUSD: 0 };
   private pendingRequests = new Map<string, PendingSignRequest>();
@@ -54,8 +56,9 @@ export class SigningEngine {
   private onApprovalExpired?: (requestId: string) => void;
   private autoApproveWithinBudget: boolean;
 
-  constructor(keyManager: KeyManager, options?: SigningEngineOptions) {
+  constructor(keyManager: KeyManager, options?: SigningEngineOptions, signingHistory?: SigningHistory) {
     this.keyManager = keyManager;
+    this.signingHistory = signingHistory || null;
     this.approvalTimeoutMs = options?.approvalTimeoutMs ?? 10 * 60 * 1000;
     this.onApprovalExpired = options?.onApprovalExpired;
     this.autoApproveWithinBudget = options?.autoApproveWithinBudget ?? false;
@@ -134,7 +137,7 @@ export class SigningEngine {
 
     if (canSilentSign) {
       console.log(`[signing-engine] auto-approve within budget for requestId=${requestId}`);
-      return this.signDirectly(method, params, estimatedUSD);
+      return this.signDirectly(method, params, estimatedUSD, requestId, true);
     }
 
     console.log(`[signing-engine] needs manual approval for requestId=${requestId} (withinBudget=${withinBudget})`);
@@ -171,7 +174,7 @@ export class SigningEngine {
 
     try {
       console.log(`[signing-engine] signDirectly START requestId=${requestId} method=${pending.method}`);
-      const result = await this.signDirectly(pending.method, pending.params, pending.estimatedUSD);
+      const result = await this.signDirectly(pending.method, pending.params, pending.estimatedUSD, requestId, false);
       console.log(`[signing-engine] signDirectly OK requestId=${requestId}`);
       pending.resolve(result);
     } catch (err) {
@@ -186,6 +189,21 @@ export class SigningEngine {
     if (!pending) return;
     if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
     this.pendingRequests.delete(requestId);
+
+    // Record rejection
+    if (this.signingHistory) {
+      this.signingHistory.addRecord({
+        requestId,
+        type: "rejected",
+        method: pending.method,
+        to: (pending.params.to as string) || "",
+        value: (pending.params.value as string) || "0",
+        token: (pending.params.token as string) || "ETH",
+        chain: (pending.params.chain as string) || "unknown",
+        estimatedUSD: pending.estimatedUSD,
+      });
+    }
+
     pending.reject(new Error("Transaction rejected by user"));
   }
 
@@ -219,6 +237,8 @@ export class SigningEngine {
     method: string,
     params: Record<string, unknown>,
     estimatedUSD: number,
+    requestId?: string,
+    isAutoApproved?: boolean,
   ): Promise<unknown> {
     const privateKey = this.keyManager.getPrivateKey();
     if (!privateKey) throw new Error("Wallet is locked");
@@ -231,6 +251,21 @@ export class SigningEngine {
       console.log(`[signing-engine] signTransaction with sanitized params:`, JSON.stringify(txParams, (_, v) => typeof v === "bigint" ? v.toString() : v));
       const signedTx = await account.signTransaction(txParams as any);
       this.dailyUsage.spentUSD += estimatedUSD;
+
+      // Record signing decision
+      if (this.signingHistory && requestId) {
+        this.signingHistory.addRecord({
+          requestId,
+          type: isAutoApproved ? "auto" : "manual",
+          method,
+          to: (params.to as string) || "",
+          value: (params.value as string) || "0",
+          token: (params.token as string) || "ETH",
+          chain: (params.chain as string) || "unknown",
+          estimatedUSD,
+        });
+      }
+
       return { signedTx, address: account.address };
     }
 

@@ -52,7 +52,85 @@ function enterMainScreen(status) {
   }
   loadPairedDevices();
   loadSecurityEvents();
+  loadSigningHistory();
   syncSettingsFromStatus(status);
+  loadWalletBalances(status.address);
+}
+
+async function loadWalletBalances(address) {
+  if (!address) return;
+
+  const balancesList = document.getElementById("balances-list");
+  const portfolioValueDisplay = document.getElementById("portfolio-value");
+
+  balancesList.innerHTML = '<div class="loading">Loading balances...</div>';
+  portfolioValueDisplay.textContent = "Loading...";
+
+  try {
+    const balances = await api.getWalletBalances(address);
+    
+    if (!balances || balances.length === 0) {
+      balancesList.innerHTML = '<p style="color: #888;">No balances found</p>';
+      portfolioValueDisplay.textContent = "$0.00";
+      return;
+    }
+
+    const tokens = [...new Set(balances.map(b => b.symbol))];
+    const prices = await api.getTokenPrices(tokens);
+
+    renderBalances(balances, prices);
+    const totalValue = calculateTotalValue(balances, prices);
+    portfolioValueDisplay.textContent = `$${totalValue.toFixed(2)}`;
+  } catch (err) {
+    console.error("Failed to load balances:", err);
+    balancesList.innerHTML = '<p style="color: red;">Failed to load balances</p>';
+    portfolioValueDisplay.textContent = "Error";
+  }
+}
+
+function renderBalances(balances, prices) {
+  const balancesList = document.getElementById("balances-list");
+  
+  if (!balances || balances.length === 0) {
+    balancesList.innerHTML = '<p style="color: #888;">No balances found</p>';
+    return;
+  }
+
+  balancesList.innerHTML = balances
+    .map(balance => {
+      const amount = parseFloat(balance.amount);
+      if (amount === 0) return '';
+
+      const price = prices[balance.symbol] || null;
+      const usdValue = price ? (amount * price).toFixed(2) : "N/A";
+
+      return `
+        <div class="balance-card">
+          <div class="balance-header">
+            <span class="balance-token">${escapeHtml(balance.symbol)}</span>
+            <span class="balance-chain">${escapeHtml(balance.chain)}</span>
+          </div>
+          <div class="balance-amount">${amount.toFixed(6)}</div>
+          <div class="balance-usd">${usdValue !== "N/A" ? `$${usdValue}` : "Price unavailable"}</div>
+        </div>
+      `;
+    })
+    .filter(Boolean)
+    .join('');
+
+  if (!balancesList.innerHTML.trim()) {
+    balancesList.innerHTML = '<p style="color: #888;">All balances are zero</p>';
+  }
+}
+
+function calculateTotalValue(balances, prices) {
+  let total = 0;
+  for (const balance of balances) {
+    const amount = parseFloat(balance.amount);
+    const price = prices[balance.symbol] || 0;
+    total += amount * price;
+  }
+  return total;
 }
 
 function renderMnemonicWords(container, mnemonic) {
@@ -214,13 +292,31 @@ function setupEventListeners() {
 
   // Tabs
   document.querySelectorAll(".tab").forEach(tab => {
-    tab.onclick = () => {
+    tab.onclick = async () => {
       document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
       document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
       tab.classList.add("active");
       document.getElementById(`tab-${tab.dataset.tab}`).classList.add("active");
+
+      if (tab.dataset.tab === "home") {
+        const status = await api.getStatus();
+        if (status.address) {
+          loadWalletBalances(status.address);
+        }
+      } else if (tab.dataset.tab === "security") {
+        loadSecurityEvents();
+        loadSigningHistory();
+      }
     };
   });
+
+  // Refresh balances button
+  document.getElementById("btn-refresh-balances").onclick = async () => {
+    const status = await api.getStatus();
+    if (status.address) {
+      loadWalletBalances(status.address);
+    }
+  };
 
   // Pairing
   document.getElementById("btn-generate-code").onclick = async () => {
@@ -229,10 +325,31 @@ function setupEventListeners() {
       document.getElementById("pair-code").textContent = result.code;
       document.getElementById("pair-code-display").style.display = "block";
       startCountdown(result.expiresAt);
+
+      // Auto-copy to clipboard with Agent-friendly prompt
+      const agentPrompt = `My Claw Wallet pairing code is: ${result.code}\nPlease pair with it using wallet_pair tool.`;
+      try {
+        await navigator.clipboard.writeText(agentPrompt);
+        showClipboardFeedback();
+      } catch (clipErr) {
+        console.error("Clipboard write failed:", clipErr);
+      }
     } catch (err) {
       alert(err.message);
     }
   };
+
+  function showClipboardFeedback() {
+    const feedback = document.getElementById("clipboard-feedback");
+    if (!feedback) {
+      const div = document.createElement("div");
+      div.id = "clipboard-feedback";
+      div.textContent = "Copied to clipboard!";
+      div.style.cssText = "position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #4caf50; color: white; padding: 10px 20px; border-radius: 4px; z-index: 10000;";
+      document.body.appendChild(div);
+      setTimeout(() => div.remove(), 3000);
+    }
+  }
 
   // Settings
   document.getElementById("btn-save-allowance").onclick = async () => {
@@ -421,6 +538,44 @@ async function loadSecurityEvents() {
       <div class="time">${new Date(e.timestamp).toLocaleString()}</div>
     </div>
   `).join("");
+}
+
+async function loadSigningHistory() {
+  const records = await api.getSigningHistory();
+  const list = document.getElementById("signing-history-list");
+  
+  if (!records || records.length === 0) {
+    list.innerHTML = '<p style="color: var(--text-secondary)">No signing history.</p>';
+    return;
+  }
+
+  const typeIcons = {
+    auto: "🤖",
+    manual: "👤",
+    rejected: "❌"
+  };
+
+  list.innerHTML = records.slice(0, 100).map(record => {
+    const icon = typeIcons[record.type] || "⚪";
+    const timestamp = new Date(record.timestamp).toLocaleString();
+    const amount = formatTokenAmount(record.value, record.token);
+    
+    return `
+      <div class="signing-record ${record.type}">
+        <div class="signing-record-header">
+          <span class="signing-icon">${icon}</span>
+          <span class="signing-type">${record.type.toUpperCase()}</span>
+          <span class="signing-time">${timestamp}</span>
+        </div>
+        <div class="signing-details">
+          <div><strong>${amount} ${escapeHtml(record.token)}</strong> on ${escapeHtml(record.chain)}</div>
+          <div>To: <span class="address-short">${escapeHtml(record.to.slice(0, 10))}...${escapeHtml(record.to.slice(-8))}</span></div>
+          <div>Estimated: $${record.estimatedUSD.toFixed(2)}</div>
+          ${record.txHash ? `<div>TX: <span class="address-short">${escapeHtml(record.txHash.slice(0, 10))}...</span></div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join("");
 }
 
 function startCountdown(expiresAt) {

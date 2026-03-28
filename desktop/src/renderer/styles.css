@@ -243,3 +243,131 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
 }
 
 .event-item .time { color: var(--text-secondary); font-size: 11px; }
+
+/* Balance cards */
+.portfolio-value {
+  font-size: 32px;
+  font-weight: 600;
+  color: var(--success);
+  margin-top: 8px;
+}
+
+.balance-card {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border);
+}
+
+.balance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.balance-token {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.balance-chain {
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: capitalize;
+}
+
+.balance-amount {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.balance-usd {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.loading {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 20px;
+}
+
+/* Signing History */
+.signing-record {
+  background: var(--bg-secondary);
+  border-radius: var(--radius);
+  padding: 12px;
+  margin-bottom: 10px;
+  border-left: 3px solid var(--border);
+}
+
+.signing-record.auto {
+  border-left-color: var(--success);
+}
+
+.signing-record.manual {
+  border-left-color: var(--accent);
+}
+
+.signing-record.rejected {
+  border-left-color: var(--danger);
+}
+
+.signing-record-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.signing-icon {
+  font-size: 16px;
+}
+
+.signing-type {
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.signing-time {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.signing-details {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+.signing-details strong {
+  color: var(--text-primary);
+}
+
+.address-short {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+#clipboard-feedback {
+  animation: fadeInOut 3s ease-in-out;
+}
+
+@keyframes fadeInOut {
+  0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
+  10% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  90% { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+}

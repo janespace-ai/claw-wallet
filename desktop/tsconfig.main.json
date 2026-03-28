@@ -13,7 +13,9 @@
     "resolveJsonModule": true,
     "sourceMap": true,
     "declaration": false,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "types": ["node"]
   },
-  "include": ["src/main/**/*.ts", "src/shared/**/*.ts"]
+  "include": ["src/main/**/*.ts", "src/shared/**/*.ts"],
+  "exclude": ["node_modules/**/*", "node_modules/ox/**/*"]
 }

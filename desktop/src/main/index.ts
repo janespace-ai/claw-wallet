@@ -6,6 +6,9 @@ import { SigningEngine } from "./signing-engine.js";
 import { RelayBridge } from "./relay-bridge.js";
 import { SecurityMonitor } from "./security-monitor.js";
 import { LockManager } from "./lock-manager.js";
+import { PriceService } from "./price-service.js";
+import { BalanceService } from "./balance-service.js";
+import { SigningHistory } from "./signing-history.js";
 import { config } from "./config.js";
 
 /** Isolated profile + predictable window close behavior for Playwright E2E */
@@ -18,18 +21,21 @@ let tray: InstanceType<typeof Tray> | null = null;
 
 const dataDir = join(app.getPath("userData"), "wallet-data");
 const keyManager = new KeyManager(dataDir, { scryptN: config.keyring.scryptN });
+const signingHistory = new SigningHistory(dataDir);
 const signingEngine = new SigningEngine(keyManager, {
   dailyLimitUsd: config.signing.dailyLimitUsd,
   perTxLimitUsd: config.signing.perTxLimitUsd,
   tokenWhitelist: config.signing.tokenWhitelist,
   autoApproveWithinBudget: config.signing.autoApproveWithinBudget,
-});
+}, signingHistory);
 const securityMonitor = new SecurityMonitor(dataDir, {
   maxEvents: config.security.maxEvents,
 });
 const lockManager = new LockManager(keyManager, {
   strictIdleTimeoutMs: config.lock.strictIdleTimeoutMs,
 });
+const priceService = new PriceService();
+const balanceService = new BalanceService(config.chains);
 let relayBridge: RelayBridge | null = null;
 
 function createWindow(): void {
@@ -212,6 +218,18 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("wallet:export-mnemonic", async (_, password: string) => {
     return keyManager.exportMnemonic(password);
+  });
+
+  ipcMain.handle("wallet:get-token-prices", async (_, tokens: string[]) => {
+    return priceService.getTokenPrices(tokens);
+  });
+
+  ipcMain.handle("wallet:get-wallet-balances", async (_, address: string) => {
+    return balanceService.getWalletBalances(address, config.signing.tokenWhitelist);
+  });
+
+  ipcMain.handle("wallet:get-signing-history", async () => {
+    return signingHistory.getRecords();
   });
 }
 

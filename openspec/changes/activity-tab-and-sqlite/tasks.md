@@ -1,54 +1,54 @@
 ## 1. Dependencies and Setup
 
-- [ ] 1.1 Add `better-sqlite3` to desktop/package.json
-- [ ] 1.2 Add `@types/better-sqlite3` to desktop/package.json devDependencies
-- [ ] 1.3 Configure better-sqlite3 for Electron (electron-rebuild if needed)
-- [ ] 1.4 Test SQLite import and basic operations
+- [x] 1.1 Add `better-sqlite3` to desktop/package.json
+- [x] 1.2 Add `@types/better-sqlite3` to desktop/package.json devDependencies
+- [x] 1.3 Configure better-sqlite3 for Electron (electron-rebuild if needed)
+- [x] 1.4 Test SQLite import and basic operations
 
 ## 2. Database Service Infrastructure
 
-- [ ] 2.1 Create `desktop/src/main/database-service.ts` with DatabaseService class
-- [ ] 2.2 Implement singleton pattern for database connection
-- [ ] 2.3 Add WAL mode configuration for crash safety
-- [ ] 2.4 Implement schema migration system with version tracking
-- [ ] 2.5 Create initial migration (v1) with signing_history table
-- [ ] 2.6 Add indexes for timestamp, tx_hash, tx_status
+- [x] 2.1 Create `desktop/src/main/database-service.ts` with DatabaseService class
+- [x] 2.2 Implement singleton pattern for database connection
+- [x] 2.3 Add WAL mode configuration for crash safety
+- [x] 2.4 Implement schema migration system with version tracking
+- [x] 2.5 Create initial migration (v1) with signing_history table
+- [x] 2.6 Add indexes for timestamp, tx_hash, tx_status
 - [ ] 2.7 Implement database initialization in main/index.ts
-- [ ] 2.8 Add error handling and logging for database operations
+- [x] 2.8 Add error handling and logging for database operations
 
 ## 3. Signing History SQLite Implementation
 
-- [ ] 3.1 Rewrite `desktop/src/main/signing-history.ts` to use SQLite
-- [ ] 3.2 Implement `addRecord()` with prepared statements
-- [ ] 3.3 Implement `updateTxHash()` to add transaction hash after signing
-- [ ] 3.4 Implement `updateTxStatus()` to update status/block info from chain
-- [ ] 3.5 Implement `getRecords(limit, offset)` for pagination
-- [ ] 3.6 Implement `getRecordsByType(type)` for filtering
-- [ ] 3.7 Implement `getPendingTransactions()` for sync service
-- [ ] 3.8 Implement `getRecordByRequestId()` for updates
-- [ ] 3.9 Add transaction support for batch operations
-- [ ] 3.10 Remove old JSON file handling code
+- [x] 3.1 Rewrite `desktop/src/main/signing-history.ts` to use SQLite
+- [x] 3.2 Implement `addRecord()` with prepared statements
+- [x] 3.3 Implement `updateTxHash()` to add transaction hash after signing
+- [x] 3.4 Implement `updateTxStatus()` to update status/block info from chain
+- [x] 3.5 Implement `getRecords(limit, offset)` for pagination
+- [x] 3.6 Implement `getRecordsByType(type)` for filtering
+- [x] 3.7 Implement `getPendingTransactions()` for sync service
+- [x] 3.8 Implement `getRecordByRequestId()` for updates
+- [x] 3.9 Add transaction support for batch operations
+- [x] 3.10 Remove old JSON file handling code
 
 ## 4. Transaction Sync Service
 
-- [ ] 4.1 Create `desktop/src/main/tx-sync-service.ts` with TxSyncService class
-- [ ] 4.2 Inject SigningHistory and ChainAdapter dependencies
-- [ ] 4.3 Implement `syncImmediately(txHash, chain)` for post-sign sync
-- [ ] 4.4 Implement `syncPendingTransactions()` for periodic sync
-- [ ] 4.5 Add `startPeriodicSync(intervalMs)` with 30s default
-- [ ] 4.6 Add `stopPeriodicSync()` for cleanup
-- [ ] 4.7 Add 100ms delay between transaction queries
-- [ ] 4.8 Implement exponential backoff on RPC errors
-- [ ] 4.9 Add logging for sync operations
-- [ ] 4.10 Handle RPC timeout and network errors gracefully
+- [x] 4.1 Create `desktop/src/main/tx-sync-service.ts` with TxSyncService class
+- [x] 4.2 Inject SigningHistory and ChainAdapter dependencies
+- [x] 4.3 Implement `syncImmediately(txHash, chain)` for post-sign sync
+- [x] 4.4 Implement `syncPendingTransactions()` for periodic sync
+- [x] 4.5 Add `startPeriodicSync(intervalMs)` with 30s default
+- [x] 4.6 Add `stopPeriodicSync()` for cleanup
+- [x] 4.7 Add 100ms delay between transaction queries
+- [x] 4.8 Implement exponential backoff on RPC errors
+- [x] 4.9 Add logging for sync operations
+- [x] 4.10 Handle RPC timeout and network errors gracefully
 
 ## 5. ChainAdapter Extensions
 
-- [ ] 5.1 Add `getTransactionReceipt(txHash, chain)` method to ChainAdapter
-- [ ] 5.2 Implement receipt parsing (status, blockNumber, gasUsed, timestamp)
-- [ ] 5.3 Handle pending transactions (return null if not mined)
-- [ ] 5.4 Add error handling for invalid tx hashes
-- [ ] 5.5 Add timeout handling for slow RPC responses
+- [x] 5.1 Add `getTransactionReceipt(txHash, chain)` method to ChainAdapter
+- [x] 5.2 Implement receipt parsing (status, blockNumber, gasUsed, timestamp)
+- [x] 5.3 Handle pending transactions (return null if not mined)
+- [x] 5.4 Add error handling for invalid tx hashes
+- [x] 5.5 Add timeout handling for slow RPC responses
 
 ## 6. SigningEngine Integration
 

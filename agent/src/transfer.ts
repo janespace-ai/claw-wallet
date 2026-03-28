@@ -79,10 +79,14 @@ export class TransferService {
     }
     logger.log("TransferService", "Policy check passed");
 
-    logger.log("TransferService", "Fetching chainId from RPC...");
-    const chainId = await this.chainAdapter.getChainId(params.chain);
+    logger.log("TransferService", "Fetching chainId and nonce from RPC...");
+    const [chainId, nonce] = await Promise.all([
+      this.chainAdapter.getChainId(params.chain),
+      this.chainAdapter.getNonce(this.walletAddress, params.chain),
+    ]);
     logger.log("TransferService", "Calling sendToWallet (sign_transaction)...", { 
       chainId,
+      nonce,
       to,
       value: value.toString() 
     });
@@ -92,6 +96,7 @@ export class TransferService {
       value: value.toString(),
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
+      nonce: nonce.toString(),
       type: "legacy",
       chainId,
       amount: params.amount,

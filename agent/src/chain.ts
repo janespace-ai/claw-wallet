@@ -197,6 +197,12 @@ export class ChainAdapter {
     return chainId;
   }
 
+  async getNonce(address: Address, chainName: SupportedChain): Promise<number> {
+    const client = this.getClient(chainName);
+    const nonce = await client.getTransactionCount({ address });
+    return nonce;
+  }
+
   getSupportedChains(): SupportedChain[] {
     return Array.from(this.chainConfigs.keys());
   }

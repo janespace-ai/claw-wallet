@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
+import { ethers } from "ethers";
 import { KeyManager } from "./key-manager.js";
 import type { SigningHistory } from "./signing-history.js";
 
@@ -243,13 +244,12 @@ export class SigningEngine {
     const privateKey = this.keyManager.getPrivateKey();
     if (!privateKey) throw new Error("Wallet is locked");
 
-    const { privateKeyToAccount } = await import("viem/accounts");
-    const account = privateKeyToAccount(privateKey);
+    const wallet = new ethers.Wallet(privateKey);
 
     if (method === "sign_transaction") {
       const txParams = sanitizeTxParams(params);
       console.log(`[signing-engine] signTransaction with sanitized params:`, JSON.stringify(txParams, (_, v) => typeof v === "bigint" ? v.toString() : v));
-      const signedTx = await account.signTransaction(txParams as any);
+      const signedTx = await wallet.signTransaction(txParams as any);
       this.dailyUsage.spentUSD += estimatedUSD;
 
       // Record signing decision
@@ -266,13 +266,13 @@ export class SigningEngine {
         });
       }
 
-      return { signedTx, address: account.address };
+      return { signedTx, address: wallet.address };
     }
 
     if (method === "sign_message") {
       const message = params.message as string;
-      const signature = await account.signMessage({ message });
-      return { signature, address: account.address };
+      const signature = await wallet.signMessage(message);
+      return { signature, address: wallet.address };
     }
 
     throw new Error(`Unsupported signing method: ${method}`);
@@ -287,7 +287,7 @@ export class SigningEngine {
 }
 
 const VALID_TX_FIELDS = new Set([
-  "to", "value", "gas", "gasPrice", "maxFeePerGas", "maxPriorityFeePerGas",
+  "to", "value", "gas", "gasLimit", "gasPrice", "maxFeePerGas", "maxPriorityFeePerGas",
   "nonce", "data", "chainId", "type", "accessList",
   "blobs", "blobVersionedHashes", "sidecars", "authorizationList",
 ]);
@@ -305,6 +305,23 @@ function toBigInt(v: unknown): bigint | undefined {
   return undefined;
 }
 
+/** Ethers v6 expects numeric tx type (0 legacy, 1 eip-2930, 2 eip-1559); strings like "legacy" throw. */
+function normalizeTxType(t: unknown): number | undefined {
+  if (t === undefined || t === null) return undefined;
+  if (typeof t === "number" && [0, 1, 2].includes(t)) return t;
+  if (typeof t === "bigint") {
+    const n = Number(t);
+    return [0, 1, 2].includes(n) ? n : undefined;
+  }
+  if (typeof t === "string") {
+    const s = t.trim().toLowerCase();
+    if (s === "legacy" || s === "0") return 0;
+    if (s === "eip2930" || s === "eip-2930" || s === "1") return 1;
+    if (s === "eip1559" || s === "eip-1559" || s === "2") return 2;
+  }
+  return undefined;
+}
+
 function sanitizeTxParams(raw: Record<string, unknown>): Record<string, unknown> {
   const tx: Record<string, unknown> = {};
 
@@ -314,7 +331,15 @@ function sanitizeTxParams(raw: Record<string, unknown>): Record<string, unknown>
     }
   }
 
-  const bigintFields = ["value", "gas", "gasPrice", "maxFeePerGas", "maxPriorityFeePerGas", "nonce"];
+  const bigintFields = [
+    "value",
+    "gas",
+    "gasLimit",
+    "gasPrice",
+    "maxFeePerGas",
+    "maxPriorityFeePerGas",
+    "nonce",
+  ];
   for (const field of bigintFields) {
     if (tx[field] !== undefined) {
       const converted = toBigInt(tx[field]);
@@ -326,11 +351,26 @@ function sanitizeTxParams(raw: Record<string, unknown>): Record<string, unknown>
     }
   }
 
+  // ethers v6 TransactionRequest uses gasLimit; JSON-RPC / agent often send "gas"
+  if (tx.gas !== undefined) {
+    if (tx.gasLimit === undefined) {
+      tx.gasLimit = tx.gas;
+    }
+    delete tx.gas;
+  }
+
+  const normalizedType = normalizeTxType(tx.type);
+  if (normalizedType !== undefined) {
+    tx.type = normalizedType;
+  } else if (tx.type !== undefined) {
+    delete tx.type;
+  }
+
   if (!tx.type && !tx.maxFeePerGas && !tx.accessList && !tx.blobs && !tx.authorizationList) {
     if (tx.gasPrice) {
-      tx.type = "legacy";
+      tx.type = 0;
     } else {
-      tx.type = "legacy";
+      tx.type = 0;
       if (!tx.gasPrice) tx.gasPrice = 1000000000n;
     }
   }

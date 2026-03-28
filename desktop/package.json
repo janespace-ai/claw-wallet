@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "copy-assets": "cp -r src/renderer dist/",
     "package": "electron-builder --config electron-builder.yml",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
     "test": "vitest run",
     "test:e2e": "npm run build && playwright test",
     "test:e2e:ui": "npm run build && playwright test --ui"
@@ -21,15 +22,18 @@
     "@noble/hashes": "^1.7.0",
     "@scure/bip32": "^2.0.1",
     "@scure/bip39": "^2.0.1",
-    "viem": "^2.47.4",
+    "better-sqlite3": "^12.8.0",
+    "ethers": "^6.16.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.0.0",
     "@types/ws": "^8.5.13",
     "electron": "41.0.3",
     "electron-builder": "^25.0.0",
+    "electron-rebuild": "^3.2.9",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0"
   }

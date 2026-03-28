@@ -75,6 +75,7 @@
         <button class="tab" data-tab="pairing">Pairing</button>
         <button class="tab" data-tab="settings">Settings</button>
         <button class="tab" data-tab="security">Security</button>
+        <button class="tab" data-tab="activity">Activity</button>
       </nav>
 
       <!-- Home tab -->
@@ -166,6 +167,31 @@
           <h3>Signing History</h3>
           <p style="color: #888; font-size: 12px;">All signing decisions (auto-approved, manually approved, and rejected)</p>
           <div id="signing-history-list"></div>
+        </div>
+      </div>
+
+      <!-- Activity tab -->
+      <div id="tab-activity" class="tab-content">
+        <div class="card">
+          <h3>Transaction Activity</h3>
+          
+          <!-- Filter Bar -->
+          <div class="activity-filters">
+            <button class="filter-btn active" data-filter="all">All</button>
+            <button class="filter-btn" data-filter="auto">🤖 Auto</button>
+            <button class="filter-btn" data-filter="manual">👤 Manual</button>
+            <button class="filter-btn" data-filter="rejected">❌ Rejected</button>
+            <button class="filter-btn" data-filter="pending">⏳ Pending</button>
+            <button class="filter-btn" data-filter="failed">⛔ Failed</button>
+          </div>
+
+          <!-- Activity List -->
+          <div id="activity-list"></div>
+          
+          <!-- Load More -->
+          <div id="activity-load-more" style="text-align: center; margin-top: 20px; display: none;">
+            <button id="btn-load-more-activity" class="btn secondary">Load More</button>
+          </div>
         </div>
       </div>
     </div>

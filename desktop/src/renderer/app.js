@@ -103,6 +103,7 @@ function renderBalances(balances, prices) {
 
       const price = prices[balance.symbol] || null;
       const usdValue = price ? (amount * price).toFixed(2) : "N/A";
+      const unitPrice = price ? `$${price.toFixed(2)}/${balance.symbol}` : "";
 
       return `
         <div class="balance-card">
@@ -112,6 +113,7 @@ function renderBalances(balances, prices) {
           </div>
           <div class="balance-amount">${amount.toFixed(6)}</div>
           <div class="balance-usd">${usdValue !== "N/A" ? `$${usdValue}` : "Price unavailable"}</div>
+          ${unitPrice ? `<div class="balance-unit-price">${unitPrice}</div>` : ""}
         </div>
       `;
     })
@@ -306,6 +308,8 @@ function setupEventListeners() {
       } else if (tab.dataset.tab === "security") {
         loadSecurityEvents();
         loadSigningHistory();
+      } else if (tab.dataset.tab === "activity") {
+        loadActivityRecords(currentActivityFilter, true);
       }
     };
   });
@@ -438,6 +442,20 @@ function setupEventListeners() {
   document.getElementById("btn-alert-freeze").onclick = () => respondAlert("freeze");
   document.getElementById("btn-alert-allow").onclick = () => respondAlert("allow_once");
   document.getElementById("btn-alert-trust").onclick = () => respondAlert("trust");
+
+  // Activity filters
+  document.querySelectorAll(".filter-btn").forEach(btn => {
+    btn.onclick = () => {
+      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      loadActivityRecords(btn.dataset.filter, true);
+    };
+  });
+
+  // Activity load more
+  document.getElementById("btn-load-more-activity").onclick = () => {
+    loadActivityRecords(currentActivityFilter, false);
+  };
 }
 
 async function respondAlert(action) {
@@ -595,6 +613,121 @@ function startCountdown(expiresAt) {
     update();
     if (expiresAt <= Date.now()) clearInterval(timer);
   }, 1000);
+}
+
+// ==========================================
+// Activity Tab Functions
+// ==========================================
+
+let currentActivityFilter = "all";
+let activityOffset = 0;
+const ACTIVITY_PAGE_SIZE = 50;
+
+async function loadActivityRecords(filter = "all", reset = true) {
+  if (reset) {
+    activityOffset = 0;
+  }
+
+  currentActivityFilter = filter;
+  const list = document.getElementById("activity-list");
+  
+  if (reset) {
+    list.innerHTML = '<div class="loading">Loading activity...</div>';
+  }
+
+  try {
+    let records;
+    if (filter === "all") {
+      records = await api.getActivityRecords(ACTIVITY_PAGE_SIZE, activityOffset);
+    } else if (["auto", "manual", "rejected"].includes(filter)) {
+      records = await api.getActivityByType(filter);
+    } else if (["pending", "success", "failed"].includes(filter)) {
+      records = await api.getActivityByStatus(filter);
+    }
+
+    if (!records || records.length === 0) {
+      list.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No activity records found</p>';
+      document.getElementById("activity-load-more").style.display = "none";
+      return;
+    }
+
+    if (reset) {
+      list.innerHTML = "";
+    }
+
+    records.forEach(record => {
+      const recordEl = renderActivityRecord(record);
+      list.appendChild(recordEl);
+    });
+
+    // Show/hide load more button
+    if (filter === "all" && records.length === ACTIVITY_PAGE_SIZE) {
+      document.getElementById("activity-load-more").style.display = "block";
+    } else {
+      document.getElementById("activity-load-more").style.display = "none";
+    }
+
+    activityOffset += records.length;
+  } catch (err) {
+    console.error("Failed to load activity:", err);
+    list.innerHTML = '<p style="color: red;">Failed to load activity</p>';
+  }
+}
+
+function renderActivityRecord(record) {
+  const div = document.createElement("div");
+  div.className = `activity-record ${record.type} ${record.tx_status || "no-tx"}`;
+
+  const statusIcon = getStatusIcon(record);
+  const typeIcon = getTypeIcon(record.type);
+  const timestamp = formatRelativeTime(record.timestamp);
+  const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
+
+  div.innerHTML = `
+    <div class="activity-record-header">
+      <span class="activity-status">${statusIcon}</span>
+      <span class="activity-type">${typeIcon} ${record.type.toUpperCase()}</span>
+      <span class="activity-time">${timestamp}</span>
+    </div>
+    <div class="activity-details">
+      <div class="activity-amount"><strong>${amount} ${escapeHtml(record.tx_token)}</strong></div>
+      <div class="activity-chain">on ${escapeHtml(record.tx_chain)}</div>
+      ${record.tx_to ? `<div>To: <span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
+      <div>Estimated: $${record.estimated_usd.toFixed(2)}</div>
+      ${record.tx_hash ? `<div>TX: <span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span></div>` : ''}
+      ${record.block_number ? `<div>Block: ${record.block_number}</div>` : ''}
+    </div>
+  `;
+
+  return div;
+}
+
+function getStatusIcon(record) {
+  if (record.type === "rejected") return "❌";
+  if (!record.tx_hash) return "📝"; // Signed but not broadcast
+  if (record.tx_status === "success") return "✅";
+  if (record.tx_status === "failed") return "⛔";
+  if (record.tx_status === "pending") return "⏳";
+  return "❓";
+}
+
+function getTypeIcon(type) {
+  const icons = { auto: "🤖", manual: "👤", rejected: "❌" };
+  return icons[type] || "⚪";
+}
+
+function formatRelativeTime(timestamp) {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return `${seconds}s ago`;
+  if (minutes < 60) return `${minutes}m ago`;
+  if (hours < 24) return `${hours}h ago`;
+  return `${days}d ago`;
 }
 
 init();

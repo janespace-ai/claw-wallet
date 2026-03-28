@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { readFile, writeFile, mkdir, access, unlink } from "node:fs/promises";
 import { randomBytes } from "node:crypto";
 import { safeStorage, systemPreferences } from "electron";
-import type { Address, Hex } from "viem";
+import { ethers } from "ethers";
 
 /** @scure/* is ESM-only; dynamic import keeps CommonJS main compatible with Electron `require("electron")`. */
 let scurePromise: Promise<{
@@ -86,8 +86,8 @@ export class KeyManager {
   private readonly scryptN: number;
   private store: EncryptedStore | null = null;
   private decryptedMnemonic: string | null = null;
-  private decryptedPrivateKey: Hex | null = null;
-  private address: Address | null = null;
+  private decryptedPrivateKey: string | null = null;
+  private address: string | null = null;
   private biometricEnabled = false;
 
   constructor(dataDir: string, options?: KeyManagerOptions) {
@@ -104,7 +104,7 @@ export class KeyManager {
       await access(this.storePath);
       const raw = await readFile(this.storePath, "utf-8");
       this.store = JSON.parse(raw);
-      this.address = this.store!.address as Address;
+      this.address = this.store!.address;
     } catch {
       this.store = null;
     }
@@ -124,15 +124,15 @@ export class KeyManager {
     return this.decryptedPrivateKey !== null;
   }
 
-  getAddress(): Address | null {
+  getAddress(): string | null {
     return this.address;
   }
 
-  getPrivateKey(): Hex | null {
+  getPrivateKey(): string | null {
     return this.decryptedPrivateKey;
   }
 
-  async createWallet(password: string): Promise<{ address: Address; mnemonic: string }> {
+  async createWallet(password: string): Promise<{ address: string; mnemonic: string }> {
     if (this.store) throw new Error("Wallet already exists");
     this.validatePassword(password);
 
@@ -144,23 +144,23 @@ export class KeyManager {
 
     if (!child.privateKey) throw new Error("Failed to derive private key");
 
-    const privateKeyHex = `0x${Buffer.from(child.privateKey).toString("hex")}` as Hex;
-    const { privateKeyToAccount } = await import("viem/accounts");
-    const account = privateKeyToAccount(privateKeyHex);
+    const privateKeyHex = `0x${Buffer.from(child.privateKey).toString("hex")}`;
+    const wallet = new ethers.Wallet(privateKeyHex);
+    const address = wallet.address;
 
-    await this.encryptAndSave(mnemonic, password, account.address);
+    await this.encryptAndSave(mnemonic, password, address);
 
     this.decryptedMnemonic = mnemonic;
     this.decryptedPrivateKey = privateKeyHex;
-    this.address = account.address;
+    this.address = address;
 
     seed.fill(0);
     child.privateKey.fill(0);
 
-    return { address: account.address, mnemonic };
+    return { address, mnemonic };
   }
 
-  async importWallet(mnemonic: string, password: string): Promise<{ address: Address }> {
+  async importWallet(mnemonic: string, password: string): Promise<{ address: string }> {
     if (this.store) throw new Error("Wallet already exists");
     this.validatePassword(password);
 
@@ -175,20 +175,20 @@ export class KeyManager {
 
     if (!child.privateKey) throw new Error("Failed to derive private key");
 
-    const privateKeyHex = `0x${Buffer.from(child.privateKey).toString("hex")}` as Hex;
-    const { privateKeyToAccount } = await import("viem/accounts");
-    const account = privateKeyToAccount(privateKeyHex);
+    const privateKeyHex = `0x${Buffer.from(child.privateKey).toString("hex")}`;
+    const wallet = new ethers.Wallet(privateKeyHex);
+    const address = wallet.address;
 
-    await this.encryptAndSave(mnemonic, password, account.address);
+    await this.encryptAndSave(mnemonic, password, address);
 
     this.decryptedMnemonic = mnemonic;
     this.decryptedPrivateKey = privateKeyHex;
-    this.address = account.address;
+    this.address = address;
 
     seed.fill(0);
     child.privateKey.fill(0);
 
-    return { address: account.address };
+    return { address };
   }
 
   async unlock(password: string): Promise<void> {
@@ -204,7 +204,7 @@ export class KeyManager {
     if (!child.privateKey) throw new Error("Failed to derive private key");
 
     this.decryptedMnemonic = mnemonic;
-    this.decryptedPrivateKey = `0x${Buffer.from(child.privateKey).toString("hex")}` as Hex;
+    this.decryptedPrivateKey = `0x${Buffer.from(child.privateKey).toString("hex")}`;
 
     seed.fill(0);
     child.privateKey.fill(0);
@@ -293,7 +293,7 @@ export class KeyManager {
     }
   }
 
-  private async encryptAndSave(mnemonic: string, password: string, address: Address): Promise<void> {
+  private async encryptAndSave(mnemonic: string, password: string, address: string): Promise<void> {
     const { scryptSync, createCipheriv } = await import("node:crypto");
 
     const salt = randomBytes(SALT_SIZE);

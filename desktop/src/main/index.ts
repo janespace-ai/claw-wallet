@@ -8,7 +8,10 @@ import { SecurityMonitor } from "./security-monitor.js";
 import { LockManager } from "./lock-manager.js";
 import { PriceService } from "./price-service.js";
 import { BalanceService } from "./balance-service.js";
+import { DatabaseService } from "./database-service.js";
 import { SigningHistory } from "./signing-history.js";
+import { ChainAdapter } from "./chain-adapter.js";
+import { TxSyncService } from "./tx-sync-service.js";
 import { config } from "./config.js";
 
 /** Isolated profile + predictable window close behavior for Playwright E2E */
@@ -20,8 +23,12 @@ let mainWindow: InstanceType<typeof BrowserWindow> | null = null;
 let tray: InstanceType<typeof Tray> | null = null;
 
 const dataDir = join(app.getPath("userData"), "wallet-data");
+const dbPath = join(dataDir, "wallet.db");
+const dbService = DatabaseService.getInstance(dbPath);
 const keyManager = new KeyManager(dataDir, { scryptN: config.keyring.scryptN });
-const signingHistory = new SigningHistory(dataDir);
+const signingHistory = new SigningHistory(dbService);
+const chainAdapter = new ChainAdapter(config.chains);
+const txSyncService = new TxSyncService(signingHistory, chainAdapter);
 const signingEngine = new SigningEngine(keyManager, {
   dailyLimitUsd: config.signing.dailyLimitUsd,
   perTxLimitUsd: config.signing.perTxLimitUsd,
@@ -231,6 +238,18 @@ function registerIpcHandlers(): void {
   ipcMain.handle("wallet:get-signing-history", async () => {
     return signingHistory.getRecords();
   });
+
+  ipcMain.handle("wallet:get-activity-records", async (_, limit?: number, offset?: number) => {
+    return signingHistory.getRecords(limit, offset);
+  });
+
+  ipcMain.handle("wallet:get-activity-by-type", async (_, type: "auto" | "manual" | "rejected") => {
+    return signingHistory.getRecordsByType(type);
+  });
+
+  ipcMain.handle("wallet:get-activity-by-status", async (_, status: "pending" | "success" | "failed") => {
+    return signingHistory.getRecordsByStatus(status);
+  });
 }
 
 app.whenReady().then(async () => {
@@ -239,6 +258,9 @@ app.whenReady().then(async () => {
   await securityMonitor.initialize();
   signingEngine.setDataDir(dataDir);
   await signingEngine.loadAllowance();
+
+  // Start transaction sync service
+  txSyncService.startPeriodicSync(30000); // Every 30 seconds
 
   createWindow();
   if (!process.env.E2E_SKIP_TRAY) {
@@ -287,6 +309,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", async () => {
+  txSyncService.stopPeriodicSync();
   relayBridge?.shutdown();
   lockManager.lock();
 });

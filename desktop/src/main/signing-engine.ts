@@ -58,8 +58,11 @@ export class SigningEngine {
   private onApprovalExpired?: (requestId: string) => void;
   private autoApproveWithinBudget: boolean;
   private authorityStore: WalletAuthorityStore | null = null;
-  /** requestId → normalized 0x address to add to trust after on-chain success */
-  private pendingTrustAfterTx = new Map<string, string>();
+  /** After successful tx: upsert trusted contact */
+  private pendingTrustAfterTx = new Map<
+    string,
+    { address: string; name: string; chain: string }
+  >();
 
   constructor(keyManager: KeyManager, options?: SigningEngineOptions, signingHistory?: SigningHistory) {
     this.keyManager = keyManager;
@@ -77,6 +80,10 @@ export class SigningEngine {
 
   setAuthorityStore(store: WalletAuthorityStore | null): void {
     this.authorityStore = store;
+  }
+
+  getApprovalTimeoutMs(): number {
+    return this.approvalTimeoutMs;
   }
 
   setDataDir(dir: string): void {
@@ -180,7 +187,7 @@ export class SigningEngine {
 
   async approve(
     requestId: string,
-    options?: { trustRecipientAfterSuccess?: boolean },
+    options?: { trustRecipientAfterSuccess?: boolean; trustRecipientName?: string },
   ): Promise<void> {
     console.log(`[signing-engine] approve: requestId=${requestId} pending=${this.pendingRequests.has(requestId)}`);
     const pending = this.pendingRequests.get(requestId);
@@ -190,11 +197,18 @@ export class SigningEngine {
     this.pendingRequests.delete(requestId);
 
     if (options?.trustRecipientAfterSuccess && pending.method === "sign_transaction") {
-      const addr = extractRecipientForTrust(pending.params);
-      if (addr && ethers.isAddress(addr)) {
-        this.pendingTrustAfterTx.set(requestId, ethers.getAddress(addr));
-        console.log(`[signing-engine] pending trust after success for ${requestId} → ${addr}`);
+      const name = options.trustRecipientName?.trim();
+      if (!name) {
+        throw new Error("Contact name is required when adding recipient as trusted after success");
       }
+      const addrRaw = extractRecipientForTrust(pending.params);
+      if (!addrRaw || !ethers.isAddress(addrRaw)) {
+        throw new Error("Invalid recipient for trusted contact");
+      }
+      const chain = String(pending.params.chain ?? "base").trim().toLowerCase();
+      const addr = ethers.getAddress(addrRaw);
+      this.pendingTrustAfterTx.set(requestId, { address: addr, name, chain });
+      console.log(`[signing-engine] pending trusted contact after success for ${requestId} → ${name} / ${addr}`);
     }
 
     try {
@@ -223,7 +237,7 @@ export class SigningEngine {
         requestId,
         type: "rejected",
         method: pending.method,
-        to: (pending.params.to as string) || "",
+        to: extractRecipientForTrust(pending.params) || (pending.params.to as string) || "",
         value: (pending.params.value as string) || "0",
         token: (pending.params.token as string) || "ETH",
         chain: (pending.params.chain as string) || "unknown",
@@ -235,18 +249,30 @@ export class SigningEngine {
   }
 
   /**
-   * After broadcast / receipt: if user opted in, add recipient to trusted addresses.
+   * After on-chain success: upsert trusted contact if user opted in. Returns payload for Agent mirror.
    */
-  applyPostTxTrust(requestId: string, success: boolean): void {
-    const addr = this.pendingTrustAfterTx.get(requestId);
-    if (!addr) return;
+  applyPostTxTrust(
+    requestId: string,
+    success: boolean,
+  ): { name: string; address: string; chain: string; trusted: boolean } | null {
+    const pend = this.pendingTrustAfterTx.get(requestId);
+    if (!pend) return null;
     this.pendingTrustAfterTx.delete(requestId);
-    if (!success || !this.authorityStore) return;
+    if (!success || !this.authorityStore) return null;
     try {
-      this.authorityStore.addTrustedAddress(addr, null, "after_tx_approval");
-      console.log(`[signing-engine] trusted address after successful tx: ${addr}`);
+      const row = this.authorityStore.upsertContact(pend.name, pend.chain, pend.address, {
+        trusted: true,
+      });
+      console.log(`[signing-engine] trusted contact after successful tx: ${row.name} ${row.address}`);
+      return {
+        name: row.name,
+        address: row.address,
+        chain: row.chain,
+        trusted: true,
+      };
     } catch (e) {
       console.error(`[signing-engine] applyPostTxTrust failed:`, (e as Error).message);
+      return null;
     }
   }
 
@@ -271,12 +297,17 @@ export class SigningEngine {
     const to = params.to as string;
     const recipient = extractRecipientForTrust(params);
     const counterparty = recipient || to;
+    const chain = String(params.chain ?? "unknown")
+      .trim()
+      .toLowerCase();
     const trusted = this.authorityStore
-      ? this.authorityStore.getTrustedAddressesForPolicy(this.allowance.addressWhitelist)
-      : new Set(this.allowance.addressWhitelist.map((a) => a.toLowerCase()));
+      ? this.authorityStore.getTrustedRecipientKeys(this.allowance.addressWhitelist)
+      : new Set(this.allowance.addressWhitelist.map((a) => `*:${a.trim().toLowerCase()}`));
     if (trusted.size > 0 && counterparty) {
-      const key = counterparty.toLowerCase();
-      if (!trusted.has(key)) return false;
+      const a = counterparty.trim().toLowerCase();
+      const keyChain = `${chain}:${a}`;
+      const keyAny = `*:${a}`;
+      if (!trusted.has(keyChain) && !trusted.has(keyAny)) return false;
     }
 
     return true;
@@ -306,7 +337,7 @@ export class SigningEngine {
           requestId,
           type: isAutoApproved ? "auto" : "manual",
           method,
-          to: (params.to as string) || "",
+          to: extractRecipientForTrust(params) || (params.to as string) || "",
           value: (params.value as string) || "0",
           token: (params.token as string) || "ETH",
           chain: (params.chain as string) || "unknown",

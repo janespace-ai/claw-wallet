@@ -18,6 +18,7 @@ function formatTokenAmount(rawValue, token) {
 
 let currentMode = "setup";
 let currentTxRequest = null;
+let currentContactAddRequest = null;
 let currentAlert = null;
 
 async function init() {
@@ -310,8 +311,8 @@ function setupEventListeners() {
         loadSigningHistory();
       } else if (tab.dataset.tab === "activity") {
         loadActivityRecords(currentActivityFilter, true);
-      } else if (tab.dataset.tab === "trusted") {
-        loadTrustedAddresses();
+      } else if (tab.dataset.tab === "contacts") {
+        loadDesktopContacts();
       }
     };
   });
@@ -424,14 +425,47 @@ function setupEventListeners() {
   };
 
   // Transaction modal
+  document.getElementById("chk-trust-after-success").onchange = (e) => {
+    document.getElementById("tx-trust-name-wrap").style.display = e.target.checked ? "block" : "none";
+  };
+
   document.getElementById("btn-approve-tx").onclick = async () => {
     if (currentTxRequest) {
       const trust = document.getElementById("chk-trust-after-success").checked;
+      const nameEl = document.getElementById("input-trust-contact-name");
+      const trustName = nameEl ? nameEl.value.trim() : "";
+      if (trust && !trustName) {
+        alert("请填写可信任联系人的显示名称。");
+        return;
+      }
       await api.approveTransaction(currentTxRequest.requestId, {
         trustRecipientAfterSuccess: trust,
+        ...(trust ? { trustRecipientName: trustName } : {}),
       });
       document.getElementById("modal-tx").style.display = "none";
       currentTxRequest = null;
+    }
+  };
+
+  document.getElementById("btn-contact-add-normal").onclick = async () => {
+    if (currentContactAddRequest) {
+      await api.respondContactAdd(currentContactAddRequest.requestId, "normal");
+      document.getElementById("modal-contact-add").style.display = "none";
+      currentContactAddRequest = null;
+    }
+  };
+  document.getElementById("btn-contact-add-trusted").onclick = async () => {
+    if (currentContactAddRequest) {
+      await api.respondContactAdd(currentContactAddRequest.requestId, "trusted");
+      document.getElementById("modal-contact-add").style.display = "none";
+      currentContactAddRequest = null;
+    }
+  };
+  document.getElementById("btn-contact-add-reject").onclick = async () => {
+    if (currentContactAddRequest) {
+      await api.respondContactAdd(currentContactAddRequest.requestId, "reject");
+      document.getElementById("modal-contact-add").style.display = "none";
+      currentContactAddRequest = null;
     }
   };
 
@@ -485,14 +519,25 @@ function setupRealtimeEvents() {
     `;
     const trustWrap = document.getElementById("tx-trust-wrap");
     const trustChk = document.getElementById("chk-trust-after-success");
-    const showTrust =
-      req.method === "sign_transaction" &&
-      typeof req.to === "string" &&
-      req.to.startsWith("0x") &&
-      req.to.length === 42;
+    const nameWrap = document.getElementById("tx-trust-name-wrap");
+    const nameInput = document.getElementById("input-trust-contact-name");
+    const showTrust = req.allowSaveTrustedContact === true;
     trustWrap.style.display = showTrust ? "flex" : "none";
     trustChk.checked = false;
+    if (nameInput) nameInput.value = "";
+    if (nameWrap) nameWrap.style.display = "none";
     document.getElementById("modal-tx").style.display = "flex";
+  });
+
+  api.onContactAddRequest((req) => {
+    currentContactAddRequest = req;
+    const summary = document.getElementById("contact-add-summary");
+    summary.innerHTML = `
+      <strong>${escapeHtml(req.name)}</strong><br>
+      链: ${escapeHtml(req.chain)}<br>
+      <span class="address">${escapeHtml(req.address)}</span>
+    `;
+    document.getElementById("modal-contact-add").style.display = "flex";
   });
 
   api.onConnectionStatus((status) => {
@@ -557,40 +602,47 @@ window.revokeDevice = async (deviceId) => {
   loadPairedDevices();
 };
 
-async function loadTrustedAddresses() {
-  const list = document.getElementById("trusted-list");
+async function loadDesktopContacts() {
+  const list = document.getElementById("contacts-list");
   try {
-    const rows = await api.listTrustedAddresses();
+    const rows = await api.listDesktopContacts();
     if (!rows || rows.length === 0) {
-      list.innerHTML = '<p style="color: var(--text-secondary)">No trusted addresses yet.</p>';
+      list.innerHTML =
+        '<p style="color: var(--text-secondary)">No contacts yet. Add them from the Agent (wallet_contacts_add).</p>';
       return;
     }
-    list.innerHTML = rows
-      .map(
-        (t) => `
-      <div class="device-item">
-        <div class="info">
-          <div class="address">${escapeHtml(t.address)}</div>
-          <div class="ip">${escapeHtml(t.source || "")} · ${t.createdAt ? new Date(t.createdAt).toLocaleString() : ""}</div>
-        </div>
-        <button class="btn danger" style="width:auto;padding:6px 12px" onclick="removeTrustedAddress('${escapeHtml(t.address)}')">Remove</button>
-      </div>
-    `,
-      )
-      .join("");
+    list.innerHTML = "";
+    for (const c of rows) {
+      const wrap = document.createElement("div");
+      wrap.className = "device-item";
+      const info = document.createElement("div");
+      info.className = "info";
+      const badge = c.trusted
+        ? ` <span style="font-size:11px;background:#1a472a;color:#8f8;padding:2px 6px;border-radius:4px;margin-left:6px">可信任</span>`
+        : "";
+      info.innerHTML = `<div><strong>${escapeHtml(c.name)}</strong> · ${escapeHtml(c.chain)}${badge}</div>
+        <div class="ip address">${escapeHtml(c.address)}</div>`;
+      const btn = document.createElement("button");
+      btn.className = "btn danger";
+      btn.style.cssText = "width:auto;padding:6px 12px";
+      btn.textContent = "Remove";
+      btn.onclick = async () => {
+        if (!confirm(`Remove all entries for contact "${c.name}"?`)) return;
+        try {
+          await api.removeDesktopContact(c.name);
+          await loadDesktopContacts();
+        } catch (err) {
+          alert(err.message || String(err));
+        }
+      };
+      wrap.appendChild(info);
+      wrap.appendChild(btn);
+      list.appendChild(wrap);
+    }
   } catch (err) {
     list.innerHTML = `<p style="color: red;">${escapeHtml(err.message || String(err))}</p>`;
   }
 }
-
-window.removeTrustedAddress = async (address) => {
-  try {
-    await api.removeTrustedAddress(address);
-    await loadTrustedAddresses();
-  } catch (err) {
-    alert(err.message || String(err));
-  }
-};
 
 async function loadSecurityEvents() {
   const events = await api.getSecurityEvents();

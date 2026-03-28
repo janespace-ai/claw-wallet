@@ -8,11 +8,16 @@ interface DesktopContactRow {
   name: string;
   chain: string;
   address: string;
+  trusted?: boolean;
 }
 
 function mirrorDesktopToLocal(contacts: ContactsManager, rows: DesktopContactRow[]): void {
   for (const r of rows) {
-    contacts.addContact(r.name, { [r.chain as SupportedChain]: r.address as Address });
+    const ch = r.chain as SupportedChain;
+    contacts.addContact(r.name, { [ch]: r.address as Address });
+    if (r.trusted === true) {
+      contacts.setTrustedOnChain(r.name, ch, true);
+    }
   }
 }
 
@@ -52,7 +57,7 @@ export function createWalletContactsTools(
     {
       name: "wallet_contacts_add",
       description:
-        "Add or update a contact on the Desktop wallet and mirror to local contacts.json.",
+        "Propose a contact to the Desktop wallet. The user must choose normal contact, trusted contact, or reject in the app before it is saved. Mirrors to local contacts.json on success.",
       parameters: {
         type: "object",
         properties: {
@@ -79,9 +84,13 @@ export function createWalletContactsTools(
           chain,
         })) as { contact: DesktopContactRow };
         const row = result.contact;
-        contacts.addContact(row.name, { [row.chain as SupportedChain]: row.address as Address });
+        mirrorDesktopToLocal(contacts, [row]);
         await contacts.save();
-        return { contact: result.contact, message: `Contact "${row.name}" saved on Desktop.` };
+        return {
+          contact: row,
+          trusted: row.trusted === true,
+          message: `Contact "${row.name}" saved on Desktop (user confirmed).`,
+        };
       },
     },
     {
@@ -103,13 +112,21 @@ export function createWalletContactsTools(
             const resolved = (await walletConnection.sendToWallet("wallet_contacts_resolve", {
               name: args.name,
               chain,
-            })) as { address: string; chain: string; exactMatch: boolean };
-            mirrorDesktopToLocal(contacts, [{ name: args.name as string, chain: resolved.chain, address: resolved.address }]);
+            })) as { address: string; chain: string; exactMatch: boolean; trusted?: boolean };
+            mirrorDesktopToLocal(contacts, [
+              {
+                name: args.name as string,
+                chain: resolved.chain,
+                address: resolved.address,
+                trusted: resolved.trusted === true,
+              },
+            ]);
             await contacts.save().catch(() => {});
             return {
               address: resolved.address,
               chain: resolved.chain,
               exactMatch: resolved.exactMatch,
+              trusted: resolved.trusted === true,
               source: "desktop",
             };
           } catch {

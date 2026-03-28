@@ -129,19 +129,12 @@ export class TransferService {
     };
     this.history.addRecord(record);
 
-    try {
-      await this.walletConnection.sendToWallet("wallet_notify_tx_result", {
-        requestId: result.requestId,
-        success: receipt.status === "success",
-        txHash: receipt.transactionHash,
-      });
-    } catch (notifyErr) {
-      logger.warn(
-        "TransferService",
-        "wallet_notify_tx_result failed (non-fatal)",
-        { error: (notifyErr as Error).message },
-      );
-    }
+    await this.notifyTxAndMirrorContacts(
+      result.requestId,
+      receipt.status === "success",
+      receipt.transactionHash,
+      params.chain,
+    );
 
     logger.log("TransferService", "sendETH COMPLETE");
     return {
@@ -217,19 +210,12 @@ export class TransferService {
     };
     this.history.addRecord(record);
 
-    try {
-      await this.walletConnection.sendToWallet("wallet_notify_tx_result", {
-        requestId: result.requestId,
-        success: receipt.status === "success",
-        txHash: receipt.transactionHash,
-      });
-    } catch (notifyErr) {
-      logger.warn(
-        "TransferService",
-        "wallet_notify_tx_result failed (non-fatal)",
-        { error: (notifyErr as Error).message },
-      );
-    }
+    await this.notifyTxAndMirrorContacts(
+      result.requestId,
+      receipt.status === "success",
+      receipt.transactionHash,
+      params.chain,
+    );
 
     return {
       hash: receipt.transactionHash,
@@ -244,6 +230,39 @@ export class TransferService {
       return this.sendETH(params);
     }
     return this.sendERC20(params);
+  }
+
+  private async notifyTxAndMirrorContacts(
+    requestId: string,
+    success: boolean,
+    txHash: string,
+    chain: SupportedChain,
+  ): Promise<void> {
+    try {
+      const raw = await this.walletConnection.sendToWallet("wallet_notify_tx_result", {
+        requestId,
+        success,
+        txHash,
+        chain,
+      });
+      const res = raw as {
+        ok?: boolean;
+        newContact?: { name: string; address: string; chain: string; trusted: boolean };
+      };
+      if (res?.newContact?.trusted === true) {
+        const nc = res.newContact;
+        const c = nc.chain as SupportedChain;
+        this.contacts.addContact(nc.name, { [c]: nc.address as Address });
+        this.contacts.setTrustedOnChain(nc.name, c, true);
+        await this.contacts.save().catch(() => {});
+      }
+    } catch (notifyErr) {
+      logger.warn(
+        "TransferService",
+        "wallet_notify_tx_result failed (non-fatal)",
+        { error: (notifyErr as Error).message },
+      );
+    }
   }
 
   private async resolveRecipient(to: string, chain: SupportedChain): Promise<Address> {

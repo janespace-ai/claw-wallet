@@ -74,6 +74,16 @@ export class ContactsManager {
     return null;
   }
 
+  setTrustedOnChain(name: string, chain: SupportedChain, trusted: boolean): void {
+    const c = this.store.contacts.find(
+      (x) => x.name.toLowerCase() === name.trim().toLowerCase()
+    );
+    if (!c) return;
+    if (!c.trustedOnChain) c.trustedOnChain = {};
+    c.trustedOnChain[chain] = trusted;
+    c.lastUpdated = new Date().toISOString();
+  }
+
   removeContact(name: string): boolean {
     const idx = this.store.contacts.findIndex(
       (c) => c.name.toLowerCase() === name.toLowerCase()

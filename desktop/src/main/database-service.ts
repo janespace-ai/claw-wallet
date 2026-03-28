@@ -77,6 +77,14 @@ export class DatabaseService {
       this.db.pragma("user_version = 2");
       console.log("[DatabaseService] Migration v2 complete");
     }
+
+    const versionAfterV2 = this.db.pragma("user_version", { simple: true }) as number;
+    if (versionAfterV2 < 3) {
+      console.log("[DatabaseService] Running migration v3 (contacts.trusted; drop trusted_addresses, no data migration)...");
+      this.migrateToV3();
+      this.db.pragma("user_version = 3");
+      console.log("[DatabaseService] Migration v3 complete");
+    }
   }
 
   /**
@@ -144,6 +152,24 @@ export class DatabaseService {
       );
       CREATE INDEX IF NOT EXISTS idx_contacts_name ON desktop_contacts(name COLLATE NOCASE);
     `);
+  }
+
+  /**
+   * v3: `trusted` on contacts only; remove legacy `trusted_addresses` without copying rows.
+   */
+  private migrateToV3(): void {
+    const tables = this.db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='desktop_contacts'`)
+      .get() as { name: string } | undefined;
+    if (tables) {
+      const cols = this.db.prepare(`PRAGMA table_info(desktop_contacts)`).all() as { name: string }[];
+      if (!cols.some((c) => c.name === "trusted")) {
+        this.db.exec(
+          `ALTER TABLE desktop_contacts ADD COLUMN trusted INTEGER NOT NULL DEFAULT 0`,
+        );
+      }
+    }
+    this.db.exec(`DROP TABLE IF EXISTS trusted_addresses`);
   }
 
   /**

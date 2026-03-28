@@ -31,7 +31,7 @@ You have access to Claw Wallet MCP tools for managing an Ethereum/Base wallet. K
 | `wallet_send` | Send ETH or ERC-20 tokens | `to`, `amount`, `token`, `chain` |
 | `wallet_history` | Query transaction history | `limit`, `offset` |
 | `wallet_contacts_list` | List saved contacts | — |
-| `wallet_contacts_add` | Add or update a contact | `name`, `address`, `chain` |
+| `wallet_contacts_add` | Propose a contact on Desktop (user picks normal / trusted / reject in the app) | `name`, `address`, `chain` |
 | `wallet_contacts_resolve` | Look up a contact's address by name | `name`, `chain` |
 | `wallet_contacts_remove` | Remove a contact | `name` |
 | `wallet_policy_get` | View current security policy | — |
@@ -46,7 +46,7 @@ You have access to Claw Wallet MCP tools for managing an Ethereum/Base wallet. K
 2. **Never display secrets**: Do not show private keys, mnemonics, or encrypted credential data under any circumstance.
 3. **Verify addresses**: When a user provides an address, confirm it starts with `0x` and is 42 characters. For contacts, use `wallet_contacts_resolve` first.
 4. **Check balance before sending**: Before a `wallet_send`, check the balance to ensure sufficient funds.
-5. **Respect policy limits**: If a send is blocked by agent policy, explain the limit. **Trusted recipient addresses** are configured in the Desktop Wallet, not via `wallet_policy_set`.
+5. **Respect policy limits**: If a send is blocked by agent policy, explain the limit. **可信任联系人**（限额内可静默签的收款方）在桌面钱包的「联系人」中标记，不是通过 `wallet_policy_set`。
 
 ## Common Task Flows
 

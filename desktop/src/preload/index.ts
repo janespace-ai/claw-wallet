@@ -15,9 +15,10 @@ export interface WalletAPI {
   getPairedDevices: () => Promise<PairedDevice[]>;
   approveTransaction: (
     requestId: string,
-    options?: { trustRecipientAfterSuccess?: boolean },
+    options?: { trustRecipientAfterSuccess?: boolean; trustRecipientName?: string },
   ) => Promise<void>;
   rejectTransaction: (requestId: string) => Promise<void>;
+  respondContactAdd: (requestId: string, choice: "normal" | "trusted" | "reject") => Promise<void>;
   setAllowance: (config: AllowanceConfig) => Promise<void>;
   getAllowance: () => Promise<AllowanceConfig>;
   setLockMode: (mode: "convenience" | "strict") => Promise<void>;
@@ -35,10 +36,11 @@ export interface WalletAPI {
   getActivityRecords: (limit?: number, offset?: number) => Promise<ActivityRecord[]>;
   getActivityByType: (type: "auto" | "manual" | "rejected") => Promise<ActivityRecord[]>;
   getActivityByStatus: (status: "pending" | "success" | "failed") => Promise<ActivityRecord[]>;
-  listTrustedAddresses: () => Promise<TrustedAddress[]>;
-  removeTrustedAddress: (address: string) => Promise<void>;
+  listDesktopContacts: () => Promise<DesktopContactEntry[]>;
+  removeDesktopContact: (name: string) => Promise<void>;
 
   onTransactionRequest: (callback: (req: TransactionRequest) => void) => () => void;
+  onContactAddRequest: (callback: (req: ContactAddRequest) => void) => () => void;
   onConnectionStatus: (callback: (status: ConnectionStatus) => void) => () => void;
   onSecurityAlert: (callback: (alert: SecurityAlert) => void) => () => void;
   onLockStateChange: (callback: (locked: boolean) => void) => () => void;
@@ -79,6 +81,14 @@ export interface TransactionRequest {
   fromDevice: string;
   sourceIP: string;
   withinBudget: boolean;
+  allowSaveTrustedContact: boolean;
+}
+
+export interface ContactAddRequest {
+  requestId: string;
+  name: string;
+  address: string;
+  chain: string;
 }
 
 export interface ConnectionStatus {
@@ -124,11 +134,11 @@ export interface SigningRecord {
   txHash?: string;
 }
 
-export interface TrustedAddress {
+export interface DesktopContactEntry {
+  name: string;
+  chain: string;
   address: string;
-  label: string | null;
-  source: string;
-  createdAt: number;
+  trusted: boolean;
 }
 
 export interface ActivityRecord {
@@ -167,6 +177,8 @@ const api: WalletAPI = {
   approveTransaction: (requestId, options?) =>
     ipcRenderer.invoke("wallet:approve-tx", requestId, options),
   rejectTransaction: (requestId) => ipcRenderer.invoke("wallet:reject-tx", requestId),
+  respondContactAdd: (requestId, choice) =>
+    ipcRenderer.invoke("wallet:respond-contact-add", requestId, choice),
   setAllowance: (config) => ipcRenderer.invoke("wallet:set-allowance", config),
   getAllowance: () => ipcRenderer.invoke("wallet:get-allowance"),
   setLockMode: (mode) => ipcRenderer.invoke("wallet:set-lock-mode", mode),
@@ -184,13 +196,18 @@ const api: WalletAPI = {
   getActivityRecords: (limit?, offset?) => ipcRenderer.invoke("wallet:get-activity-records", limit, offset),
   getActivityByType: (type) => ipcRenderer.invoke("wallet:get-activity-by-type", type),
   getActivityByStatus: (status) => ipcRenderer.invoke("wallet:get-activity-by-status", status),
-  listTrustedAddresses: () => ipcRenderer.invoke("wallet:list-trusted"),
-  removeTrustedAddress: (address) => ipcRenderer.invoke("wallet:remove-trusted", address),
+  listDesktopContacts: () => ipcRenderer.invoke("wallet:list-contacts"),
+  removeDesktopContact: (name) => ipcRenderer.invoke("wallet:remove-contact", name),
 
   onTransactionRequest: (callback) => {
     const handler = (_: unknown, req: TransactionRequest) => callback(req);
     ipcRenderer.on("wallet:tx-request", handler);
     return () => ipcRenderer.removeListener("wallet:tx-request", handler);
+  },
+  onContactAddRequest: (callback) => {
+    const handler = (_: unknown, req: ContactAddRequest) => callback(req);
+    ipcRenderer.on("wallet:contact-add-request", handler);
+    return () => ipcRenderer.removeListener("wallet:contact-add-request", handler);
   },
   onConnectionStatus: (callback) => {
     const handler = (_: unknown, status: ConnectionStatus) => callback(status);

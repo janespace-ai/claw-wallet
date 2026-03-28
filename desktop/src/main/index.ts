@@ -175,13 +175,26 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle(
     "wallet:approve-tx",
-    async (_, requestId: string, opts?: { trustRecipientAfterSuccess?: boolean }) => {
+    async (
+      _,
+      requestId: string,
+      opts?: { trustRecipientAfterSuccess?: boolean; trustRecipientName?: string },
+    ) => {
       console.log(`[desktop] IPC approve-tx: requestId=${requestId}`, opts);
       if (!relayBridge) throw new Error("Relay not initialized");
       await signingEngine.approve(requestId, {
         trustRecipientAfterSuccess: opts?.trustRecipientAfterSuccess === true,
+        trustRecipientName: opts?.trustRecipientName,
       });
       console.log(`[desktop] IPC approve-tx: done requestId=${requestId}`);
+    },
+  );
+
+  ipcMain.handle(
+    "wallet:respond-contact-add",
+    (_, requestId: string, choice: "normal" | "trusted" | "reject") => {
+      if (!relayBridge) throw new Error("Relay not initialized");
+      relayBridge.resolveContactAddRequest(requestId, choice);
     },
   );
 
@@ -259,11 +272,11 @@ function registerIpcHandlers(): void {
     return signingHistory.getRecordsByStatus(status);
   });
 
-  ipcMain.handle("wallet:list-trusted", async () => authorityStore.listTrustedAddresses());
+  ipcMain.handle("wallet:list-contacts", async () => authorityStore.listContacts());
 
-  ipcMain.handle("wallet:remove-trusted", async (_, address: string) => {
-    if (!authorityStore.removeTrustedAddress(address)) {
-      throw new Error("Address not in trust list");
+  ipcMain.handle("wallet:remove-contact", async (_, name: string) => {
+    if (!name?.trim() || authorityStore.removeContactsByName(name) === 0) {
+      throw new Error("Contact not found");
     }
   });
 }
@@ -280,10 +293,6 @@ app.whenReady().then(async () => {
     await signingEngine.setAllowance({ addressWhitelist: [] });
   }
 
-  txSyncService.setOnTxFinalized((requestId, success) => {
-    signingEngine.applyPostTxTrust(requestId, success);
-  });
-
   // Start transaction sync service
   txSyncService.startPeriodicSync(30000); // Every 30 seconds
 
@@ -299,6 +308,8 @@ app.whenReady().then(async () => {
     securityMonitor,
     priceService,
     authorityStore,
+    signingHistory,
+    txSyncService,
     relayUrl: config.relayUrl,
     reconnectBaseMs: config.relay.reconnectBaseMs,
     reconnectMaxMs: config.relay.reconnectMaxMs,
@@ -307,6 +318,11 @@ app.whenReady().then(async () => {
       console.log("[desktop] Showing tx approval modal for", req.requestId);
       mainWindow?.show();
       mainWindow?.webContents.send("wallet:tx-request", req);
+    },
+    onContactAddRequest: (req) => {
+      console.log("[desktop] Contact add request", req.requestId);
+      mainWindow?.show();
+      mainWindow?.webContents.send("wallet:contact-add-request", req);
     },
     onConnectionStatus: (status) => {
       mainWindow?.webContents.send("wallet:connection-status", status);

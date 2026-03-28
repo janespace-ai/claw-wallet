@@ -22,11 +22,11 @@
 | `wallet_contacts_remove` | 按名称删除（不区分大小写） | `name` | `{ removed: number }` |
 | `wallet_contacts_resolve` | 按名称解析地址 | `name`, `chain?` | `{ address, chain, exactMatch }` 或出错 |
 | `wallet_trusted_list` | 列出信任地址 | `{}` | `{ trusted: { address, label, source, createdAt }[] }` |
-| `wallet_notify_tx_result` | 链上结果回执（成功后履行「待信任」） | `requestId`, `success`, `txHash?`, `revertReason?` | `{ ok: true }` |
+| `wallet_notify_tx_result` | 链上结果回执（写入 Activity `tx_hash`、拉收据、成功后履行「待信任」） | `requestId`（与 `sign_transaction` 一致）, `success`, `txHash?`, `chain?`（如 `base` / `ethereum`，用于桌面拉收据）, `revertReason?` | `{ ok: true }` |
 
 说明：
 
-- **不要求解锁**：`wallet_notify_tx_result`（仅更新待信任状态，不涉及密钥）。
+- **不要求解锁**：`wallet_notify_tx_result`（不涉及密钥；桌面仍会更新 `signing_history` 与可选的待信任逻辑）。
 - **要求钱包已解锁**：其余 `wallet_contacts_*`、`wallet_trusted_list`（与读写权威数据一致）。
 - **不在 Relay 上提供**：`wallet_trusted_add`（信任仅经桌面 UI 勾选 + 成功回执等路径写入）；`wallet_trusted_remove` 仅桌面 IPC。
 

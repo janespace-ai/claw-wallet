@@ -86,8 +86,8 @@ export RELAY_URL="ws://localhost:8765/ws"  # 中继服务器地址
 
 | 步骤 | 你对 Agent 说（示例） | 预期 |
 |------|------------------------|------|
-| 4 | 「目前的钱包安全策略是什么？」 | `wallet_policy_get`，返回 Agent 侧限额与模式；**信任收款地址由桌面 SQLite / Trusted 标签维护，不在此工具中** |
-| 5 | 「把策略改成 autonomous 模式，单笔限额 200 美元，每日 1000 美元。」 | `wallet_policy_set`，返回更新后的策略（**不能**通过该工具改信任地址） |
+| 4 | 「目前的钱包安全策略是什么？」 | `wallet_policy_get`，返回 Agent 侧限额与模式；**可信任收款方由桌面「联系人」表的 `可信任` 标记维护，不在此工具中** |
+| 5 | 「把策略改成 autonomous 模式，单笔限额 200 美元，每日 1000 美元。」 | `wallet_policy_set`，返回更新后的策略（**不能**通过该工具改可信任联系人） |
 | 6 | 「现在有没有待审批的转账？」 | `wallet_approval_list`，应为空数组 |
 
 ### 阶段 3：联系人与历史
@@ -96,7 +96,7 @@ export RELAY_URL="ws://localhost:8765/ws"  # 中继服务器地址
 
 | 步骤 | 你对 Agent 说（示例） | 预期 |
 |------|------------------------|------|
-| 7 | 「把联系人 Bob 加进去，Base 地址是 0x742d35Cc6634C0532925a3b844Bc454e4438f44e。」 | `wallet_contacts_add`，桌面侧落库；本地缓存同步 |
+| 7 | 「把联系人 Bob 加进去，Base 地址是 0x742d35Cc6634C0532925a3b844Bc454e4438f44e。」 | `wallet_contacts_add`，桌面弹出三选一（一般 / 可信任 / 拒绝），确认后落库；本地缓存同步 |
 | 8 | 「列出所有联系人。」 | `wallet_contacts_list`，与桌面一致（若已配对且在线）；`source` 字段可为 `desktop` 或 `local_cache` |
 | 9 | 「查一下 Bob 在 Base 上的地址。」 | `wallet_contacts_resolve`，优先桌面解析 |
 | 10 | 「最近 10 笔交易历史。」 | `wallet_history`，新钱包可为空 |
@@ -113,7 +113,7 @@ export RELAY_URL="ws://localhost:8765/ws"  # 中继服务器地址
 - 预期：
   - Agent 通过 E2EE 发送签名请求到桌面钱包
   - 桌面钱包检查策略 → 签名 → 广播
-  - Agent 在广播后调用 `wallet_notify_tx_result`（携带签名时的 `requestId`）通知链上成败；若在审批弹窗勾选「成功后信任收款人」，**仅当回执成功**后桌面才会把该地址写入信任列表
+  - Agent 在广播后调用 `wallet_notify_tx_result`（携带签名时的 `requestId`）通知链上成败；若在审批弹窗勾选「可信任」并填写名称，**仅当回执成功**后桌面 upsert 可信任联系人，并在回包可选字段 `newContact` 中返回供 Agent 同步本地缓存
   - 返回交易 hash
 
 ### 阶段 6：自动重连验证

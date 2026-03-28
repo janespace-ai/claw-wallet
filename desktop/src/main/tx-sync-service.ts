@@ -16,10 +16,15 @@ export class TxSyncService {
   private chainAdapter: ChainAdapter;
   private syncInterval: NodeJS.Timeout | null = null;
   private isSyncing = false;
+  private onTxFinalized?: (requestId: string, success: boolean) => void;
 
   constructor(signingHistory: SigningHistory, chainAdapter: ChainAdapter) {
     this.signingHistory = signingHistory;
     this.chainAdapter = chainAdapter;
+  }
+
+  setOnTxFinalized(handler: ((requestId: string, success: boolean) => void) | undefined): void {
+    this.onTxFinalized = handler;
   }
 
   /**
@@ -31,8 +36,13 @@ export class TxSyncService {
       const receipt = await this.chainAdapter.getTransactionReceipt(txHash, chain);
       
       if (receipt) {
+        const before = this.signingHistory.getRecordByTxHash(txHash);
         this.signingHistory.updateTxStatus(txHash, receipt);
         console.log(`[TxSync] Updated ${txHash}: ${receipt.status}`);
+        const requestId = before?.request_id;
+        if (requestId && this.onTxFinalized) {
+          this.onTxFinalized(requestId, receipt.status === "success");
+        }
       } else {
         console.log(`[TxSync] Transaction ${txHash} still pending`);
       }

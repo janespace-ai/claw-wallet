@@ -10,6 +10,7 @@ import { PriceService } from "./price-service.js";
 import { BalanceService } from "./balance-service.js";
 import { DatabaseService } from "./database-service.js";
 import { SigningHistory } from "./signing-history.js";
+import { WalletAuthorityStore } from "./wallet-authority-store.js";
 import { ChainAdapter } from "./chain-adapter.js";
 import { TxSyncService } from "./tx-sync-service.js";
 import { config } from "./config.js";
@@ -27,6 +28,7 @@ const dbPath = join(dataDir, "wallet.db");
 const dbService = DatabaseService.getInstance(dbPath);
 const keyManager = new KeyManager(dataDir, { scryptN: config.keyring.scryptN });
 const signingHistory = new SigningHistory(dbService);
+const authorityStore = new WalletAuthorityStore(dbService);
 const chainAdapter = new ChainAdapter(config.chains);
 const txSyncService = new TxSyncService(signingHistory, chainAdapter);
 const signingEngine = new SigningEngine(keyManager, {
@@ -35,6 +37,7 @@ const signingEngine = new SigningEngine(keyManager, {
   tokenWhitelist: config.signing.tokenWhitelist,
   autoApproveWithinBudget: config.signing.autoApproveWithinBudget,
 }, signingHistory);
+signingEngine.setAuthorityStore(authorityStore);
 const securityMonitor = new SecurityMonitor(dataDir, {
   maxEvents: config.security.maxEvents,
 });
@@ -170,12 +173,17 @@ function registerIpcHandlers(): void {
     return relayBridge.getPairedDevices();
   });
 
-  ipcMain.handle("wallet:approve-tx", async (_, requestId: string) => {
-    console.log(`[desktop] IPC approve-tx: requestId=${requestId}`);
-    if (!relayBridge) throw new Error("Relay not initialized");
-    await signingEngine.approve(requestId);
-    console.log(`[desktop] IPC approve-tx: done requestId=${requestId}`);
-  });
+  ipcMain.handle(
+    "wallet:approve-tx",
+    async (_, requestId: string, opts?: { trustRecipientAfterSuccess?: boolean }) => {
+      console.log(`[desktop] IPC approve-tx: requestId=${requestId}`, opts);
+      if (!relayBridge) throw new Error("Relay not initialized");
+      await signingEngine.approve(requestId, {
+        trustRecipientAfterSuccess: opts?.trustRecipientAfterSuccess === true,
+      });
+      console.log(`[desktop] IPC approve-tx: done requestId=${requestId}`);
+    },
+  );
 
   ipcMain.handle("wallet:reject-tx", async (_, requestId: string) => {
     console.log(`[desktop] IPC reject-tx: requestId=${requestId}`);
@@ -250,6 +258,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle("wallet:get-activity-by-status", async (_, status: "pending" | "success" | "failed") => {
     return signingHistory.getRecordsByStatus(status);
   });
+
+  ipcMain.handle("wallet:list-trusted", async () => authorityStore.listTrustedAddresses());
+
+  ipcMain.handle("wallet:remove-trusted", async (_, address: string) => {
+    if (!authorityStore.removeTrustedAddress(address)) {
+      throw new Error("Address not in trust list");
+    }
+  });
 }
 
 app.whenReady().then(async () => {
@@ -258,6 +274,15 @@ app.whenReady().then(async () => {
   await securityMonitor.initialize();
   signingEngine.setDataDir(dataDir);
   await signingEngine.loadAllowance();
+  const wl = signingEngine.getAllowance().addressWhitelist;
+  if (wl.length > 0) {
+    authorityStore.mergeLegacyAllowanceWhitelist(wl);
+    await signingEngine.setAllowance({ addressWhitelist: [] });
+  }
+
+  txSyncService.setOnTxFinalized((requestId, success) => {
+    signingEngine.applyPostTxTrust(requestId, success);
+  });
 
   // Start transaction sync service
   txSyncService.startPeriodicSync(30000); // Every 30 seconds
@@ -273,6 +298,7 @@ app.whenReady().then(async () => {
     signingEngine,
     securityMonitor,
     priceService,
+    authorityStore,
     relayUrl: config.relayUrl,
     reconnectBaseMs: config.relay.reconnectBaseMs,
     reconnectMaxMs: config.relay.reconnectMaxMs,

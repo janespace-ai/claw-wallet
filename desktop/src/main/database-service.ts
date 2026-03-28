@@ -70,11 +70,13 @@ export class DatabaseService {
       console.log("[DatabaseService] Migration v1 complete");
     }
 
-    // Future migrations go here
-    // if (currentVersion < 2) {
-    //   this.migrateToV2();
-    //   this.db.pragma("user_version = 2");
-    // }
+    const versionAfterV1 = this.db.pragma("user_version", { simple: true }) as number;
+    if (versionAfterV1 < 2) {
+      console.log("[DatabaseService] Running migration v2...");
+      this.migrateToV2();
+      this.db.pragma("user_version = 2");
+      console.log("[DatabaseService] Migration v2 complete");
+    }
   }
 
   /**
@@ -117,6 +119,30 @@ export class DatabaseService {
       CREATE INDEX IF NOT EXISTS idx_signing_tx_hash ON signing_history(tx_hash);
       CREATE INDEX IF NOT EXISTS idx_signing_status ON signing_history(tx_status);
       CREATE INDEX IF NOT EXISTS idx_signing_request_id ON signing_history(request_id);
+    `);
+  }
+
+  /** Trust + authoritative contacts */
+  private migrateToV2(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS trusted_addresses (
+        address TEXT PRIMARY KEY COLLATE NOCASE,
+        label TEXT,
+        source TEXT NOT NULL DEFAULT 'user',
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_trusted_created ON trusted_addresses(created_at);
+
+      CREATE TABLE IF NOT EXISTS desktop_contacts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        chain TEXT NOT NULL,
+        address TEXT NOT NULL COLLATE NOCASE,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL,
+        UNIQUE(name COLLATE NOCASE, chain COLLATE NOCASE)
+      );
+      CREATE INDEX IF NOT EXISTS idx_contacts_name ON desktop_contacts(name COLLATE NOCASE);
     `);
   }
 

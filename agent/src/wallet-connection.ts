@@ -204,7 +204,11 @@ export class WalletConnection {
     }
     
     logger.log("WalletConnection", "Received response from wallet", { requestId, hasResult: !!response.result });
-    return response.result;
+    const payload = response.result;
+    if (payload !== undefined && typeof payload === "object" && payload !== null && !Array.isArray(payload)) {
+      return { ...(payload as Record<string, unknown>), requestId };
+    }
+    return payload;
   }
 
   private async checkHealth(): Promise<void> {

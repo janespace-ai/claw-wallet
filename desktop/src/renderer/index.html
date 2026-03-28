@@ -76,6 +76,7 @@
         <button class="tab" data-tab="settings">Settings</button>
         <button class="tab" data-tab="security">Security</button>
         <button class="tab" data-tab="activity">Activity</button>
+        <button class="tab" data-tab="trusted">Trusted</button>
       </nav>
 
       <!-- Home tab -->
@@ -194,6 +195,17 @@
           </div>
         </div>
       </div>
+
+      <!-- Trusted tab -->
+      <div id="tab-trusted" class="tab-content">
+        <div class="card">
+          <h3>Trusted addresses</h3>
+          <p style="color: var(--text-secondary); font-size: 13px;">
+            Used with spending limits for silent approval. Check 'trust after success' when approving a transaction to add the recipient here only after an on-chain success. You can remove entries below.
+          </p>
+          <div id="trusted-list"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Transaction approval modal -->
@@ -201,6 +213,10 @@
       <div class="modal-content">
         <h3>Transaction Approval</h3>
         <div id="tx-details"></div>
+        <label id="tx-trust-wrap" class="checkbox-label" style="display:none; margin: 12px 0;">
+          <input type="checkbox" id="chk-trust-after-success">
+          Add recipient to trusted list after this transaction succeeds on-chain
+        </label>
         <div class="modal-actions">
           <button id="btn-approve-tx" class="btn primary">Approve</button>
           <button id="btn-reject-tx" class="btn danger">Reject</button>

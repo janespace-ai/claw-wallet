@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { ethers } from "ethers";
 import { KeyManager } from "./key-manager.js";
 import type { SigningHistory } from "./signing-history.js";
+import type { WalletAuthorityStore } from "./wallet-authority-store.js";
 
 export interface AllowanceConfig {
   dailyLimitUSD: number;
@@ -56,6 +57,9 @@ export class SigningEngine {
   private approvalTimeoutMs: number;
   private onApprovalExpired?: (requestId: string) => void;
   private autoApproveWithinBudget: boolean;
+  private authorityStore: WalletAuthorityStore | null = null;
+  /** requestId → normalized 0x address to add to trust after on-chain success */
+  private pendingTrustAfterTx = new Map<string, string>();
 
   constructor(keyManager: KeyManager, options?: SigningEngineOptions, signingHistory?: SigningHistory) {
     this.keyManager = keyManager;
@@ -69,6 +73,10 @@ export class SigningEngine {
       tokenWhitelist: options?.tokenWhitelist ?? [...DEFAULT_ALLOWANCE.tokenWhitelist],
       addressWhitelist: [],
     };
+  }
+
+  setAuthorityStore(store: WalletAuthorityStore | null): void {
+    this.authorityStore = store;
   }
 
   setDataDir(dir: string): void {
@@ -170,7 +178,10 @@ export class SigningEngine {
     });
   }
 
-  async approve(requestId: string): Promise<void> {
+  async approve(
+    requestId: string,
+    options?: { trustRecipientAfterSuccess?: boolean },
+  ): Promise<void> {
     console.log(`[signing-engine] approve: requestId=${requestId} pending=${this.pendingRequests.has(requestId)}`);
     const pending = this.pendingRequests.get(requestId);
     if (!pending) throw new Error("No pending request found");
@@ -178,12 +189,21 @@ export class SigningEngine {
     if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
     this.pendingRequests.delete(requestId);
 
+    if (options?.trustRecipientAfterSuccess && pending.method === "sign_transaction") {
+      const addr = extractRecipientForTrust(pending.params);
+      if (addr && ethers.isAddress(addr)) {
+        this.pendingTrustAfterTx.set(requestId, ethers.getAddress(addr));
+        console.log(`[signing-engine] pending trust after success for ${requestId} → ${addr}`);
+      }
+    }
+
     try {
       console.log(`[signing-engine] signDirectly START requestId=${requestId} method=${pending.method}`);
       const result = await this.signDirectly(pending.method, pending.params, pending.estimatedUSD, requestId, false);
       console.log(`[signing-engine] signDirectly OK requestId=${requestId}`);
       pending.resolve(result);
     } catch (err) {
+      this.pendingTrustAfterTx.delete(requestId);
       console.error(`[signing-engine] signDirectly FAILED requestId=${requestId}: ${(err as Error).message}`);
       pending.reject(err as Error);
     }
@@ -195,6 +215,7 @@ export class SigningEngine {
     if (!pending) return;
     if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
     this.pendingRequests.delete(requestId);
+    this.pendingTrustAfterTx.delete(requestId);
 
     // Record rejection
     if (this.signingHistory) {
@@ -211,6 +232,22 @@ export class SigningEngine {
     }
 
     pending.reject(new Error("Transaction rejected by user"));
+  }
+
+  /**
+   * After broadcast / receipt: if user opted in, add recipient to trusted addresses.
+   */
+  applyPostTxTrust(requestId: string, success: boolean): void {
+    const addr = this.pendingTrustAfterTx.get(requestId);
+    if (!addr) return;
+    this.pendingTrustAfterTx.delete(requestId);
+    if (!success || !this.authorityStore) return;
+    try {
+      this.authorityStore.addTrustedAddress(addr, null, "after_tx_approval");
+      console.log(`[signing-engine] trusted address after successful tx: ${addr}`);
+    } catch (e) {
+      console.error(`[signing-engine] applyPostTxTrust failed:`, (e as Error).message);
+    }
   }
 
   getAllowance(): AllowanceConfig {
@@ -232,8 +269,14 @@ export class SigningEngine {
     }
 
     const to = params.to as string;
-    if (this.allowance.addressWhitelist.length > 0 && to && !this.allowance.addressWhitelist.includes(to.toLowerCase())) {
-      return false;
+    const recipient = extractRecipientForTrust(params);
+    const counterparty = recipient || to;
+    const trusted = this.authorityStore
+      ? this.authorityStore.getTrustedAddressesForPolicy(this.allowance.addressWhitelist)
+      : new Set(this.allowance.addressWhitelist.map((a) => a.toLowerCase()));
+    if (trusted.size > 0 && counterparty) {
+      const key = counterparty.toLowerCase();
+      if (!trusted.has(key)) return false;
     }
 
     return true;
@@ -381,4 +424,13 @@ function sanitizeTxParams(raw: Record<string, unknown>): Record<string, unknown>
   }
 
   return tx;
+}
+
+/** Prefer explicit human recipient (e.g. ERC20 transfer) over contract `to`. */
+export function extractRecipientForTrust(params: Record<string, unknown>): string {
+  const r = params.recipient;
+  if (typeof r === "string" && r.startsWith("0x")) return r.trim();
+  const t = params.to;
+  if (typeof t === "string") return t.trim();
+  return "";
 }

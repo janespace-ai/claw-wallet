@@ -310,6 +310,8 @@ function setupEventListeners() {
         loadSigningHistory();
       } else if (tab.dataset.tab === "activity") {
         loadActivityRecords(currentActivityFilter, true);
+      } else if (tab.dataset.tab === "trusted") {
+        loadTrustedAddresses();
       }
     };
   });
@@ -424,7 +426,10 @@ function setupEventListeners() {
   // Transaction modal
   document.getElementById("btn-approve-tx").onclick = async () => {
     if (currentTxRequest) {
-      await api.approveTransaction(currentTxRequest.requestId);
+      const trust = document.getElementById("chk-trust-after-success").checked;
+      await api.approveTransaction(currentTxRequest.requestId, {
+        trustRecipientAfterSuccess: trust,
+      });
       document.getElementById("modal-tx").style.display = "none";
       currentTxRequest = null;
     }
@@ -471,13 +476,22 @@ function setupRealtimeEvents() {
     currentTxRequest = req;
     const details = document.getElementById("tx-details");
     details.innerHTML = `
-      <p><strong>Method:</strong> ${req.method}</p>
-      <p><strong>To:</strong> <span class="address">${req.to}</span></p>
-      <p><strong>Amount:</strong> ${formatTokenAmount(req.value, req.token)} ${req.token}</p>
-      <p><strong>Chain:</strong> ${req.chain}</p>
-      <p><strong>From Device:</strong> ${req.fromDevice}</p>
-      <p><strong>Source IP:</strong> ${req.sourceIP}</p>
+      <p><strong>Method:</strong> ${escapeHtml(req.method)}</p>
+      <p><strong>To:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
+      <p><strong>Amount:</strong> ${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}</p>
+      <p><strong>Chain:</strong> ${escapeHtml(req.chain)}</p>
+      <p><strong>From Device:</strong> ${escapeHtml(req.fromDevice)}</p>
+      <p><strong>Source IP:</strong> ${escapeHtml(req.sourceIP)}</p>
     `;
+    const trustWrap = document.getElementById("tx-trust-wrap");
+    const trustChk = document.getElementById("chk-trust-after-success");
+    const showTrust =
+      req.method === "sign_transaction" &&
+      typeof req.to === "string" &&
+      req.to.startsWith("0x") &&
+      req.to.length === 42;
+    trustWrap.style.display = showTrust ? "flex" : "none";
+    trustChk.checked = false;
     document.getElementById("modal-tx").style.display = "flex";
   });
 
@@ -541,6 +555,41 @@ async function loadPairedDevices() {
 window.revokeDevice = async (deviceId) => {
   await api.revokePairing(deviceId);
   loadPairedDevices();
+};
+
+async function loadTrustedAddresses() {
+  const list = document.getElementById("trusted-list");
+  try {
+    const rows = await api.listTrustedAddresses();
+    if (!rows || rows.length === 0) {
+      list.innerHTML = '<p style="color: var(--text-secondary)">No trusted addresses yet.</p>';
+      return;
+    }
+    list.innerHTML = rows
+      .map(
+        (t) => `
+      <div class="device-item">
+        <div class="info">
+          <div class="address">${escapeHtml(t.address)}</div>
+          <div class="ip">${escapeHtml(t.source || "")} · ${t.createdAt ? new Date(t.createdAt).toLocaleString() : ""}</div>
+        </div>
+        <button class="btn danger" style="width:auto;padding:6px 12px" onclick="removeTrustedAddress('${escapeHtml(t.address)}')">Remove</button>
+      </div>
+    `,
+      )
+      .join("");
+  } catch (err) {
+    list.innerHTML = `<p style="color: red;">${escapeHtml(err.message || String(err))}</p>`;
+  }
+}
+
+window.removeTrustedAddress = async (address) => {
+  try {
+    await api.removeTrustedAddress(address);
+    await loadTrustedAddresses();
+  } catch (err) {
+    alert(err.message || String(err));
+  }
 };
 
 async function loadSecurityEvents() {

@@ -13,7 +13,10 @@ export interface WalletAPI {
   getIpChangePolicy: () => Promise<"block" | "warn" | "allow">;
   setIpChangePolicy: (policy: "block" | "warn" | "allow") => Promise<void>;
   getPairedDevices: () => Promise<PairedDevice[]>;
-  approveTransaction: (requestId: string) => Promise<void>;
+  approveTransaction: (
+    requestId: string,
+    options?: { trustRecipientAfterSuccess?: boolean },
+  ) => Promise<void>;
   rejectTransaction: (requestId: string) => Promise<void>;
   setAllowance: (config: AllowanceConfig) => Promise<void>;
   getAllowance: () => Promise<AllowanceConfig>;
@@ -32,6 +35,8 @@ export interface WalletAPI {
   getActivityRecords: (limit?: number, offset?: number) => Promise<ActivityRecord[]>;
   getActivityByType: (type: "auto" | "manual" | "rejected") => Promise<ActivityRecord[]>;
   getActivityByStatus: (status: "pending" | "success" | "failed") => Promise<ActivityRecord[]>;
+  listTrustedAddresses: () => Promise<TrustedAddress[]>;
+  removeTrustedAddress: (address: string) => Promise<void>;
 
   onTransactionRequest: (callback: (req: TransactionRequest) => void) => () => void;
   onConnectionStatus: (callback: (status: ConnectionStatus) => void) => () => void;
@@ -119,6 +124,13 @@ export interface SigningRecord {
   txHash?: string;
 }
 
+export interface TrustedAddress {
+  address: string;
+  label: string | null;
+  source: string;
+  createdAt: number;
+}
+
 export interface ActivityRecord {
   id: number;
   request_id: string;
@@ -152,7 +164,8 @@ const api: WalletAPI = {
   getIpChangePolicy: () => ipcRenderer.invoke("wallet:get-ip-policy"),
   setIpChangePolicy: (policy) => ipcRenderer.invoke("wallet:set-ip-policy", policy),
   getPairedDevices: () => ipcRenderer.invoke("wallet:paired-devices"),
-  approveTransaction: (requestId) => ipcRenderer.invoke("wallet:approve-tx", requestId),
+  approveTransaction: (requestId, options?) =>
+    ipcRenderer.invoke("wallet:approve-tx", requestId, options),
   rejectTransaction: (requestId) => ipcRenderer.invoke("wallet:reject-tx", requestId),
   setAllowance: (config) => ipcRenderer.invoke("wallet:set-allowance", config),
   getAllowance: () => ipcRenderer.invoke("wallet:get-allowance"),
@@ -171,6 +184,8 @@ const api: WalletAPI = {
   getActivityRecords: (limit?, offset?) => ipcRenderer.invoke("wallet:get-activity-records", limit, offset),
   getActivityByType: (type) => ipcRenderer.invoke("wallet:get-activity-by-type", type),
   getActivityByStatus: (status) => ipcRenderer.invoke("wallet:get-activity-by-status", status),
+  listTrustedAddresses: () => ipcRenderer.invoke("wallet:list-trusted"),
+  removeTrustedAddress: (address) => ipcRenderer.invoke("wallet:remove-trusted", address),
 
   onTransactionRequest: (callback) => {
     const handler = (_: unknown, req: TransactionRequest) => callback(req);

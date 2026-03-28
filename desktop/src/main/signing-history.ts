@@ -184,6 +184,16 @@ export class SigningHistory {
     return (stmt.get(requestId) as SigningRecord) || null;
   }
 
+  getRecordByTxHash(txHash: string): SigningRecord | null {
+    const stmt = this.db.prepare(`
+      SELECT * FROM signing_history
+      WHERE tx_hash = ?
+      ORDER BY updated_at DESC
+      LIMIT 1
+    `);
+    return (stmt.get(txHash) as SigningRecord) || null;
+  }
+
   /**
    * Get total record count
    */

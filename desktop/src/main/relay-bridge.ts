@@ -21,6 +21,8 @@ import { SigningEngine } from "./signing-engine.js";
 import { SecurityMonitor } from "./security-monitor.js";
 import type { PriceService } from "./price-service.js";
 import { estimateSignTransactionUsd } from "./tx-usd-estimate.js";
+import type { WalletAuthorityStore } from "./wallet-authority-store.js";
+import { extractRecipientForTrust } from "./signing-engine.js";
 
 export interface RelayBridgeOptions {
   dataDir: string;
@@ -28,6 +30,7 @@ export interface RelayBridgeOptions {
   signingEngine: SigningEngine;
   securityMonitor: SecurityMonitor;
   priceService: PriceService;
+  authorityStore: WalletAuthorityStore;
   relayUrl: string;
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
@@ -78,6 +81,15 @@ interface StoredPairings {
 }
 
 const PAIR_CODE_ENDPOINT = "/pair/create";
+
+const WALLET_RPC_METHODS = new Set([
+  "wallet_contacts_list",
+  "wallet_contacts_add",
+  "wallet_contacts_remove",
+  "wallet_contacts_resolve",
+  "wallet_trusted_list",
+  "wallet_notify_tx_result",
+]);
 
 async function loadOrCreateKeyPair(dataDir: string): Promise<E2EEKeyPair> {
   const keyPairPath = join(dataDir, "comm-keypair.json");
@@ -411,9 +423,19 @@ export class RelayBridge {
         }
 
         if (data.requestId && data.method) {
-          this.handleSignRequest(deviceId, data, sourceIP).catch((err) => {
-            console.error(`[relay-bridge] handleSignRequest unhandled error for ${data.requestId}:`, (err as Error).message);
-          });
+          const method = data.method as string;
+          if (WALLET_RPC_METHODS.has(method)) {
+            this.handleWalletRpc(deviceId, data, sourceIP, session).catch((err) => {
+              console.error(
+                `[relay-bridge] handleWalletRpc error for ${data.requestId}:`,
+                (err as Error).message,
+              );
+            });
+          } else {
+            this.handleSignRequest(deviceId, data, sourceIP).catch((err) => {
+              console.error(`[relay-bridge] handleSignRequest unhandled error for ${data.requestId}:`, (err as Error).message);
+            });
+          }
           return;
         }
 
@@ -551,7 +573,7 @@ export class RelayBridge {
           const txInfo: TransactionRequestInfo = {
             requestId: pendingReq.requestId,
             method: pendingReq.method,
-            to: (params.to as string) ?? "",
+            to: extractRecipientForTrust(params) || ((params.to as string) ?? ""),
             value: (params.value as string) ?? "0",
             token: (params.token as string) ?? "ETH",
             chain: (params.chain as string) ?? "base",
@@ -581,6 +603,132 @@ export class RelayBridge {
         error: msg,
         errorCode,
       }, requestId);
+    }
+  }
+
+  private async handleWalletRpc(
+    deviceId: string,
+    data: Record<string, unknown>,
+    sourceIP: string,
+    session: E2EESession,
+  ): Promise<void> {
+    const device = this.pairings.devices.find((d) => d.deviceId === deviceId);
+    if (!device || !session) return;
+
+    if (this.isSessionFrozen(deviceId)) {
+      const frozen = this.frozenSessions.get(deviceId);
+      this.sendEncrypted(
+        session,
+        {
+          requestId: data.requestId,
+          error: `Session frozen: ${frozen?.reason ?? "security policy"}. Re-pairing required.`,
+          errorCode: "SESSION_FROZEN",
+        },
+        data.requestId as string,
+      );
+      return;
+    }
+
+    device.lastIP = sourceIP;
+    device.lastSeen = new Date().toISOString();
+
+    const requestId = data.requestId as string;
+    const method = data.method as string;
+    const params = (data.params ?? {}) as Record<string, unknown>;
+    const store = this.options.authorityStore;
+    const signingEngine = this.options.signingEngine;
+
+    const needUnlock = method !== "wallet_notify_tx_result";
+    if (needUnlock && !this.options.keyManager.isUnlocked()) {
+      this.sendEncrypted(session, { requestId, error: "Wallet is locked", errorCode: "WALLET_LOCKED" }, requestId);
+      return;
+    }
+
+    const err = (msg: string, code: string) => {
+      this.sendEncrypted(session, { requestId, error: msg, errorCode: code }, requestId);
+    };
+
+    try {
+      switch (method) {
+        case "wallet_contacts_list": {
+          const contacts = store.listContacts();
+          this.sendEncrypted(session, { requestId, result: { contacts } }, requestId);
+          return;
+        }
+        case "wallet_contacts_add": {
+          const name = params.name as string | undefined;
+          const address = params.address as string | undefined;
+          const chain = (params.chain as string | undefined) ?? "base";
+          if (!name?.trim() || !address?.trim()) {
+            err("name and address required", "INVALID_PARAMS");
+            return;
+          }
+          const contact = store.upsertContact(name, chain, address);
+          this.sendEncrypted(session, { requestId, result: { contact } }, requestId);
+          return;
+        }
+        case "wallet_contacts_remove": {
+          const name = params.name as string | undefined;
+          if (!name?.trim()) {
+            err("name required", "INVALID_PARAMS");
+            return;
+          }
+          const removed = store.removeContactsByName(name);
+          this.sendEncrypted(session, { requestId, result: { removed } }, requestId);
+          return;
+        }
+        case "wallet_contacts_resolve": {
+          const name = params.name as string | undefined;
+          const chain = (params.chain as string | undefined) ?? "base";
+          if (!name?.trim()) {
+            err("name required", "INVALID_PARAMS");
+            return;
+          }
+          const resolved = store.resolveContact(name, chain);
+          if (!resolved) {
+            err(`Contact "${name}" not found`, "NOT_FOUND");
+            return;
+          }
+          this.sendEncrypted(
+            session,
+            {
+              requestId,
+              result: {
+                address: resolved.address,
+                chain: resolved.chain,
+                exactMatch: resolved.exactMatch,
+              },
+            },
+            requestId,
+          );
+          return;
+        }
+        case "wallet_trusted_list": {
+          const trusted = store.listTrustedAddresses().map((t) => ({
+            address: t.address,
+            label: t.label,
+            source: t.source,
+            createdAt: t.createdAt,
+          }));
+          this.sendEncrypted(session, { requestId, result: { trusted } }, requestId);
+          return;
+        }
+        case "wallet_notify_tx_result": {
+          const rid = params.requestId as string | undefined;
+          const success = params.success === true;
+          if (!rid) {
+            err("requestId required", "INVALID_PARAMS");
+            return;
+          }
+          signingEngine.applyPostTxTrust(rid, success);
+          this.sendEncrypted(session, { requestId, result: { ok: true } }, requestId);
+          return;
+        }
+        default:
+          err(`Unknown method: ${method}`, "INTERNAL_ERROR");
+      }
+    } catch (e) {
+      err((e as Error).message || "Internal error", "INTERNAL_ERROR");
     }
   }
 

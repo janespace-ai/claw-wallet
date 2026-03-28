@@ -93,6 +93,7 @@ export class TransferService {
     
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to,
+      recipient: to,
       value: value.toString(),
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
@@ -103,7 +104,7 @@ export class TransferService {
       amount_token: params.amount,
       token: "ETH",
       chain: params.chain,
-    }) as { signedTx: Hex };
+    }) as { signedTx: Hex; requestId: string };
     
     logger.log("TransferService", "Transaction signed, broadcasting...");
 
@@ -127,6 +128,20 @@ export class TransferService {
       timestamp: Date.now(),
     };
     this.history.addRecord(record);
+
+    try {
+      await this.walletConnection.sendToWallet("wallet_notify_tx_result", {
+        requestId: result.requestId,
+        success: receipt.status === "success",
+        txHash: receipt.transactionHash,
+      });
+    } catch (notifyErr) {
+      logger.warn(
+        "TransferService",
+        "wallet_notify_tx_result failed (non-fatal)",
+        { error: (notifyErr as Error).message },
+      );
+    }
 
     logger.log("TransferService", "sendETH COMPLETE");
     return {
@@ -174,6 +189,7 @@ export class TransferService {
     const chainId = await this.chainAdapter.getChainId(params.chain);
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to: tokenAddress,
+      recipient: to,
       data: transferData,
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
@@ -182,7 +198,7 @@ export class TransferService {
       amount_token: params.amount,
       token: tokenInfo.symbol,
       chain: params.chain,
-    }) as { signedTx: Hex };
+    }) as { signedTx: Hex; requestId: string };
 
     const receipt = await this.chainAdapter.broadcastTransaction(result.signedTx, params.chain);
 
@@ -200,6 +216,20 @@ export class TransferService {
       timestamp: Date.now(),
     };
     this.history.addRecord(record);
+
+    try {
+      await this.walletConnection.sendToWallet("wallet_notify_tx_result", {
+        requestId: result.requestId,
+        success: receipt.status === "success",
+        txHash: receipt.transactionHash,
+      });
+    } catch (notifyErr) {
+      logger.warn(
+        "TransferService",
+        "wallet_notify_tx_result failed (non-fatal)",
+        { error: (notifyErr as Error).message },
+      );
+    }
 
     return {
       hash: receipt.transactionHash,

@@ -22,7 +22,7 @@
     "@noble/hashes": "^1.7.0",
     "@scure/bip32": "^2.0.1",
     "@scure/bip39": "^2.0.1",
-    "better-sqlite3": "^11.7.0",
+    "better-sqlite3": "^9.6.0",
     "ethers": "^6.16.0",
     "ws": "^8.18.0"
   },

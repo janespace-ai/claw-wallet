@@ -191,6 +191,12 @@ export class ChainAdapter {
     return config.chain;
   }
 
+  async getChainId(chainName: SupportedChain): Promise<number> {
+    const client = this.getClient(chainName);
+    const chainId = await client.getChainId();
+    return chainId;
+  }
+
   getSupportedChains(): SupportedChain[] {
     return Array.from(this.chainConfigs.keys());
   }

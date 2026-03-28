@@ -79,9 +79,10 @@ export class TransferService {
     }
     logger.log("TransferService", "Policy check passed");
 
-    const chain = this.chainAdapter.getChain(params.chain);
+    logger.log("TransferService", "Fetching chainId from RPC...");
+    const chainId = await this.chainAdapter.getChainId(params.chain);
     logger.log("TransferService", "Calling sendToWallet (sign_transaction)...", { 
-      chainId: chain.id,
+      chainId,
       to,
       value: value.toString() 
     });
@@ -92,7 +93,7 @@ export class TransferService {
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
       type: "legacy",
-      chainId: chain.id,
+      chainId,
       amount: params.amount,
       amountUsd,
       token: "ETH",
@@ -165,14 +166,14 @@ export class TransferService {
       throw new PolicyBlockedError(policyResult.reason!, policyResult.approvalId);
     }
 
-    const chain = this.chainAdapter.getChain(params.chain);
+    const chainId = await this.chainAdapter.getChainId(params.chain);
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to: tokenAddress,
       data: transferData,
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
       type: "legacy",
-      chainId: chain.id,
+      chainId,
       amount: params.amount,
       amountUsd,
       token: tokenInfo.symbol,

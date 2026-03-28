@@ -371,3 +371,127 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   90% { opacity: 1; transform: translateX(-50%) translateY(0); }
   100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
 }
+
+/* Enhanced Balance Display */
+.balance-unit-price {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Activity Tab Styles */
+.activity-filters {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.filter-btn:hover {
+  background: var(--bg-secondary);
+}
+
+.filter-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.activity-record {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 12px;
+  background: var(--bg-primary);
+  transition: all 0.2s;
+}
+
+.activity-record:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.activity-record.auto {
+  border-left: 4px solid #4CAF50;
+}
+
+.activity-record.manual {
+  border-left: 4px solid #2196F3;
+}
+
+.activity-record.rejected {
+  border-left: 4px solid #f44336;
+}
+
+.activity-record-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.activity-status {
+  font-size: 16px;
+}
+
+.activity-type {
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-primary);
+}
+
+.activity-time {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+
+.activity-details {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+
+.activity-details strong {
+  color: var(--text-primary);
+}
+
+.activity-amount {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.activity-chain {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.address-mono {
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+  font-size: 14px;
+}
+

@@ -439,11 +439,17 @@ wallet/
 │       ├── main/
 │       │   ├── key-manager.ts      # BIP-39 mnemonic, Keystore V3 encrypt/decrypt
 │       │   ├── signing-engine.ts   # Transaction signing with memory zeroing
+│       │   ├── signing-history.ts  # SQLite-backed transaction activity history
+│       │   ├── tx-sync-service.ts  # Blockchain transaction status sync
+│       │   ├── chain-adapter.ts    # RPC client for transaction receipts
+│       │   ├── database-service.ts # SQLite connection and schema migrations
+│       │   ├── price-service.ts    # Multi-tier price fetching (Gate.com, CoinGecko)
+│       │   ├── balance-service.ts  # Token balance aggregation across chains
 │       │   ├── relay-bridge.ts     # E2EE relay, three-level verification, session freeze
 │       │   ├── security-monitor.ts # IP/device change detection, alerts
 │       │   └── lock-manager.ts     # Wallet lock/unlock, idle timeout
 │       ├── preload/                # Secure contextBridge (no nodeIntegration)
-│       ├── renderer/               # HTML/CSS/JS UI
+│       ├── renderer/               # HTML/CSS/JS UI (Activity Tab, balance display)
 │       └── shared/
 │           └── e2ee-crypto.ts      # Shared E2EE primitives
 │

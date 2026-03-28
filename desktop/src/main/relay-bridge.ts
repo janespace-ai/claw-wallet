@@ -447,7 +447,6 @@ export class RelayBridge {
       this.options.securityMonitor.recordSameMachine(agentMachineId);
     }
 
-    const existingIdx = this.pairings.devices.findIndex(d => d.deviceId === deviceId);
     const device: PairedDevice = {
       deviceId,
       pairId: `pair-${deviceId}`,
@@ -458,11 +457,11 @@ export class RelayBridge {
       lastSeen: new Date().toISOString(),
     };
 
-    if (existingIdx >= 0) {
-      this.pairings.devices[existingIdx] = device;
-    } else {
-      this.pairings.devices.push(device);
-    }
+    // Always replace the entire devices list with the new device.
+    // A Desktop only pairs with one Agent at a time; keeping stale entries
+    // causes connect() to read devices[0] with an outdated agentPublicKey,
+    // which produces a mismatched pairId after Agent key rotation.
+    this.pairings.devices = [device];
 
     await this.savePairings();
     console.log(`[relay-bridge] completePairing: clearing pendingPairCode (was: ${this.pendingPairCode})`);

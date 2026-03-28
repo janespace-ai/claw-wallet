@@ -19,12 +19,15 @@ import {
 import { KeyManager } from "./key-manager.js";
 import { SigningEngine } from "./signing-engine.js";
 import { SecurityMonitor } from "./security-monitor.js";
+import type { PriceService } from "./price-service.js";
+import { estimateSignTransactionUsd } from "./tx-usd-estimate.js";
 
 export interface RelayBridgeOptions {
   dataDir: string;
   keyManager: KeyManager;
   signingEngine: SigningEngine;
   securityMonitor: SecurityMonitor;
+  priceService: PriceService;
   relayUrl: string;
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
@@ -96,7 +99,7 @@ function isSameSubnet(ip1: string, ip2: string): boolean {
   return parts1[0] === parts2[0] && parts1[1] === parts2[1] && parts1[2] === parts2[2];
 }
 
-/** Agent should supply `estimatedUSD` on the request or in params for allowance checks; otherwise 0. */
+/** Legacy: non-`sign_transaction` methods (e.g. `sign_message`) may still carry an allowance hint. */
 function parseEstimatedUsd(data: Record<string, unknown>, params: Record<string, unknown>): number {
   const raw =
     data.estimatedUSD ??
@@ -525,7 +528,16 @@ export class RelayBridge {
     const requestId = data.requestId as string;
     const method = data.method as string;
     const params = (data.params ?? {}) as Record<string, unknown>;
-    const estimatedUSD = parseEstimatedUsd(data, params);
+    let estimatedUSD: number;
+    let priceAvailable: boolean;
+    if (method === "sign_transaction") {
+      const est = await estimateSignTransactionUsd(params, this.options.priceService);
+      estimatedUSD = est.usd;
+      priceAvailable = est.priceAvailable;
+    } else {
+      estimatedUSD = parseEstimatedUsd(data, params);
+      priceAvailable = true;
+    }
 
     console.log(`[relay-bridge] handleSignRequest START requestId=${requestId} method=${method} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);
 
@@ -549,6 +561,7 @@ export class RelayBridge {
           };
           this.options.onTransactionRequest?.(txInfo);
         },
+        { priceAvailable },
       );
 
       console.log(`[relay-bridge] handleSignRequest APPROVED requestId=${requestId} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);

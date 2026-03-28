@@ -272,6 +272,7 @@ app.whenReady().then(async () => {
     keyManager,
     signingEngine,
     securityMonitor,
+    priceService,
     relayUrl: config.relayUrl,
     reconnectBaseMs: config.relay.reconnectBaseMs,
     reconnectMaxMs: config.relay.reconnectMaxMs,

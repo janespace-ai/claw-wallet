@@ -10,6 +10,12 @@
 
 本变更在 **Explore 中已定方向**：**价格与签名闸门以 Desktop 为准**；**跨端仅走现有 Relay 转发链**，通过 **新增通信请求 / 协议字段** 扩展能力，**不新建并行通信渠道**；**Agent ↔ Desktop 之间不采用 IPC**；Desktop 侧信任与联系人数据入 **SQLite**，界面层与主进程协作沿用既有模式。
 
+## Capabilities
+
+- `desktop-signing-usd-policy` — Desktop-computed USD for allowance; no silent sign without price
+- `trusted-addresses-desktop` — SQLite trust list; add via confirmed flows; checkbox persists after successful tx
+- `relay-contact-requests` — Agent contact/trust mutations over Relay only; desktop authoritative
+
 ## What Changes（能力层面）
 
 - **桌面主导 USD 估值**：签名前由 Desktop 使用 `PriceService` + 链上 `value`/decimals 计算用于限额比较的美元估值；**不依赖** Agent 传递的价格结论。

@@ -651,22 +651,12 @@ async function loadActivityRecords(filter = "all", reset = true) {
       return;
     }
 
-    const tokenSymbols = [
-      ...new Set(
-        records.map((r) => {
-          const t = (r.tx_token && String(r.tx_token).trim()) ? String(r.tx_token).trim() : "ETH";
-          return t.toUpperCase();
-        }),
-      ),
-    ];
-    const tokenPrices = await api.getTokenPrices(tokenSymbols);
-
     if (reset) {
       list.innerHTML = "";
     }
 
     records.forEach((record) => {
-      const recordEl = renderActivityRecord(record, tokenPrices);
+      const recordEl = renderActivityRecord(record);
       list.appendChild(recordEl);
     });
 
@@ -684,7 +674,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
   }
 }
 
-function renderActivityRecord(record, tokenPrices = {}) {
+function renderActivityRecord(record) {
   const div = document.createElement("div");
   div.className = `activity-record ${record.type} ${record.tx_status || "no-tx"}`;
 
@@ -693,16 +683,8 @@ function renderActivityRecord(record, tokenPrices = {}) {
   const timestamp = formatRelativeTime(record.timestamp);
   const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
 
-  const tokenKey =
-    (record.tx_token && String(record.tx_token).trim())
-      ? String(record.tx_token).trim().toUpperCase()
-      : "ETH";
-
-  // record.estimated_usd 实际存储的是代币数量（Agent 传的 amountUsd 就是数量）
-  // 正确的 USD 价值计算：代币数量 * 当前实时价格
-  const tokenAmount = record.estimated_usd || 0;  // 代币数量
-  const tokenPrice = tokenPrices[tokenKey] || 0;  // 与首页 getTokenPrices 同一套键（大写符号）
-  const realUsdValue = tokenAmount * tokenPrice;
+  /** Policy USD computed on desktop at signing time (see `tx-usd-estimate` / relay-bridge). */
+  const signedPolicyUsd = record.estimated_usd || 0;
 
   div.innerHTML = `
     <div class="activity-record-header">
@@ -714,7 +696,7 @@ function renderActivityRecord(record, tokenPrices = {}) {
       <div class="activity-amount"><strong>${amount} ${escapeHtml(record.tx_token)}</strong></div>
       <div class="activity-chain">on ${escapeHtml(record.tx_chain)}</div>
       ${record.tx_to ? `<div>To: <span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
-      <div>Estimated: ${realUsdValue > 0 ? `$${realUsdValue.toFixed(2)}` : 'Price unavailable'} <span style="color: #888; font-size: 10px;">(live)</span></div>
+      <div>Estimated: ${signedPolicyUsd > 0 ? `$${signedPolicyUsd.toFixed(2)}` : 'Price unavailable'} <span style="color: #888; font-size: 10px;">(at signing)</span></div>
       ${record.tx_hash ? `<div>TX: <span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span></div>` : ''}
       ${record.block_number ? `<div>Block: ${record.block_number}</div>` : ''}
     </div>

@@ -117,8 +117,13 @@ export class SigningEngine {
     params: Record<string, unknown>,
     estimatedUSD: number,
     onNeedApproval: (req: PendingSignRequest) => void,
+    options?: { priceAvailable?: boolean },
   ): Promise<unknown> {
-    console.log(`[signing-engine] handleSignRequest: requestId=${requestId} method=${method} estimatedUSD=${estimatedUSD}`);
+    const priceKnown =
+      method !== "sign_transaction" || options?.priceAvailable === true;
+    console.log(
+      `[signing-engine] handleSignRequest: requestId=${requestId} method=${method} estimatedUSD=${estimatedUSD} priceKnown=${priceKnown}`,
+    );
 
     if (this.isFrozen()) {
       throw new Error("Wallet is frozen due to security alert. Please wait or dismiss the alert.");
@@ -130,7 +135,7 @@ export class SigningEngine {
 
     this.resetDailyIfNeeded();
 
-    const withinBudget = this.checkBudget(estimatedUSD, params);
+    const withinBudget = priceKnown && this.checkBudget(estimatedUSD, params);
     const canSilentSign =
       method === "sign_transaction"
         ? withinBudget && this.autoApproveWithinBudget

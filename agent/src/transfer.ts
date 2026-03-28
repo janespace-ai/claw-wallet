@@ -100,7 +100,6 @@ export class TransferService {
       type: 0,
       chainId,
       amount: params.amount,
-      amountUsd,
       token: "ETH",
       chain: params.chain,
     }) as { signedTx: Hex };
@@ -180,7 +179,6 @@ export class TransferService {
       type: 0,
       chainId,
       amount: params.amount,
-      amountUsd,
       token: tokenInfo.symbol,
       chain: params.chain,
     }) as { signedTx: Hex };

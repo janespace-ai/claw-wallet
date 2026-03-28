@@ -29,6 +29,9 @@ export interface WalletAPI {
   getTokenPrices: (tokens: string[]) => Promise<Record<string, number>>;
   getWalletBalances: (address: string) => Promise<TokenBalance[]>;
   getSigningHistory: () => Promise<SigningRecord[]>;
+  getActivityRecords: (limit?: number, offset?: number) => Promise<ActivityRecord[]>;
+  getActivityByType: (type: "auto" | "manual" | "rejected") => Promise<ActivityRecord[]>;
+  getActivityByStatus: (status: "pending" | "success" | "failed") => Promise<ActivityRecord[]>;
 
   onTransactionRequest: (callback: (req: TransactionRequest) => void) => () => void;
   onConnectionStatus: (callback: (status: ConnectionStatus) => void) => () => void;
@@ -116,6 +119,26 @@ export interface SigningRecord {
   txHash?: string;
 }
 
+export interface ActivityRecord {
+  id: number;
+  request_id: string;
+  timestamp: number;
+  type: "auto" | "manual" | "rejected";
+  method: string;
+  tx_to: string | null;
+  tx_value: string | null;
+  tx_token: string;
+  tx_chain: string;
+  estimated_usd: number;
+  tx_hash: string | null;
+  tx_status: "pending" | "success" | "failed" | null;
+  block_number: number | null;
+  block_timestamp: number | null;
+  gas_used: number | null;
+  created_at: number;
+  updated_at: number;
+}
+
 const api: WalletAPI = {
   createWallet: (password) => ipcRenderer.invoke("wallet:create", password),
   importWallet: (mnemonic, password) => ipcRenderer.invoke("wallet:import", mnemonic, password),
@@ -145,6 +168,9 @@ const api: WalletAPI = {
   getTokenPrices: (tokens) => ipcRenderer.invoke("wallet:get-token-prices", tokens),
   getWalletBalances: (address) => ipcRenderer.invoke("wallet:get-wallet-balances", address),
   getSigningHistory: () => ipcRenderer.invoke("wallet:get-signing-history"),
+  getActivityRecords: (limit?, offset?) => ipcRenderer.invoke("wallet:get-activity-records", limit, offset),
+  getActivityByType: (type) => ipcRenderer.invoke("wallet:get-activity-by-type", type),
+  getActivityByStatus: (status) => ipcRenderer.invoke("wallet:get-activity-by-status", status),
 
   onTransactionRequest: (callback) => {
     const handler = (_: unknown, req: TransactionRequest) => callback(req);

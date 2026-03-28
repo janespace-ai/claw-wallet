@@ -651,12 +651,22 @@ async function loadActivityRecords(filter = "all", reset = true) {
       return;
     }
 
+    const tokenSymbols = [
+      ...new Set(
+        records.map((r) => {
+          const t = (r.tx_token && String(r.tx_token).trim()) ? String(r.tx_token).trim() : "ETH";
+          return t.toUpperCase();
+        }),
+      ),
+    ];
+    const tokenPrices = await api.getTokenPrices(tokenSymbols);
+
     if (reset) {
       list.innerHTML = "";
     }
 
-    records.forEach(record => {
-      const recordEl = renderActivityRecord(record);
+    records.forEach((record) => {
+      const recordEl = renderActivityRecord(record, tokenPrices);
       list.appendChild(recordEl);
     });
 
@@ -683,10 +693,15 @@ function renderActivityRecord(record, tokenPrices = {}) {
   const timestamp = formatRelativeTime(record.timestamp);
   const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
 
+  const tokenKey =
+    (record.tx_token && String(record.tx_token).trim())
+      ? String(record.tx_token).trim().toUpperCase()
+      : "ETH";
+
   // record.estimated_usd 实际存储的是代币数量（Agent 传的 amountUsd 就是数量）
   // 正确的 USD 价值计算：代币数量 * 当前实时价格
   const tokenAmount = record.estimated_usd || 0;  // 代币数量
-  const tokenPrice = tokenPrices[record.tx_token] || 0;  // 实时价格
+  const tokenPrice = tokenPrices[tokenKey] || 0;  // 与首页 getTokenPrices 同一套键（大写符号）
   const realUsdValue = tokenAmount * tokenPrice;
 
   div.innerHTML = `

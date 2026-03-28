@@ -15,7 +15,6 @@ describe("security-policy-bypass", () => {
       ...createDefaultPolicy(),
       perTransactionLimitUsd: 100,
       dailyLimitUsd: 500,
-      whitelist: [],
       mode: "supervised",
     });
   });
@@ -32,7 +31,6 @@ describe("security-policy-bypass", () => {
       policy = new PolicyEngine(join(tempDir, "p.json"), {
         perTransactionLimitUsd: 1000,
         dailyLimitUsd: limit,
-        whitelist: [addr],
         mode: "supervised",
       });
       const amount = 0.51;
@@ -50,7 +48,6 @@ describe("security-policy-bypass", () => {
       policy = new PolicyEngine(join(tempDir, "p.json"), {
         perTransactionLimitUsd: 1,
         dailyLimitUsd: 1,
-        whitelist: [addr],
         mode: "supervised",
       });
       policy.checkTransaction(addr, 0.1, "ETH", "base");
@@ -82,13 +79,12 @@ describe("security-policy-bypass", () => {
     });
   });
 
-  describe("whitelist case", () => {
-    it("mixed-case address matches whitelist (case-insensitive)", () => {
+  describe("case-insensitive addresses", () => {
+    it("same recipient checksum does not double-count limits incorrectly", () => {
       const mixed = getAddress("0xaAaAaAaaAaAaAaaAaAAAAAAAAaaaAaAaAaaAaaAa");
       policy = new PolicyEngine(join(tempDir, "p.json"), {
         perTransactionLimitUsd: 100,
         dailyLimitUsd: 500,
-        whitelist: [mixed],
         mode: "supervised",
       });
       const lower = "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
@@ -102,7 +98,6 @@ describe("security-policy-bypass", () => {
       policy = new PolicyEngine(join(tempDir, "p.json"), {
         perTransactionLimitUsd: 100,
         dailyLimitUsd: 100,
-        whitelist: [addr],
         mode: "supervised",
       });
       const r1 = policy.checkTransaction(addr, 60, "ETH", "base");

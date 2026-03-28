@@ -25,7 +25,6 @@ export function createDefaultPolicy(): PolicyConfig {
   return {
     perTransactionLimitUsd: agentConfig.policy.perTxLimitUsd,
     dailyLimitUsd: agentConfig.policy.dailyLimitUsd,
-    whitelist: [],
     mode: agentConfig.policy.mode,
   };
 }
@@ -84,19 +83,7 @@ export class PolicyEngine {
       };
     }
 
-    const isWhitelisted = config.whitelist.some(
-      (addr) => addr.toLowerCase() === to.toLowerCase()
-    );
-
-    if (!isWhitelisted && config.mode === "supervised") {
-      const approval = this.addToQueue(to, amountUsd.toString(), token, chain, "Address not in whitelist (supervised mode)", rawTx);
-      return {
-        allowed: false,
-        reason: `Address ${to} is not whitelisted. Manual approval required in supervised mode.`,
-        requiresApproval: true,
-        approvalId: approval.id,
-      };
-    }
+    // Trusted-address / signing policy is enforced in the desktop wallet. Agent policy only applies USD limits here.
 
     this.recordSpendingCents(amountCents);
     return { allowed: true };
@@ -186,7 +173,18 @@ export class PolicyEngine {
     try {
       const content = await readFile(this.filePath, "utf-8");
       const data = JSON.parse(content);
-      if (data.config) this.state.config = data.config;
+      if (data.config) {
+        const c = data.config;
+        this.state.config = {
+          perTransactionLimitUsd:
+            typeof c.perTransactionLimitUsd === "number"
+              ? c.perTransactionLimitUsd
+              : this.state.config.perTransactionLimitUsd,
+          dailyLimitUsd:
+            typeof c.dailyLimitUsd === "number" ? c.dailyLimitUsd : this.state.config.dailyLimitUsd,
+          mode: c.mode === "autonomous" ? "autonomous" : "supervised",
+        };
+      }
       if (data.approvalQueue) this.state.approvalQueue = data.approvalQueue;
       if (data.dailySpending) {
         this.state.dailySpending = data.dailySpending.map((s: { amountCents?: number; amount?: number; windowStart: number }) => ({

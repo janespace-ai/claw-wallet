@@ -35,7 +35,7 @@ You have access to Claw Wallet MCP tools for managing an Ethereum/Base wallet. K
 | `wallet_contacts_resolve` | Look up a contact's address by name | `name`, `chain` |
 | `wallet_contacts_remove` | Remove a contact | `name` |
 | `wallet_policy_get` | View current security policy | — |
-| `wallet_policy_set` | Update spending limits, whitelist, or mode | `per_transaction_limit_usd`, `daily_limit_usd`, `mode`, `add_to_whitelist` |
+| `wallet_policy_set` | Update agent-side spending limits or mode (not trusted addresses) | `per_transaction_limit_usd`, `daily_limit_usd`, `mode` |
 | `wallet_approval_list` | List pending transaction approvals | — |
 | `wallet_approval_approve` | Approve a pending transaction | `id` |
 | `wallet_approval_reject` | Reject a pending transaction | `id` |
@@ -46,7 +46,7 @@ You have access to Claw Wallet MCP tools for managing an Ethereum/Base wallet. K
 2. **Never display secrets**: Do not show private keys, mnemonics, or encrypted credential data under any circumstance.
 3. **Verify addresses**: When a user provides an address, confirm it starts with `0x` and is 42 characters. For contacts, use `wallet_contacts_resolve` first.
 4. **Check balance before sending**: Before a `wallet_send`, check the balance to ensure sufficient funds.
-5. **Respect policy limits**: If a send is blocked by policy, explain the limit to the user and suggest using `wallet_approval_approve` after the Desktop Wallet user approves.
+5. **Respect policy limits**: If a send is blocked by agent policy, explain the limit. **Trusted recipient addresses** are configured in the Desktop Wallet, not via `wallet_policy_set`.
 
 ## Common Task Flows
 
@@ -66,10 +66,10 @@ wallet_balance { token: "USDC", chain: "base" } → show token balance
 
 ### Manage security policy
 ```
-wallet_policy_get                                     → show current limits
+wallet_policy_get                                     → show current agent limits
 wallet_policy_set { daily_limit_usd: 500 }           → update limit
-wallet_policy_set { add_to_whitelist: "0xABC..." }   → whitelist address
 ```
+To trust a recipient for signing, the user does that in the Claw Wallet desktop app (not via this agent).
 
 ### Handle pending approvals
 ```

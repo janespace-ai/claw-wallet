@@ -99,7 +99,8 @@ export class TransferService {
       nonce: nonce.toString(),
       type: 0,
       chainId,
-      amount: params.amount,
+      /** Human-readable token amount for display / audit (desktop computes USD for limits). */
+      amount_token: params.amount,
       token: "ETH",
       chain: params.chain,
     }) as { signedTx: Hex };
@@ -178,7 +179,7 @@ export class TransferService {
       gasPrice: gasEstimate.gasPrice.toString(),
       type: 0,
       chainId,
-      amount: params.amount,
+      amount_token: params.amount,
       token: tokenInfo.symbol,
       chain: params.chain,
     }) as { signedTx: Hex };

@@ -35,7 +35,7 @@
     "perTxLimitUsd": 100,
     "_comment_dailyLimitUsd": "Maximum total USD value of transactions per day",
     "dailyLimitUsd": 500,
-    "_comment_mode": "Policy mode: \"supervised\" requires whitelist, \"autonomous\" allows any address within limits",
+    "_comment_mode": "Policy mode label; agent enforces USD limits. Trusted recipients are configured in the desktop wallet.",
     "mode": "supervised"
   }
 }

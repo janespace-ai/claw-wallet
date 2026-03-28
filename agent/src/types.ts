@@ -65,7 +65,6 @@ export type PolicyMode = "supervised" | "autonomous";
 export interface PolicyConfig {
   perTransactionLimitUsd: number;
   dailyLimitUsd: number;
-  whitelist: Address[];
   mode: PolicyMode;
 }
 

@@ -26,6 +26,9 @@ export interface WalletAPI {
   getSecurityEvents: () => Promise<SecurityEvent[]>;
   respondToAlert: (alertId: string, action: "freeze" | "allow_once" | "trust") => Promise<void>;
   exportMnemonic: (password: string) => Promise<{ mnemonic: string }>;
+  getTokenPrices: (tokens: string[]) => Promise<Record<string, number>>;
+  getWalletBalances: (address: string) => Promise<TokenBalance[]>;
+  getSigningHistory: () => Promise<SigningRecord[]>;
 
   onTransactionRequest: (callback: (req: TransactionRequest) => void) => () => void;
   onConnectionStatus: (callback: (status: ConnectionStatus) => void) => () => void;
@@ -91,6 +94,28 @@ export interface SecurityEvent {
   details?: Record<string, string>;
 }
 
+export interface TokenBalance {
+  token: string;
+  symbol: string;
+  amount: string;
+  rawAmount: string;
+  chain: string;
+  decimals: number;
+}
+
+export interface SigningRecord {
+  requestId: string;
+  timestamp: number;
+  type: "auto" | "manual" | "rejected";
+  method: string;
+  to: string;
+  value: string;
+  token: string;
+  chain: string;
+  estimatedUSD: number;
+  txHash?: string;
+}
+
 const api: WalletAPI = {
   createWallet: (password) => ipcRenderer.invoke("wallet:create", password),
   importWallet: (mnemonic, password) => ipcRenderer.invoke("wallet:import", mnemonic, password),
@@ -117,6 +142,9 @@ const api: WalletAPI = {
   getSecurityEvents: () => ipcRenderer.invoke("wallet:security-events"),
   respondToAlert: (alertId, action) => ipcRenderer.invoke("wallet:respond-alert", alertId, action),
   exportMnemonic: (password) => ipcRenderer.invoke("wallet:export-mnemonic", password),
+  getTokenPrices: (tokens) => ipcRenderer.invoke("wallet:get-token-prices", tokens),
+  getWalletBalances: (address) => ipcRenderer.invoke("wallet:get-wallet-balances", address),
+  getSigningHistory: () => ipcRenderer.invoke("wallet:get-signing-history"),
 
   onTransactionRequest: (callback) => {
     const handler = (_: unknown, req: TransactionRequest) => callback(req);

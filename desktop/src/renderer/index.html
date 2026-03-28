@@ -82,6 +82,24 @@
         <div class="card">
           <h3>Wallet</h3>
           <p id="main-address" class="address"></p>
+          
+          <!-- Total Portfolio Value -->
+          <div id="portfolio-value-section" style="margin-top: 20px;">
+            <h4 style="margin-bottom: 10px;">Total Portfolio Value</h4>
+            <div id="portfolio-value-display" class="portfolio-value">
+              <span id="portfolio-value">Loading...</span>
+            </div>
+          </div>
+
+          <!-- Token Balances -->
+          <div id="balances-section" style="margin-top: 20px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+              <h4>Balances</h4>
+              <button id="btn-refresh-balances" class="btn ghost" style="padding: 4px 8px; font-size: 12px;">Refresh</button>
+            </div>
+            <div id="balances-list"></div>
+          </div>
+
           <div id="pending-tx-list"></div>
         </div>
       </div>
@@ -142,6 +160,12 @@
         <div class="card">
           <h3>Security Events</h3>
           <div id="security-events-list"></div>
+        </div>
+        
+        <div class="card">
+          <h3>Signing History</h3>
+          <p style="color: #888; font-size: 12px;">All signing decisions (auto-approved, manually approved, and rejected)</p>
+          <div id="signing-history-list"></div>
         </div>
       </div>
     </div>

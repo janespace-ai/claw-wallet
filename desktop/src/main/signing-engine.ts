@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
+import { ethers } from "ethers";
 import { KeyManager } from "./key-manager.js";
 import type { SigningHistory } from "./signing-history.js";
 
@@ -243,13 +244,12 @@ export class SigningEngine {
     const privateKey = this.keyManager.getPrivateKey();
     if (!privateKey) throw new Error("Wallet is locked");
 
-    const { privateKeyToAccount } = await import("viem/accounts");
-    const account = privateKeyToAccount(privateKey);
+    const wallet = new ethers.Wallet(privateKey);
 
     if (method === "sign_transaction") {
       const txParams = sanitizeTxParams(params);
       console.log(`[signing-engine] signTransaction with sanitized params:`, JSON.stringify(txParams, (_, v) => typeof v === "bigint" ? v.toString() : v));
-      const signedTx = await account.signTransaction(txParams as any);
+      const signedTx = await wallet.signTransaction(txParams as any);
       this.dailyUsage.spentUSD += estimatedUSD;
 
       // Record signing decision
@@ -266,13 +266,13 @@ export class SigningEngine {
         });
       }
 
-      return { signedTx, address: account.address };
+      return { signedTx, address: wallet.address };
     }
 
     if (method === "sign_message") {
       const message = params.message as string;
-      const signature = await account.signMessage({ message });
-      return { signature, address: account.address };
+      const signature = await wallet.signMessage(message);
+      return { signature, address: wallet.address };
     }
 
     throw new Error(`Unsupported signing method: ${method}`);

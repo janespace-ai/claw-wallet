@@ -23,7 +23,7 @@
     "@scure/bip32": "^2.0.1",
     "@scure/bip39": "^2.0.1",
     "better-sqlite3": "^11.7.0",
-    "viem": "^2.47.4",
+    "ethers": "^6.16.0",
     "ws": "^8.18.0"
   },
   "devDependencies": {

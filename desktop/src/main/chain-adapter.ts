@@ -4,18 +4,17 @@
  * Provides methods to query transaction receipts and other on-chain data.
  */
 
-import { createPublicClient, http, type PublicClient, type Address } from "viem";
-import { mainnet, base } from "viem/chains";
+import { ethers } from "ethers";
 import type { ChainConfig } from "./config.js";
 import type { TxStatus } from "./signing-history.js";
 
 const CHAIN_CONFIGS = {
-  ethereum: mainnet,
-  base: base,
+  ethereum: { chainId: 1 },
+  base: { chainId: 8453 },
 };
 
 export class ChainAdapter {
-  private clients: Map<string, PublicClient> = new Map();
+  private providers: Map<string, ethers.JsonRpcProvider> = new Map();
   private chainsConfig: Partial<Record<string, ChainConfig>>;
 
   constructor(chainsConfig?: Partial<Record<string, ChainConfig>>) {
@@ -27,25 +26,24 @@ export class ChainAdapter {
    */
   async getTransactionReceipt(txHash: string, chainName: string): Promise<TxStatus | null> {
     try {
-      const client = this.getClient(chainName);
+      const provider = this.getProvider(chainName);
       
-      const receipt = await client.getTransactionReceipt({
-        hash: txHash as Address,
-      });
+      const receipt = await provider.getTransactionReceipt(txHash);
 
       if (!receipt) {
         return null; // Transaction not yet mined
       }
 
       // Get block to extract timestamp
-      const block = await client.getBlock({
-        blockNumber: receipt.blockNumber,
-      });
+      const block = await provider.getBlock(receipt.blockNumber);
+      if (!block) {
+        return null;
+      }
 
       return {
-        status: receipt.status === "success" ? "success" : "failed",
-        blockNumber: Number(receipt.blockNumber),
-        blockTimestamp: Number(block.timestamp) * 1000, // Convert to ms
+        status: receipt.status === 1 ? "success" : "failed",
+        blockNumber: receipt.blockNumber,
+        blockTimestamp: block.timestamp * 1000, // Convert to ms
         gasUsed: Number(receipt.gasUsed),
       };
     } catch (err) {
@@ -56,11 +54,11 @@ export class ChainAdapter {
   }
 
   /**
-   * Get or create viem PublicClient for a chain
+   * Get or create ethers JsonRpcProvider for a chain
    */
-  private getClient(chainName: string): PublicClient {
-    let client = this.clients.get(chainName);
-    if (client) return client;
+  private getProvider(chainName: string): ethers.JsonRpcProvider {
+    let provider = this.providers.get(chainName);
+    if (provider) return provider;
 
     const chainConfig = CHAIN_CONFIGS[chainName as keyof typeof CHAIN_CONFIGS];
     if (!chainConfig) {
@@ -70,14 +68,11 @@ export class ChainAdapter {
     const userChainConfig = this.chainsConfig[chainName];
     const rpcUrl = userChainConfig?.rpcUrl;
 
-    client = createPublicClient({
-      chain: chainConfig,
-      transport: http(rpcUrl, {
-        timeout: 30_000,
-      }),
-    }) as PublicClient;
+    provider = new ethers.JsonRpcProvider(rpcUrl, chainConfig.chainId, {
+      staticNetwork: true,
+    });
 
-    this.clients.set(chainName, client);
-    return client;
+    this.providers.set(chainName, provider);
+    return provider;
   }
 }

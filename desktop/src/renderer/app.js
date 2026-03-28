@@ -674,7 +674,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
   }
 }
 
-function renderActivityRecord(record) {
+function renderActivityRecord(record, tokenPrices = {}) {
   const div = document.createElement("div");
   div.className = `activity-record ${record.type} ${record.tx_status || "no-tx"}`;
 
@@ -682,6 +682,12 @@ function renderActivityRecord(record) {
   const typeIcon = getTypeIcon(record.type);
   const timestamp = formatRelativeTime(record.timestamp);
   const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
+
+  // record.estimated_usd 实际存储的是代币数量（Agent 传的 amountUsd 就是数量）
+  // 正确的 USD 价值计算：代币数量 * 当前实时价格
+  const tokenAmount = record.estimated_usd || 0;  // 代币数量
+  const tokenPrice = tokenPrices[record.tx_token] || 0;  // 实时价格
+  const realUsdValue = tokenAmount * tokenPrice;
 
   div.innerHTML = `
     <div class="activity-record-header">
@@ -693,7 +699,7 @@ function renderActivityRecord(record) {
       <div class="activity-amount"><strong>${amount} ${escapeHtml(record.tx_token)}</strong></div>
       <div class="activity-chain">on ${escapeHtml(record.tx_chain)}</div>
       ${record.tx_to ? `<div>To: <span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
-      <div>Estimated: $${record.estimated_usd.toFixed(2)}</div>
+      <div>Estimated: ${realUsdValue > 0 ? `$${realUsdValue.toFixed(2)}` : 'Price unavailable'} <span style="color: #888; font-size: 10px;">(live)</span></div>
       ${record.tx_hash ? `<div>TX: <span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span></div>` : ''}
       ${record.block_number ? `<div>Block: ${record.block_number}</div>` : ''}
     </div>

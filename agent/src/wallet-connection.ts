@@ -102,14 +102,11 @@ export class WalletConnection {
     const pairInfo = (await response.json()) as { walletAddr: string; commPubKey: string };
     logger.log("WalletConnection", "Received pairing info", { walletAddr: pairInfo.walletAddr });
 
-    let keyPair: E2EEKeyPair;
-    if (this.pairing?.commKeyPair) {
-      keyPair = deserializeKeyPair(this.pairing.commKeyPair);
-      logger.debug("WalletConnection", "Reusing existing key pair");
-    } else {
-      keyPair = generateKeyPair();
-      logger.debug("WalletConnection", "Generated new key pair");
-    }
+    // Always generate a new key pair for each pairing session.
+    // Reusing the old key pair would cause pairId mismatch when Desktop re-pairs
+    // with a new short code, because pairId is derived from walletAddr + agentPubKey.
+    const keyPair = generateKeyPair();
+    logger.debug("WalletConnection", "Generated new key pair for pairing");
 
     const agentPubHex = Buffer.from(keyPair.publicKey).toString("hex");
     const pairId = derivePairId(pairInfo.walletAddr, agentPubHex);

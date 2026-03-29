@@ -91,16 +91,16 @@
 
 ## 7. Phase 3: Global Message Router (Week 5)
 
-- [ ] 7.1 Create `MessageRouter` class in `desktop/src/main/message-router.ts`
-- [ ] 7.2 Implement `route(fromAccountIndex, encryptedMessage)` method
-- [ ] 7.3 Add per-account message decryption using correct account's encryption key
-- [ ] 7.4 Implement message type detection (SIGN_REQUEST, BALANCE_UPDATE, PAIRING_STATUS)
-- [ ] 7.5 Add priority handling: signing requests processed before balance updates
-- [ ] 7.6 Implement cross-account notification system for signing requests
-- [ ] 7.7 Add message routing to appropriate UI handlers (IPC to renderer)
-- [ ] 7.8 Implement balance update deduplication for inactive accounts
-- [ ] 7.9 Add error handling with account isolation (one account's error doesn't affect others)
-- [ ] 7.10 Implement dead letter queue for failed messages (3 retries)
+- [x] 7.1 Create `MessageRouter` class in `desktop/src/main/message-router.ts`
+- [x] 7.2 Implement `route(fromAccountIndex, encryptedMessage)` method
+- [x] 7.3 Add per-account message decryption using correct account's encryption key
+- [x] 7.4 Implement message type detection (SIGN_REQUEST, BALANCE_UPDATE, PAIRING_STATUS)
+- [x] 7.5 Add priority handling: signing requests processed before balance updates
+- [x] 7.6 Implement cross-account notification system for signing requests
+- [x] 7.7 Add message routing to appropriate UI handlers (IPC to renderer)
+- [x] 7.8 Implement balance update deduplication for inactive accounts
+- [x] 7.9 Add error handling with account isolation (one account's error doesn't affect others)
+- [x] 7.10 Implement dead letter queue for failed messages (3 retries)
 - [ ] 7.11 Add unit tests for message routing logic
 - [ ] 7.12 Add integration tests for cross-account message delivery
 

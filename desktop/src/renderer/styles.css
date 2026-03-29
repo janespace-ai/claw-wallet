@@ -531,3 +531,180 @@ input:focus, textarea:focus, select:focus { border-color: var(--accent); }
   font-size: 14px;
 }
 
+/* Network Filter */
+.network-filter {
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.network-filter:hover {
+  border-color: var(--accent);
+}
+
+.network-filter:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+}
+
+/* Expandable Balance Row */
+.balance-item {
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.balance-item:hover {
+  border-color: var(--accent);
+  background: rgba(88, 166, 255, 0.05);
+}
+
+.balance-item.expanded {
+  cursor: default;
+}
+
+.balance-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.balance-token {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.network-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.network-badge.ethereum {
+  background: rgba(88, 166, 255, 0.2);
+  color: #58a6ff;
+}
+
+.network-badge.base {
+  background: rgba(0, 82, 255, 0.2);
+  color: #0052ff;
+}
+
+.network-badge.optimism {
+  background: rgba(255, 4, 32, 0.2);
+  color: #ff0420;
+}
+
+.network-badge.arbitrum {
+  background: rgba(40, 160, 240, 0.2);
+  color: #28a0f0;
+}
+
+.network-badge.polygon {
+  background: rgba(130, 71, 229, 0.2);
+  color: #8247e5;
+}
+
+.network-badge.zksync {
+  background: rgba(138, 136, 255, 0.2);
+  color: #8a88ff;
+}
+
+.network-badge.linea {
+  background: rgba(97, 219, 251, 0.2);
+  color: #61dbfb;
+}
+
+.network-badge.scroll {
+  background: rgba(255, 184, 77, 0.2);
+  color: #ffb84d;
+}
+
+.expand-toggle {
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: transform 0.2s;
+}
+
+.balance-item.expanded .expand-toggle {
+  transform: rotate(90deg);
+}
+
+.balance-amount {
+  text-align: right;
+}
+
+.balance-amount-crypto {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.balance-amount-usd {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.balance-breakdown {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: none;
+}
+
+.balance-item.expanded .balance-breakdown {
+  display: block;
+}
+
+.network-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  margin-bottom: 4px;
+  border-radius: 4px;
+  background: var(--bg-card);
+}
+
+.network-balance:last-child {
+  margin-bottom: 0;
+}
+
+.network-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.network-icon {
+  font-size: 14px;
+}
+
+.portfolio-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-primary);
+  padding: 10px 0;
+}
+
+.portfolio-value.loading {
+  opacity: 0.6;
+  padding: 20px;
+}
+
+

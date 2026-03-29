@@ -103,7 +103,20 @@
           <div id="balances-section" style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <h4 data-i18n="common.home.balances">Balances</h4>
-              <button id="btn-refresh-balances" class="btn ghost" data-i18n="common.buttons.refresh" style="padding: 4px 8px; font-size: 12px;">Refresh</button>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <!-- Network Filter -->
+                <select id="network-filter" class="network-filter" title="Filter by network">
+                  <option value="all">All Networks</option>
+                  <!-- Networks populated dynamically -->
+                </select>
+                <!-- Hide Zero Balances Toggle -->
+                <label class="checkbox-label" style="margin: 0;">
+                  <input type="checkbox" id="hide-zero-balances">
+                  <span style="font-size: 12px;">Hide Zero</span>
+                </label>
+                <!-- Refresh Button -->
+                <button id="btn-refresh-balances" class="btn ghost" data-i18n="common.buttons.refresh" style="padding: 4px 8px; font-size: 12px;">Refresh</button>
+              </div>
             </div>
             <div id="balances-list"></div>
           </div>

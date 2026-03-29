@@ -89,11 +89,17 @@ function enterMainScreen(status) {
   loadSigningHistory();
   syncSettingsFromStatus(status);
   loadWalletBalances(status.address);
+  initializeNetworkFilter();
 }
+
+let currentBalances = [];
+let currentPrices = {};
+let currentAddress = '';
 
 async function loadWalletBalances(address) {
   if (!address) return;
 
+  currentAddress = address;
   const balancesList = document.getElementById("balances-list");
   const portfolioValueDisplay = document.getElementById("portfolio-value");
 
@@ -109,8 +115,11 @@ async function loadWalletBalances(address) {
       return;
     }
 
+    currentBalances = balances;
+
     const tokens = [...new Set(balances.map(b => b.symbol))];
     const prices = await wapi().getTokenPrices(tokens);
+    currentPrices = prices;
 
     renderBalances(balances, prices);
     const totalValue = calculateTotalValue(balances, prices);
@@ -122,33 +131,172 @@ async function loadWalletBalances(address) {
   }
 }
 
+function initializeNetworkFilter() {
+  const networkFilter = document.getElementById('network-filter');
+  const hideZeroBalances = document.getElementById('hide-zero-balances');
+
+  if (networkFilter) {
+    networkFilter.addEventListener('change', () => {
+      if (currentBalances.length > 0) {
+        renderBalances(currentBalances, currentPrices);
+      }
+    });
+  }
+
+  if (hideZeroBalances) {
+    hideZeroBalances.addEventListener('change', () => {
+      if (currentBalances.length > 0) {
+        renderBalances(currentBalances, currentPrices);
+      }
+    });
+  }
+}
+
+function aggregateBalancesByToken(balances) {
+  const aggregated = new Map();
+
+  for (const balance of balances) {
+    const existing = aggregated.get(balance.symbol);
+    
+    if (existing) {
+      existing.networks.push({
+        chainId: balance.chainId,
+        chainName: balance.chainName,
+        amount: balance.amount,
+        rawAmount: balance.rawAmount
+      });
+    } else {
+      aggregated.set(balance.symbol, {
+        symbol: balance.symbol,
+        decimals: balance.decimals,
+        networks: [{
+          chainId: balance.chainId,
+          chainName: balance.chainName,
+          amount: balance.amount,
+          rawAmount: balance.rawAmount
+        }]
+      });
+    }
+  }
+
+  return Array.from(aggregated.values());
+}
+
+function calculateAggregatedTotal(networks) {
+  let totalAmount = 0;
+  for (const network of networks) {
+    totalAmount += parseFloat(network.amount) || 0;
+  }
+  return totalAmount;
+}
+
+function getNetworkIcon(chainName) {
+  const icons = {
+    'Ethereum': '🟦',
+    'Base': '🔵',
+    'Optimism': '🔴',
+    'Arbitrum': '🟣',
+    'Polygon': '🟣',
+    'zkSync Era': '⚡',
+    'Linea': '🟢',
+    'Scroll': '📜'
+  };
+  return icons[chainName] || '⚪';
+}
+
+function getNetworkClass(chainName) {
+  return chainName.toLowerCase().replace(/\s+/g, '-');
+}
+
 function renderBalances(balances, prices) {
   const balancesList = document.getElementById("balances-list");
+  const networkFilter = document.getElementById('network-filter');
+  const hideZeroBalances = document.getElementById('hide-zero-balances');
   
   if (!balances || balances.length === 0) {
     balancesList.innerHTML = `<p style="color: #888;">${tKey("common.home.noBalances")}</p>`;
     return;
   }
 
-  balancesList.innerHTML = balances
-    .map(balance => {
-      const amount = parseFloat(balance.amount);
-      if (amount === 0) return '';
+  // Update network filter options
+  if (networkFilter && networkFilter.options.length === 1) {
+    const networks = [...new Set(balances.map(b => b.chainName))];
+    networks.forEach(network => {
+      const option = document.createElement('option');
+      option.value = network;
+      option.textContent = network;
+      networkFilter.appendChild(option);
+    });
+  }
 
-      const price = prices[balance.symbol] || null;
+  // Apply network filter
+  let filteredBalances = balances;
+  if (networkFilter && networkFilter.value !== 'all') {
+    filteredBalances = balances.filter(b => b.chainName === networkFilter.value);
+  }
+
+  // Apply hide zero balances filter
+  const shouldHideZero = hideZeroBalances && hideZeroBalances.checked;
+  if (shouldHideZero) {
+    filteredBalances = filteredBalances.filter(b => parseFloat(b.amount) > 0);
+  }
+
+  if (filteredBalances.length === 0) {
+    balancesList.innerHTML = `<p style="color: #888;">${tKey("common.home.noBalances")}</p>`;
+    return;
+  }
+
+  // Aggregate by token
+  const aggregated = aggregateBalancesByToken(filteredBalances);
+
+  balancesList.innerHTML = aggregated
+    .map(token => {
+      const totalAmount = calculateAggregatedTotal(token.networks);
+      
+      if (shouldHideZero && totalAmount === 0) {
+        return '';
+      }
+
+      const price = prices[token.symbol] || null;
       const hasPrice = price != null;
-      const usdStr = hasPrice ? (amount * price).toFixed(2) : null;
-      const unitPrice = hasPrice ? `$${price.toFixed(2)}/${balance.symbol}` : "";
+      const totalUsd = hasPrice ? (totalAmount * price).toFixed(2) : null;
+
+      // Single network or multiple?
+      const isMultiNetwork = token.networks.length > 1;
+
+      const networkBreakdown = token.networks.map(network => {
+        const amount = parseFloat(network.amount);
+        const networkUsd = hasPrice ? (amount * price).toFixed(2) : null;
+        const icon = getNetworkIcon(network.chainName);
+        
+        return `
+          <div class="network-balance">
+            <div class="network-name">
+              <span class="network-icon">${icon}</span>
+              <span>${escapeHtml(network.chainName)}</span>
+            </div>
+            <div class="balance-amount">
+              <div class="balance-amount-crypto">${amount.toFixed(6)} ${escapeHtml(token.symbol)}</div>
+              ${hasPrice && networkUsd ? `<div class="balance-amount-usd">$${networkUsd}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
 
       return `
-        <div class="balance-card">
-          <div class="balance-header">
-            <span class="balance-token">${escapeHtml(balance.symbol)}</span>
-            <span class="balance-chain">${escapeHtml(balance.chain)}</span>
+        <div class="balance-item ${isMultiNetwork ? 'multi-network' : ''}" data-symbol="${escapeHtml(token.symbol)}" onclick="toggleBalanceExpand(this)">
+          <div class="balance-row">
+            <div class="balance-token">
+              <span style="font-weight: 600;">${escapeHtml(token.symbol)}</span>
+              ${!isMultiNetwork ? `<span class="network-badge ${getNetworkClass(token.networks[0].chainName)}">${getNetworkIcon(token.networks[0].chainName)} ${escapeHtml(token.networks[0].chainName)}</span>` : ''}
+              ${isMultiNetwork ? `<span class="expand-toggle">▶</span>` : ''}
+            </div>
+            <div class="balance-amount">
+              <div class="balance-amount-crypto">${totalAmount.toFixed(6)}</div>
+              ${hasPrice && totalUsd ? `<div class="balance-amount-usd">$${totalUsd}</div>` : ''}
+            </div>
           </div>
-          <div class="balance-amount">${amount.toFixed(6)}</div>
-          <div class="balance-usd">${hasPrice && usdStr ? `$${usdStr}` : tKey("common.home.priceUnavailable")}</div>
-          ${unitPrice ? `<div class="balance-unit-price">${unitPrice}</div>` : ""}
+          ${isMultiNetwork ? `<div class="balance-breakdown">${networkBreakdown}</div>` : ''}
         </div>
       `;
     })
@@ -186,6 +334,13 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function toggleBalanceExpand(element) {
+  if (!element.classList.contains('multi-network')) {
+    return;
+  }
+  element.classList.toggle('expanded');
 }
 
 async function updateBiometricButton() {

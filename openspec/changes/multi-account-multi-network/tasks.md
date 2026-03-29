@@ -28,17 +28,17 @@
 
 ## 3. Phase 1: UI - Network Filter & Balance Display (Week 2)
 
-- [ ] 3.1 Add network filter dropdown component to Home tab header
-- [ ] 3.2 Implement "All Networks" default option in filter dropdown
-- [ ] 3.3 Add individual network options to dropdown (with icons/badges)
-- [ ] 3.4 Implement filter state persistence in localStorage
-- [ ] 3.5 Create expandable balance row component (collapsed by default)
-- [ ] 3.6 Add expand/collapse toggle button to balance rows
-- [ ] 3.7 Implement per-network balance breakdown display (with network badges)
-- [ ] 3.8 Add total portfolio value calculation and display at top
-- [ ] 3.9 Implement "Hide zero balances" toggle feature
-- [ ] 3.10 Add CSS styling for network badges and expandable rows
-- [ ] 3.11 Add manual "Refresh Balances" button
+- [x] 3.1 Add network filter dropdown component to Home tab header
+- [x] 3.2 Implement "All Networks" default option in filter dropdown
+- [x] 3.3 Add individual network options to dropdown (with icons/badges)
+- [x] 3.4 Implement filter state persistence in localStorage
+- [x] 3.5 Create expandable balance row component (collapsed by default)
+- [x] 3.6 Add expand/collapse toggle button to balance rows
+- [x] 3.7 Implement per-network balance breakdown display (with network badges)
+- [x] 3.8 Add total portfolio value calculation and display at top
+- [x] 3.9 Implement "Hide zero balances" toggle feature
+- [x] 3.10 Add CSS styling for network badges and expandable rows
+- [x] 3.11 Add manual "Refresh Balances" button
 - [ ] 3.12 Test UI responsiveness with 20+ tokens across 8 networks
 
 ## 4. Phase 2: Account Derivation & Management (Week 3)

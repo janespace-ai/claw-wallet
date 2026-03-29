@@ -36,10 +36,10 @@
 - [ ] Test Setup flow in both languages
 
 ### 2.2 Error Messages Translation
-- [ ] Identify all error messages in JavaScript
-- [ ] Extract to `locales/en/errors.json`
-- [ ] Translate to `locales/zh-CN/errors.json`
-- [ ] Replace hardcoded error strings with i18next.t() calls
+- [x] Identify all error messages in JavaScript
+- [x] Extract to `locales/en/errors.json`
+- [x] Translate to `locales/zh-CN/errors.json`
+- [x] Replace hardcoded error strings with i18next.t() calls
 - [ ] Test error scenarios in both languages
 
 ### 2.3 Common Elements Translation
@@ -48,7 +48,7 @@
 - [x] Create `locales/en/common.json`
 - [x] Translate to `locales/zh-CN/common.json`
 - [x] Add data-i18n attributes to common HTML elements
-- [ ] Replace common JavaScript strings with i18next.t()
+- [x] Replace common JavaScript strings with i18next.t()
 
 ### 2.4 HTML Markup Updates
 - [x] Add data-i18n attributes to all <h1>, <h2>, <h3> tags
@@ -61,33 +61,33 @@
 ## Phase 3: Dynamic Content Translation (High Priority)
 
 ### 3.1 Settings Tab Translation
-- [ ] Extract Settings tab text
-- [ ] Create `locales/en/settings.json`
-- [ ] Translate to `locales/zh-CN/settings.json`
+- [x] Extract Settings tab text
+- [x] Create `locales/en/settings.json`
+- [x] Translate to `locales/zh-CN/settings.json`
 - [ ] Update Settings rendering code with i18next.t()
 - [ ] Test Settings tab in both languages
 
 ### 3.2 Security Tab Translation
-- [ ] Extract Security Events text
-- [ ] Extract Signing History text
-- [ ] Create `locales/en/security.json`
-- [ ] Translate to `locales/zh-CN/security.json`
-- [ ] Update `loadSecurityEvents()` with i18next.t()
-- [ ] Update `loadSigningHistory()` with i18next.t()
+- [x] Extract Security Events text
+- [x] Extract Signing History text
+- [x] Create `locales/en/security.json`
+- [x] Translate to `locales/zh-CN/security.json`
+- [x] Update `loadSecurityEvents()` with i18next.t()
+- [x] Update `loadSigningHistory()` with i18next.t()
 - [ ] Test Security tab in both languages
 
 ### 3.3 Activity Tab Translation
-- [ ] Extract Activity tab text (filters, labels, etc.)
-- [ ] Create `locales/en/activity.json`
-- [ ] Translate to `locales/zh-CN/activity.json`
+- [x] Extract Activity tab text (filters, labels, etc.)
+- [x] Create `locales/en/activity.json`
+- [x] Translate to `locales/zh-CN/activity.json`
 - [ ] Update `renderActivityRecord()` with i18next.t()
-- [ ] Update activity filter buttons with data-i18n
+- [x] Update activity filter buttons with data-i18n
 - [ ] Test Activity tab in both languages
 
 ### 3.4 Pairing Flow Translation
-- [ ] Extract Pairing tab text
-- [ ] Create `locales/en/pairing.json`
-- [ ] Translate to `locales/zh-CN/pairing.json`
+- [x] Extract Pairing tab text
+- [x] Create `locales/en/pairing.json`
+- [x] Translate to `locales/zh-CN/pairing.json`
 - [ ] Update pairing code generation messages
 - [ ] Update device list rendering
 - [ ] Test Pairing flow in both languages

@@ -380,7 +380,7 @@ function setupEventListeners() {
     if (!feedback) {
       const div = document.createElement("div");
       div.id = "clipboard-feedback";
-      div.textContent = "Copied to clipboard!";
+      div.textContent = i18next.t('common.messages.copiedToClipboard');
       div.style.cssText = "position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: #4caf50; color: white; padding: 10px 20px; border-radius: 4px; z-index: 10000;";
       document.body.appendChild(div);
       setTimeout(() => div.remove(), 3000);
@@ -464,7 +464,7 @@ function setupEventListeners() {
       const nameEl = document.getElementById("input-trust-contact-name");
       const trustName = nameEl ? nameEl.value.trim() : "";
       if (trust && !trustName) {
-        alert("请填写可信任联系人的显示名称。");
+        alert(i18next.t('common.contacts.nameRequired'));
         return;
       }
       await api.approveTransaction(currentTxRequest.requestId, {
@@ -663,16 +663,16 @@ async function loadDesktopContacts() {
       const info = document.createElement("div");
       info.className = "info";
       const badge = c.trusted
-        ? ` <span style="font-size:11px;background:#1a472a;color:#8f8;padding:2px 6px;border-radius:4px;margin-left:6px">可信任</span>`
+        ? ` <span style="font-size:11px;background:#1a472a;color:#8f8;padding:2px 6px;border-radius:4px;margin-left:6px">${i18next.t('common.contacts.trusted')}</span>`
         : "";
       info.innerHTML = `<div><strong>${escapeHtml(c.name)}</strong> · ${escapeHtml(c.chain)}${badge}</div>
         <div class="ip address">${escapeHtml(c.address)}</div>`;
       const btn = document.createElement("button");
       btn.className = "btn danger";
       btn.style.cssText = "width:auto;padding:6px 12px";
-      btn.textContent = "Remove";
+      btn.textContent = i18next.t('common.buttons.remove');
       btn.onclick = async () => {
-        if (!confirm(`Remove all entries for contact "${c.name}"?`)) return;
+        if (!confirm(i18next.t('common.contacts.removeConfirm', { name: c.name }))) return;
         try {
           await api.removeDesktopContact(c.name);
           await loadDesktopContacts();

@@ -28,7 +28,8 @@
     "name": "名称",
     "chain": "链",
     "token": "代币",
-    "type": "类型"
+    "type": "类型",
+    "method": "方法"
   },
   "connection": {
     "connected": "已连接",
@@ -49,12 +50,18 @@
     "success": "成功",
     "error": "错误",
     "copied": "已复制！",
-    "sameMachineWarning": "⚠ Agent 和钱包在同一台机器上 — 安全性显著降低！"
+    "sameMachineWarning": "⚠ Agent 和钱包在同一台机器上 — 安全性显著降低！",
+    "copiedToClipboard": "已复制到剪贴板！"
   },
   "home": {
     "portfolioValue": "总资产价值",
     "balances": "余额",
     "noPendingTx": "无待处理交易",
     "noBalances": "未找到余额"
+  },
+  "contacts": {
+    "trusted": "可信任",
+    "removeConfirm": "移除联系人"{name}"的所有条目？",
+    "nameRequired": "请填写可信任联系人的显示名称。"
   }
 }

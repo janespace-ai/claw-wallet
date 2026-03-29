@@ -36,6 +36,8 @@ export async function initI18n() {
       
       interpolation: {
         escapeValue: false,
+        prefix: '{',
+        suffix: '}'
       },
       
       saveMissing: false,

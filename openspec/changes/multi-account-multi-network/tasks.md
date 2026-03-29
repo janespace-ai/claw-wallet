@@ -86,7 +86,7 @@
 - [x] 6.9 Implement graceful connection cleanup on application exit
 - [x] 6.10 Add connection timeout handling (3-second limit for close)
 - [x] 6.11 Implement connection error handling and logging
-- [ ] 6.12 Add unit tests for connection pool management
+- [x] 6.12 Add unit tests for connection pool management
 - [ ] 6.13 Add integration tests with mock WebSocket server (10 simultaneous connections)
 
 ## 7. Phase 3: Global Message Router (Week 5)
@@ -132,7 +132,7 @@
 - [x] 9.7 Add account_index parameter to all IPC handlers (sign, send, contacts, etc.)
 - [x] 9.8 Implement account-scoped state management in renderer process
 - [x] 9.9 Add defensive checks: verify account_index present in all database queries
-- [ ] 9.10 Add unit tests for data isolation (create 2 accounts, verify no cross-contamination)
+- [x] 9.10 Add unit tests for data isolation (create 2 accounts, verify no cross-contamination)
 - [ ] 9.11 Add integration tests for account-scoped queries
 
 ## 10. Phase 4: Relay Server - IP-Based Connection Limiting (Week 6)
@@ -147,7 +147,7 @@
 - [x] 10.8 Add HTTP 429 "Too many connections from this IP" error response
 - [x] 10.9 Implement connection cleanup on WebSocket close
 - [x] 10.10 Add connection count logging and monitoring metrics
-- [ ] 10.11 Add unit tests for ConnectionLimiter logic
+- [x] 10.11 Add unit tests for ConnectionLimiter logic
 - [ ] 10.12 Add integration tests with 11 connection attempts from same IP
 - [ ] 10.13 Load test Relay Server with 100 Desktop clients (1000 total connections)
 

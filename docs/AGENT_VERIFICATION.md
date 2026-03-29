@@ -92,13 +92,13 @@ export RELAY_URL="ws://localhost:8765/ws"  # 中继服务器地址
 
 ### 阶段 3：联系人与历史
 
-联系人读写经 **Relay → 桌面主进程** 写入 `wallet.db`（权威）；Agent 本地 `contacts.json` 仅作缓存/离线回退。
+联系人读写经 **Relay → 桌面主进程** 写入 `wallet.db`（权威）：**每名一行、每条为单链单地址**；Agent 本地 `contacts.json` 仅作缓存/离线回退，并与该语义对齐（同名更新会替换所保存链，不再跨链回落解析）。
 
 | 步骤 | 你对 Agent 说（示例） | 预期 |
 |------|------------------------|------|
 | 7 | 「把联系人 Bob 加进去，Base 地址是 0x742d35Cc6634C0532925a3b844Bc454e4438f44e。」 | `wallet_contacts_add`，桌面弹出三选一（一般 / 可信任 / 拒绝），确认后落库；本地缓存同步 |
 | 8 | 「列出所有联系人。」 | `wallet_contacts_list`，与桌面一致（若已配对且在线）；`source` 字段可为 `desktop` 或 `local_cache` |
-| 9 | 「查一下 Bob 在 Base 上的地址。」 | `wallet_contacts_resolve`，优先桌面解析 |
+| 9 | 「查一下 Bob 在 Base 上的地址。」 | `wallet_contacts_resolve`，优先桌面解析；若 Bob 保存在其他链则返回 `CHAIN_MISMATCH`（勿误用其他链地址） |
 | 10 | 「最近 10 笔交易历史。」 | `wallet_history`，新钱包可为空 |
 
 ### 阶段 4：Gas 估算

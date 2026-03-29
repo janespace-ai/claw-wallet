@@ -29,10 +29,10 @@ describe("ContactsManager", () => {
       expect(c.addresses.base).toBe(ADDR_A);
     });
 
-    it("merges addresses for existing contact", () => {
+    it("replaces addresses for existing contact (one chain per name)", () => {
       manager.addContact("alice", { base: ADDR_A });
       const c = manager.addContact("alice", { ethereum: ADDR_B });
-      expect(c.addresses.base).toBe(ADDR_A);
+      expect(c.addresses.base).toBeUndefined();
       expect(c.addresses.ethereum).toBe(ADDR_B);
     });
   });
@@ -58,12 +58,9 @@ describe("ContactsManager", () => {
       expect(result!.exact).toBe(true);
     });
 
-    it("falls back to another chain", () => {
+    it("returns null when requested chain does not match stored chain", () => {
       manager.addContact("alice", { base: ADDR_A });
-      const result = manager.resolveContact("alice", "ethereum");
-      expect(result).not.toBeNull();
-      expect(result!.address).toBe(ADDR_A);
-      expect(result!.exact).toBe(false);
+      expect(manager.resolveContact("alice", "ethereum")).toBeNull();
     });
 
     it("returns null for unknown contact", () => {

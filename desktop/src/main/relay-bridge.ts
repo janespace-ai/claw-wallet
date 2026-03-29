@@ -20,8 +20,8 @@ import { KeyManager } from "./key-manager.js";
 import { SigningEngine } from "./signing-engine.js";
 import { SecurityMonitor } from "./security-monitor.js";
 import type { PriceService } from "./price-service.js";
-import { estimateSignTransactionUsd } from "./tx-usd-estimate.js";
-import type { WalletAuthorityStore } from "./wallet-authority-store.js";
+import { estimateSignTransactionUsd, getSignTransactionTransferDisplay } from "./tx-usd-estimate.js";
+import { ContactConflictError, type WalletAuthorityStore } from "./wallet-authority-store.js";
 import type { SigningHistory } from "./signing-history.js";
 import type { TxSyncService } from "./tx-sync-service.js";
 import { extractRecipientForTrust } from "./signing-engine.js";
@@ -57,6 +57,14 @@ export interface TransactionRequestInfo {
   withinBudget: boolean;
   /** Show optional "save as trusted" + name when manually approving */
   allowSaveTrustedContact: boolean;
+  /** Current address book match for counterparty (display only) */
+  counterpartyContact?: { name: string; trusted: boolean } | null;
+  /** e.g. "0.1 ETH" / "100 USDC" — same basis as policy estimate; null if unknown */
+  transferDisplay: string | null;
+  /** Fiat estimate for approval (USDT ≈ 1 USD when price feed available) */
+  estimatedUsd: number;
+  /** False when calldata/price cannot support a reliable estimate */
+  priceAvailable: boolean;
 }
 
 export interface ContactAddRequestInfo {
@@ -601,6 +609,17 @@ export class RelayBridge {
             pendingReq.method === "sign_transaction" &&
             ADDR_HEX40.test(toAddr.trim()) &&
             !this.options.authorityStore.isTrustedRecipientForChain(toAddr, chain);
+          const counterpartyContact =
+            pendingReq.method === "sign_transaction" && ADDR_HEX40.test(toAddr.trim())
+              ? this.options.authorityStore.lookupContactByAddressChain(toAddr, chain)
+              : null;
+          const transferParts =
+            pendingReq.method === "sign_transaction"
+              ? getSignTransactionTransferDisplay(params)
+              : null;
+          const transferDisplay = transferParts
+            ? `${transferParts.amount} ${transferParts.symbol}`
+            : null;
           const txInfo: TransactionRequestInfo = {
             requestId: pendingReq.requestId,
             method: pendingReq.method,
@@ -612,6 +631,10 @@ export class RelayBridge {
             sourceIP,
             withinBudget: false,
             allowSaveTrustedContact,
+            counterpartyContact,
+            transferDisplay,
+            estimatedUsd: pendingReq.estimatedUSD,
+            priceAvailable,
           };
           this.options.onTransactionRequest?.(txInfo);
         },
@@ -753,8 +776,15 @@ export class RelayBridge {
             return;
           }
           const resolved = store.resolveContact(name, chain);
-          if (!resolved) {
-            err(`Contact "${name}" not found`, "NOT_FOUND");
+          if (resolved.ok === false) {
+            if (resolved.reason === "not_found") {
+              err(`Contact "${name}" not found`, "NOT_FOUND");
+              return;
+            }
+            err(
+              `Contact "${name}" is on chain "${resolved.storedChain}", not "${chain}"`,
+              "CHAIN_MISMATCH",
+            );
             return;
           }
           this.sendEncrypted(
@@ -941,9 +971,11 @@ export class RelayBridge {
       });
       this.sendEncrypted(p.session, { requestId, result: { contact } }, requestId);
     } catch (e) {
+      const code =
+        e instanceof ContactConflictError ? e.code : "INTERNAL_ERROR";
       this.sendEncrypted(
         p.session,
-        { requestId, error: (e as Error).message, errorCode: "INTERNAL_ERROR" },
+        { requestId, error: (e as Error).message, errorCode: code },
         requestId,
       );
     }

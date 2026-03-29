@@ -25,6 +25,59 @@ function decodeErc20TransferAmount(dataHex: string): bigint | null {
   }
 }
 
+function formatHumanCryptoAmount(n: number): string {
+  if (!Number.isFinite(n) || n < 0) return String(n);
+  if (n === 0) return "0";
+  const maxFrac = Math.abs(n) >= 1 ? 6 : 8;
+  return n.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maxFrac,
+    useGrouping: false,
+  });
+}
+
+/**
+ * Human-readable token amount for `sign_transaction` (native ETH value or standard ERC-20 transfer calldata).
+ * Matches rules used for policy USD estimate.
+ */
+function computeSignTxHumanUnits(params: Record<string, unknown>): number | null {
+  const tokenRaw = (params.token as string) || "ETH";
+  const symbol = tokenRaw.trim().toUpperCase();
+  const data = typeof params.data === "string" ? params.data : "";
+  const hasErc20Transfer =
+    data.length >= 138 && data.slice(0, 10).toLowerCase() === "0xa9059cbb";
+
+  if (hasErc20Transfer) {
+    const amountWei = decodeErc20TransferAmount(data);
+    const decimals = TOKEN_DECIMALS[symbol];
+    if (amountWei === null || decimals === undefined) return null;
+    return parseFloat(formatUnits(amountWei, decimals));
+  }
+  if (symbol === "ETH") {
+    const valueRaw = params.value;
+    if (valueRaw === undefined || valueRaw === null) return null;
+    let wei: bigint;
+    try {
+      wei = BigInt(String(valueRaw));
+    } catch {
+      return null;
+    }
+    return parseFloat(formatEther(wei));
+  }
+  return null;
+}
+
+/** e.g. `{ amount: "100.5", symbol: "USDC" }` for approval UI (same basis as USD estimate). */
+export function getSignTransactionTransferDisplay(
+  params: Record<string, unknown>,
+): { amount: string; symbol: string } | null {
+  const tokenRaw = (params.token as string) || "ETH";
+  const symbol = tokenRaw.trim().toUpperCase();
+  const humanUnits = computeSignTxHumanUnits(params);
+  if (humanUnits === null || !Number.isFinite(humanUnits) || humanUnits < 0) return null;
+  return { amount: formatHumanCryptoAmount(humanUnits), symbol };
+}
+
 export interface TxUsdEstimate {
   usd: number;
   /** False when price missing or token/calldata cannot be interpreted for policy */
@@ -40,35 +93,7 @@ export async function estimateSignTransactionUsd(
 ): Promise<TxUsdEstimate> {
   const tokenRaw = (params.token as string) || "ETH";
   const symbol = tokenRaw.trim().toUpperCase();
-  const data = typeof params.data === "string" ? params.data : "";
-  const hasErc20Transfer =
-    data.length >= 138 && data.slice(0, 10).toLowerCase() === "0xa9059cbb";
-
-  let humanUnits: number | null = null;
-
-  if (hasErc20Transfer) {
-    const amountWei = decodeErc20TransferAmount(data);
-    const decimals = TOKEN_DECIMALS[symbol];
-    if (amountWei === null || decimals === undefined) {
-      return { usd: 0, priceAvailable: false };
-    }
-    humanUnits = parseFloat(formatUnits(amountWei, decimals));
-  } else if (symbol === "ETH") {
-    const valueRaw = params.value;
-    if (valueRaw === undefined || valueRaw === null) {
-      return { usd: 0, priceAvailable: false };
-    }
-    let wei: bigint;
-    try {
-      wei = BigInt(String(valueRaw));
-    } catch {
-      return { usd: 0, priceAvailable: false };
-    }
-    humanUnits = parseFloat(formatEther(wei));
-  } else {
-    return { usd: 0, priceAvailable: false };
-  }
-
+  const humanUnits = computeSignTxHumanUnits(params);
   if (humanUnits === null || !Number.isFinite(humanUnits) || humanUnits < 0) {
     return { usd: 0, priceAvailable: false };
   }

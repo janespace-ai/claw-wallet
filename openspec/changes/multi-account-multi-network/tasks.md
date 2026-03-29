@@ -137,16 +137,16 @@
 
 ## 10. Phase 4: Relay Server - IP-Based Connection Limiting (Week 6)
 
-- [ ] 10.1 Create `ConnectionLimiter` struct in Go: `relay/server/connection_limiter.go`
-- [ ] 10.2 Implement IP extraction from HTTP request headers (handle X-Forwarded-For)
-- [ ] 10.3 Add connection tracking map: `map[string]int` (IP → connection count)
-- [ ] 10.4 Implement `AllowConnection(ip string) bool` method with 10-connection limit
-- [ ] 10.5 Implement `ReleaseConnection(ip string)` method for cleanup
-- [ ] 10.6 Add mutex for thread-safe connection map access
-- [ ] 10.7 Integrate ConnectionLimiter into WebSocket handler
-- [ ] 10.8 Add HTTP 429 "Too many connections from this IP" error response
-- [ ] 10.9 Implement connection cleanup on WebSocket close
-- [ ] 10.10 Add connection count logging and monitoring metrics
+- [x] 10.1 Create `ConnectionLimiter` struct in Go: `relay/server/connection_limiter.go`
+- [x] 10.2 Implement IP extraction from HTTP request headers (handle X-Forwarded-For)
+- [x] 10.3 Add connection tracking map: `map[string]int` (IP → connection count)
+- [x] 10.4 Implement `AllowConnection(ip string) bool` method with 10-connection limit
+- [x] 10.5 Implement `ReleaseConnection(ip string)` method for cleanup
+- [x] 10.6 Add mutex for thread-safe connection map access
+- [x] 10.7 Integrate ConnectionLimiter into WebSocket handler
+- [x] 10.8 Add HTTP 429 "Too many connections from this IP" error response
+- [x] 10.9 Implement connection cleanup on WebSocket close
+- [x] 10.10 Add connection count logging and monitoring metrics
 - [ ] 10.11 Add unit tests for ConnectionLimiter logic
 - [ ] 10.12 Add integration tests with 11 connection attempts from same IP
 - [ ] 10.13 Load test Relay Server with 100 Desktop clients (1000 total connections)

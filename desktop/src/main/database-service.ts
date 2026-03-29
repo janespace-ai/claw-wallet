@@ -85,6 +85,14 @@ export class DatabaseService {
       this.db.pragma("user_version = 3");
       console.log("[DatabaseService] Migration v3 complete");
     }
+
+    const versionAfterV3 = this.db.pragma("user_version", { simple: true }) as number;
+    if (versionAfterV3 < 4) {
+      console.log("[DatabaseService] Running migration v4 (contacts: unique name + unique address+chain)...");
+      this.migrateToV4();
+      this.db.pragma("user_version = 4");
+      console.log("[DatabaseService] Migration v4 complete");
+    }
   }
 
   /**
@@ -170,6 +178,102 @@ export class DatabaseService {
       }
     }
     this.db.exec(`DROP TABLE IF EXISTS trusted_addresses`);
+  }
+
+  /**
+   * v4: One display name per row; unique (address, chain). Dedupe legacy rows per design D2.
+   */
+  private migrateToV4(): void {
+    const exists = this.db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='desktop_contacts'`)
+      .get() as { name: string } | undefined;
+    if (!exists) return;
+
+    interface Row {
+      id: number;
+      name: string;
+      chain: string;
+      address: string;
+      trusted: number;
+      created_at: number;
+      updated_at: number;
+    }
+
+    const normAddr = (a: string) => a.trim().toLowerCase();
+    const normChain = (c: string) => c.trim().toLowerCase();
+
+    const rows = this.db.prepare(`SELECT * FROM desktop_contacts`).all() as Row[];
+
+    this.db.exec(`ALTER TABLE desktop_contacts RENAME TO desktop_contacts_v4_old`);
+
+    this.db.exec(`
+      CREATE TABLE desktop_contacts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        chain TEXT NOT NULL,
+        address TEXT NOT NULL COLLATE NOCASE,
+        trusted INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+    `);
+    this.db.exec(`CREATE UNIQUE INDEX ux_desktop_contacts_name ON desktop_contacts(name COLLATE NOCASE)`);
+    this.db.exec(
+      `CREATE UNIQUE INDEX ux_desktop_contacts_addr_chain ON desktop_contacts(address COLLATE NOCASE, chain COLLATE NOCASE)`,
+    );
+    this.db.exec(`CREATE INDEX IF NOT EXISTS idx_contacts_name ON desktop_contacts(name COLLATE NOCASE)`);
+
+    if (rows.length === 0) {
+      this.db.exec(`DROP TABLE desktop_contacts_v4_old`);
+      return;
+    }
+
+    const byAddrChain = new Map<string, Row>();
+    for (const r of rows) {
+      const k = `${normAddr(r.address)}|${normChain(r.chain)}`;
+      const cur = byAddrChain.get(k);
+      if (!cur || r.updated_at > cur.updated_at) byAddrChain.set(k, r);
+    }
+    let survivors = Array.from(byAddrChain.values());
+
+    const byName = new Map<string, Row[]>();
+    for (const r of survivors) {
+      const nk = r.name.trim().toLowerCase();
+      if (!byName.has(nk)) byName.set(nk, []);
+      byName.get(nk)!.push(r);
+    }
+
+    const finalRows: Row[] = [];
+    const usedNamesLower = new Set<string>();
+
+    for (const [, group] of byName) {
+      group.sort((a, b) => b.updated_at - a.updated_at);
+      const [keep, ...dupes] = group;
+      finalRows.push(keep);
+      usedNamesLower.add(keep.name.trim().toLowerCase());
+
+      for (const d of dupes) {
+        let base = `${keep.name.trim()} (${normChain(d.chain)})`;
+        let candidate = base;
+        let n = 2;
+        while (usedNamesLower.has(candidate.trim().toLowerCase())) {
+          candidate = `${base} ${n++}`;
+        }
+        usedNamesLower.add(candidate.trim().toLowerCase());
+        finalRows.push({ ...d, name: candidate });
+      }
+    }
+
+    const ins = this.db.prepare(`
+      INSERT INTO desktop_contacts (name, chain, address, trusted, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    for (const r of finalRows) {
+      ins.run(r.name, normChain(r.chain), normAddr(r.address), r.trusted, r.created_at, r.updated_at);
+    }
+
+    this.db.exec(`DROP TABLE desktop_contacts_v4_old`);
   }
 
   /**

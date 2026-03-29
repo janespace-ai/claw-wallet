@@ -82,6 +82,10 @@ export interface TransactionRequest {
   sourceIP: string;
   withinBudget: boolean;
   allowSaveTrustedContact: boolean;
+  counterpartyContact?: { name: string; trusted: boolean } | null;
+  transferDisplay: string | null;
+  estimatedUsd: number;
+  priceAvailable: boolean;
 }
 
 export interface ContactAddRequest {
@@ -121,17 +125,25 @@ export interface TokenBalance {
   decimals: number;
 }
 
+/** Matches `signing_history` rows from main process (snake_case). */
 export interface SigningRecord {
-  requestId: string;
+  id: number;
+  request_id: string;
   timestamp: number;
   type: "auto" | "manual" | "rejected";
   method: string;
-  to: string;
-  value: string;
-  token: string;
-  chain: string;
-  estimatedUSD: number;
-  txHash?: string;
+  tx_to: string | null;
+  tx_value: string | null;
+  tx_token: string;
+  tx_chain: string;
+  estimated_usd: number;
+  tx_hash: string | null;
+  tx_status: "pending" | "success" | "failed" | null;
+  block_number: number | null;
+  block_timestamp: number | null;
+  gas_used: number | null;
+  created_at: number;
+  updated_at: number;
 }
 
 export interface DesktopContactEntry {

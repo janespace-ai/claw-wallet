@@ -78,19 +78,27 @@ export function createWalletContactsTools(
           await contacts.save();
           return { contact, message: `Contact saved locally only (no Desktop paired).` };
         }
-        const result = (await walletConnection.sendToWallet("wallet_contacts_add", {
-          name: args.name,
-          address: args.address,
-          chain,
-        })) as { contact: DesktopContactRow };
-        const row = result.contact;
-        mirrorDesktopToLocal(contacts, [row]);
-        await contacts.save();
-        return {
-          contact: row,
-          trusted: row.trusted === true,
-          message: `Contact "${row.name}" saved on Desktop (user confirmed).`,
-        };
+        try {
+          const result = (await walletConnection.sendToWallet("wallet_contacts_add", {
+            name: args.name,
+            address: args.address,
+            chain,
+          })) as { contact: DesktopContactRow };
+          const row = result.contact;
+          mirrorDesktopToLocal(contacts, [row]);
+          await contacts.save();
+          return {
+            contact: row,
+            trusted: row.trusted === true,
+            message: `Contact "${row.name}" saved on Desktop (user confirmed).`,
+          };
+        } catch (e) {
+          const code = (e as Error & { walletErrorCode?: string }).walletErrorCode;
+          if (code === "DUPLICATE_RECIPIENT") {
+            return { error: (e as Error).message, errorCode: code };
+          }
+          throw e;
+        }
       },
     },
     {
@@ -129,7 +137,15 @@ export function createWalletContactsTools(
               trusted: resolved.trusted === true,
               source: "desktop",
             };
-          } catch {
+          } catch (e) {
+            const code = (e as Error & { walletErrorCode?: string }).walletErrorCode;
+            if (code === "CHAIN_MISMATCH") {
+              return {
+                error: (e as Error).message,
+                errorCode: "CHAIN_MISMATCH",
+                source: "desktop",
+              };
+            }
             /* local fallback */
           }
         }

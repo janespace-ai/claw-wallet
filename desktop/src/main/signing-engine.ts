@@ -300,11 +300,13 @@ export class SigningEngine {
     const chain = String(params.chain ?? "unknown")
       .trim()
       .toLowerCase();
-    const trusted = this.authorityStore
-      ? this.authorityStore.getTrustedRecipientKeys(this.allowance.addressWhitelist)
-      : new Set(this.allowance.addressWhitelist.map((a) => `*:${a.trim().toLowerCase()}`));
-    if (trusted.size > 0 && counterparty) {
-      const a = counterparty.trim().toLowerCase();
+    /** Silent-sign eligibility: counterparty must be allow-listed as trusted for this chain (not merely a normal contact). */
+    const cp = typeof counterparty === "string" ? counterparty.trim() : "";
+    if (cp.length > 0 && /^0x[a-fA-F0-9]{40}$/i.test(cp)) {
+      const trusted = this.authorityStore
+        ? this.authorityStore.getTrustedRecipientKeys(this.allowance.addressWhitelist)
+        : new Set(this.allowance.addressWhitelist.map((a) => `*:${a.trim().toLowerCase()}`));
+      const a = cp.toLowerCase();
       const keyChain = `${chain}:${a}`;
       const keyAny = `*:${a}`;
       if (!trusted.has(keyChain) && !trusted.has(keyAny)) return false;

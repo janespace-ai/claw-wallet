@@ -1,6 +1,6 @@
 /**
- * Authoritative contacts in SQLite (Desktop). Trusted silent-sign recipients are
- * contacts with `trusted=1` for a given chain + address.
+ * Authoritative contacts in SQLite (Desktop). Each display name is a single row
+ * (one address + one chain). Trusted silent-sign uses `trusted=1`.
  */
 
 import type Database from "better-sqlite3";
@@ -12,6 +12,27 @@ export interface DesktopContactRow {
   address: string;
   trusted: boolean;
 }
+
+export class ContactConflictError extends Error {
+  constructor(
+    public readonly code: "DUPLICATE_RECIPIENT",
+    message: string,
+  ) {
+    super(message);
+    this.name = "ContactConflictError";
+  }
+}
+
+export type ResolveContactResult =
+  | { ok: true; address: string; chain: string; exactMatch: true; trusted: boolean }
+  | { ok: false; reason: "not_found" }
+  | {
+      ok: false;
+      reason: "chain_mismatch";
+      storedChain: string;
+      address: string;
+      trusted: boolean;
+    };
 
 const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
 
@@ -30,9 +51,7 @@ export class WalletAuthorityStore {
     this.db = dbService.getDatabase();
   }
 
-  /**
-   * Legacy allowance.json address list → one contact per address on `base`, trusted.
-   */
+  /** Legacy allowance.json → one row per address on `base` */
   mergeLegacyAllowanceWhitelist(addresses: string[]): void {
     const now = Date.now();
     for (const raw of addresses) {
@@ -45,7 +64,8 @@ export class WalletAuthorityStore {
         .prepare(
           `INSERT INTO desktop_contacts (name, chain, address, trusted, created_at, updated_at)
            VALUES (?, 'base', ?, 1, ?, ?)
-           ON CONFLICT(name, chain) DO UPDATE SET
+           ON CONFLICT(name COLLATE NOCASE) DO UPDATE SET
+             chain = excluded.chain,
              address = excluded.address,
              trusted = 1,
              updated_at = excluded.updated_at`,
@@ -54,7 +74,6 @@ export class WalletAuthorityStore {
     }
   }
 
-  /** Keys `chain:address` (lowercase) for silent-sign address gate; empty set ⇒ no gate */
   getTrustedRecipientKeys(legacyWhitelist: string[]): Set<string> {
     const keys = new Set<string>();
     for (const raw of legacyWhitelist) {
@@ -62,9 +81,7 @@ export class WalletAuthorityStore {
       if (ADDR_RE.test(a)) keys.add(`*:${a}`);
     }
     const rows = this.db
-      .prepare(
-        `SELECT chain, address FROM desktop_contacts WHERE trusted = 1`,
-      )
+      .prepare(`SELECT chain, address FROM desktop_contacts WHERE trusted = 1`)
       .all() as { chain: string; address: string }[];
     for (const r of rows) {
       keys.add(`${normChain(r.chain)}:${normAddr(r.address)}`);
@@ -72,7 +89,6 @@ export class WalletAuthorityStore {
     return keys;
   }
 
-  /** At least one trusted contact row exists with this address on this chain */
   isTrustedRecipientForChain(address: string, chain: string): boolean {
     const a = normAddr(address);
     const c = normChain(chain);
@@ -83,6 +99,23 @@ export class WalletAuthorityStore {
       )
       .get(a, c);
     return Boolean(row);
+  }
+
+  /** Match counterparty for approval / labels (at most one row per address+chain). */
+  lookupContactByAddressChain(
+    address: string,
+    chain: string,
+  ): { name: string; trusted: boolean } | null {
+    const a = normAddr(address);
+    const c = normChain(chain);
+    if (!ADDR_RE.test(a)) return null;
+    const row = this.db
+      .prepare(
+        `SELECT name, trusted FROM desktop_contacts WHERE address = ? AND chain = ? COLLATE NOCASE`,
+      )
+      .get(a, c) as { name: string; trusted: number } | undefined;
+    if (!row) return null;
+    return { name: row.name, trusted: row.trusted === 1 };
   }
 
   listContacts(): DesktopContactRow[] {
@@ -110,19 +143,58 @@ export class WalletAuthorityStore {
     const a = normAddr(address);
     if (!n) throw new Error("Contact name required");
     if (!ADDR_RE.test(a)) throw new Error("Invalid address");
-    const trusted = opts?.trusted === true ? 1 : 0;
+    const trustedVal = opts?.trusted === true ? 1 : 0;
     const now = Date.now();
+
+    const byName = this.db
+      .prepare(`SELECT id, name, chain, address, trusted FROM desktop_contacts WHERE name = ? COLLATE NOCASE`)
+      .get(n) as { id: number; name: string; chain: string; address: string; trusted: number } | undefined;
+
+    const byRecipient = this.db
+      .prepare(
+        `SELECT id, name FROM desktop_contacts WHERE address = ? AND chain = ? COLLATE NOCASE`,
+      )
+      .get(a, c) as { id: number; name: string } | undefined;
+
+    if (byName && byRecipient) {
+      if (byName.id !== byRecipient.id) {
+        throw new ContactConflictError(
+          "DUPLICATE_RECIPIENT",
+          "This address and chain are already saved under another contact name",
+        );
+      }
+      this.db
+        .prepare(
+          `UPDATE desktop_contacts SET trusted = ?, updated_at = ? WHERE id = ?`,
+        )
+        .run(trustedVal, now, byName.id);
+      return { name: n, chain: c, address: a, trusted: trustedVal === 1 };
+    }
+
+    if (!byName && byRecipient) {
+      throw new ContactConflictError(
+        "DUPLICATE_RECIPIENT",
+        "This address and chain are already saved under another contact name",
+      );
+    }
+
+    if (byName && !byRecipient) {
+      this.db
+        .prepare(
+          `UPDATE desktop_contacts SET chain = ?, address = ?, trusted = ?, updated_at = ?
+           WHERE id = ?`,
+        )
+        .run(c, a, trustedVal, now, byName.id);
+      return { name: n, chain: c, address: a, trusted: trustedVal === 1 };
+    }
+
     this.db
       .prepare(
         `INSERT INTO desktop_contacts (name, chain, address, trusted, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT(name, chain) DO UPDATE SET
-           address = excluded.address,
-           trusted = excluded.trusted,
-           updated_at = excluded.updated_at`,
+         VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .run(n, c, a, trusted, now, now);
-    return { name: n, chain: c, address: a, trusted: trusted === 1 };
+      .run(n, c, a, trustedVal, now, now);
+    return { name: n, chain: c, address: a, trusted: trustedVal === 1 };
   }
 
   removeContactsByName(name: string): number {
@@ -130,38 +202,28 @@ export class WalletAuthorityStore {
     return this.db.prepare("DELETE FROM desktop_contacts WHERE name = ? COLLATE NOCASE").run(n).changes;
   }
 
-  resolveContact(
-    name: string,
-    chain: string,
-  ): { address: string; chain: string; exactMatch: boolean; trusted: boolean } | null {
+  resolveContact(name: string, chain: string): ResolveContactResult {
     const n = name.trim();
     const c = normChain(chain);
     const row = this.db
-      .prepare(
-        `SELECT chain, address, trusted FROM desktop_contacts WHERE name = ? COLLATE NOCASE AND chain = ?`,
-      )
-      .get(n, c) as { chain: string; address: string; trusted: number } | undefined;
-    if (row) {
+      .prepare(`SELECT chain, address, trusted FROM desktop_contacts WHERE name = ? COLLATE NOCASE`)
+      .get(n) as { chain: string; address: string; trusted: number } | undefined;
+    if (!row) return { ok: false, reason: "not_found" };
+    if (normChain(row.chain) !== c) {
       return {
+        ok: false,
+        reason: "chain_mismatch",
+        storedChain: row.chain,
         address: row.address,
-        chain: row.chain,
-        exactMatch: true,
         trusted: row.trusted === 1,
       };
     }
-    const anyRow = this.db
-      .prepare(
-        `SELECT chain, address, trusted FROM desktop_contacts WHERE name = ? COLLATE NOCASE LIMIT 1`,
-      )
-      .get(n) as { chain: string; address: string; trusted: number } | undefined;
-    if (anyRow) {
-      return {
-        address: anyRow.address,
-        chain: anyRow.chain,
-        exactMatch: false,
-        trusted: anyRow.trusted === 1,
-      };
-    }
-    return null;
+    return {
+      ok: true,
+      address: row.address,
+      chain: row.chain,
+      exactMatch: true,
+      trusted: row.trusted === 1,
+    };
   }
 }

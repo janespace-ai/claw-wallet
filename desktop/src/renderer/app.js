@@ -16,6 +16,31 @@ function formatTokenAmount(rawValue, token) {
   return `${whole}.${fracStr}`;
 }
 
+function normAddrKey(addr) {
+  return String(addr || "").trim().toLowerCase();
+}
+
+function normChainKey(chain) {
+  return String(chain || "").trim().toLowerCase();
+}
+
+function contactRecipientKey(chain, addr) {
+  return `${normChainKey(chain)}:${normAddrKey(addr)}`;
+}
+
+function buildContactLookup(contacts) {
+  const m = new Map();
+  for (const c of contacts || []) {
+    if (!c?.address || !c?.chain) continue;
+    m.set(contactRecipientKey(c.chain, c.address), { name: c.name, trusted: !!c.trusted });
+  }
+  return m;
+}
+
+function trustedContactBadgeHtml() {
+  return ` <span style="font-size:11px;background:#1a472a;color:#8f8;padding:2px 6px;border-radius:4px;margin-left:6px">可信任</span>`;
+}
+
 let currentMode = "setup";
 let currentTxRequest = null;
 let currentContactAddRequest = null;
@@ -509,10 +534,26 @@ function setupRealtimeEvents() {
   api.onTransactionRequest((req) => {
     currentTxRequest = req;
     const details = document.getElementById("tx-details");
+    const cc = req.counterpartyContact;
+    const bookLine =
+      cc && cc.name
+        ? `<p><strong>通讯录:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
+        : "";
+    const transferText =
+      req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
+        ? escapeHtml(req.transferDisplay)
+        : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+    const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
+    const canValuate = req.priceAvailable === true;
+    const usdtLine = canValuate
+      ? `<p><strong>预估价值:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">（按桌面市价换算）</span></p>`
+      : `<p><strong>预估价值:</strong> <span style="color:var(--text-secondary)">暂无法换算为 USDT</span></p>`;
     details.innerHTML = `
       <p><strong>Method:</strong> ${escapeHtml(req.method)}</p>
+      ${bookLine}
       <p><strong>To:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
-      <p><strong>Amount:</strong> ${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}</p>
+      <p><strong>转账（币种 × 数量）:</strong> ${transferText}</p>
+      ${usdtLine}
       <p><strong>Chain:</strong> ${escapeHtml(req.chain)}</p>
       <p><strong>From Device:</strong> ${escapeHtml(req.fromDevice)}</p>
       <p><strong>Source IP:</strong> ${escapeHtml(req.sourceIP)}</p>
@@ -668,6 +709,13 @@ async function loadSigningHistory() {
     return;
   }
 
+  let lookup;
+  try {
+    lookup = buildContactLookup(await api.listDesktopContacts());
+  } catch {
+    lookup = new Map();
+  }
+
   const typeIcons = {
     auto: "🤖",
     manual: "👤",
@@ -677,7 +725,17 @@ async function loadSigningHistory() {
   list.innerHTML = records.slice(0, 100).map(record => {
     const icon = typeIcons[record.type] || "⚪";
     const timestamp = new Date(record.timestamp).toLocaleString();
-    const amount = formatTokenAmount(record.value, record.token);
+    const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
+    const toAddr = record.tx_to;
+    const chain = record.tx_chain;
+    const match = toAddr && chain ? lookup.get(contactRecipientKey(chain, toAddr)) : null;
+    const toLabel = match
+      ? `${escapeHtml(match.name)}${match.trusted ? trustedContactBadgeHtml() : ""} · `
+      : "";
+    const shortTo = toAddr
+      ? `${escapeHtml(toAddr.slice(0, 10))}...${escapeHtml(toAddr.slice(-8))}`
+      : "—";
+    const est = typeof record.estimated_usd === "number" ? record.estimated_usd : 0;
     
     return `
       <div class="signing-record ${record.type}">
@@ -687,10 +745,10 @@ async function loadSigningHistory() {
           <span class="signing-time">${timestamp}</span>
         </div>
         <div class="signing-details">
-          <div><strong>${amount} ${escapeHtml(record.token)}</strong> on ${escapeHtml(record.chain)}</div>
-          <div>To: <span class="address-short">${escapeHtml(record.to.slice(0, 10))}...${escapeHtml(record.to.slice(-8))}</span></div>
-          <div>Estimated: $${record.estimatedUSD.toFixed(2)}</div>
-          ${record.txHash ? `<div>TX: <span class="address-short">${escapeHtml(record.txHash.slice(0, 10))}...</span></div>` : ''}
+          <div><strong>${amount} ${escapeHtml(record.tx_token)}</strong> on ${escapeHtml(record.tx_chain)}</div>
+          <div>To: ${toLabel}<span class="address-short">${shortTo}</span></div>
+          <div>Estimated: $${est.toFixed(2)} <span style="color: #888; font-size: 10px;">(at signing)</span></div>
+          ${record.tx_hash ? `<div>TX: <span class="address-short">${escapeHtml(record.tx_hash.slice(0, 10))}...</span></div>` : ''}
         </div>
       </div>
     `;
@@ -737,6 +795,13 @@ async function loadActivityRecords(filter = "all", reset = true) {
   }
 
   try {
+    let lookup;
+    try {
+      lookup = buildContactLookup(await api.listDesktopContacts());
+    } catch {
+      lookup = new Map();
+    }
+
     let records;
     if (filter === "all") {
       records = await api.getActivityRecords(ACTIVITY_PAGE_SIZE, activityOffset);
@@ -757,7 +822,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
     }
 
     records.forEach((record) => {
-      const recordEl = renderActivityRecord(record);
+      const recordEl = renderActivityRecord(record, lookup);
       list.appendChild(recordEl);
     });
 
@@ -775,7 +840,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
   }
 }
 
-function renderActivityRecord(record) {
+function renderActivityRecord(record, contactLookup) {
   const div = document.createElement("div");
   div.className = `activity-record ${record.type} ${record.tx_status || "no-tx"}`;
 
@@ -786,6 +851,13 @@ function renderActivityRecord(record) {
 
   /** Policy USD computed on desktop at signing time (see `tx-usd-estimate` / relay-bridge). */
   const signedPolicyUsd = record.estimated_usd || 0;
+  const match =
+    record.tx_to && record.tx_chain && contactLookup
+      ? contactLookup.get(contactRecipientKey(record.tx_chain, record.tx_to))
+      : null;
+  const toPrefix = match
+    ? `${escapeHtml(match.name)}${match.trusted ? trustedContactBadgeHtml() : ""} · `
+    : "";
 
   div.innerHTML = `
     <div class="activity-record-header">
@@ -796,7 +868,7 @@ function renderActivityRecord(record) {
     <div class="activity-details">
       <div class="activity-amount"><strong>${amount} ${escapeHtml(record.tx_token)}</strong></div>
       <div class="activity-chain">on ${escapeHtml(record.tx_chain)}</div>
-      ${record.tx_to ? `<div>To: <span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
+      ${record.tx_to ? `<div>To: ${toPrefix}<span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
       <div>Estimated: ${signedPolicyUsd > 0 ? `$${signedPolicyUsd.toFixed(2)}` : 'Price unavailable'} <span style="color: #888; font-size: 10px;">(at signing)</span></div>
       ${record.tx_hash ? `<div>TX: <span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span></div>` : ''}
       ${record.block_number ? `<div>Block: ${record.block_number}</div>` : ''}

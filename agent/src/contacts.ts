@@ -27,7 +27,8 @@ export class ContactsManager {
     );
 
     if (existing) {
-      existing.addresses = { ...existing.addresses, ...validatedAddresses };
+      // One display name = one chain + address (matches Desktop authoritative store).
+      existing.addresses = { ...validatedAddresses };
       if (supportedTokens) existing.supportedTokens = supportedTokens;
       existing.lastUpdated = new Date().toISOString();
       return existing;
@@ -59,16 +60,6 @@ export class ContactsManager {
     const address = contact.addresses[chain];
     if (address) {
       return { address, chain, exact: true };
-    }
-
-    const chains = Object.keys(contact.addresses) as SupportedChain[];
-    if (chains.length > 0) {
-      const fallbackChain = chains[0];
-      return {
-        address: contact.addresses[fallbackChain]!,
-        chain: fallbackChain,
-        exact: false,
-      };
     }
 
     return null;

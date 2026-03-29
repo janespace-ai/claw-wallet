@@ -93,14 +93,14 @@ async function loadWalletBalances(address) {
   const balancesList = document.getElementById("balances-list");
   const portfolioValueDisplay = document.getElementById("portfolio-value");
 
-  balancesList.innerHTML = '<div class="loading">Loading balances...</div>';
-  portfolioValueDisplay.textContent = "Loading...";
+  balancesList.innerHTML = `<div class="loading">${i18next.t('common.messages.loading')}</div>`;
+  portfolioValueDisplay.textContent = i18next.t('common.messages.loading');
 
   try {
     const balances = await api.getWalletBalances(address);
     
     if (!balances || balances.length === 0) {
-      balancesList.innerHTML = '<p style="color: #888;">No balances found</p>';
+      balancesList.innerHTML = `<p style="color: #888;">${i18next.t('common.home.noBalances')}</p>`;
       portfolioValueDisplay.textContent = "$0.00";
       return;
     }
@@ -113,8 +113,8 @@ async function loadWalletBalances(address) {
     portfolioValueDisplay.textContent = `$${totalValue.toFixed(2)}`;
   } catch (err) {
     console.error("Failed to load balances:", err);
-    balancesList.innerHTML = '<p style="color: red;">Failed to load balances</p>';
-    portfolioValueDisplay.textContent = "Error";
+    balancesList.innerHTML = `<p style="color: red;">${i18next.t('common.messages.error')}</p>`;
+    portfolioValueDisplay.textContent = i18next.t('common.messages.error');
   }
 }
 
@@ -252,11 +252,11 @@ function setupEventListeners() {
     const errEl = document.getElementById("password-error");
 
     if (password.length < 8) {
-      errEl.textContent = "Password must be at least 8 characters";
+      errEl.textContent = i18next.t('errors.password.tooShort');
       return;
     }
     if (password !== confirm) {
-      errEl.textContent = "Passwords do not match";
+      errEl.textContent = i18next.t('errors.password.mismatch');
       return;
     }
 
@@ -270,7 +270,7 @@ function setupEventListeners() {
       } else {
         const mnemonic = document.getElementById("input-mnemonic").value.trim();
         if (!mnemonic) {
-          errEl.textContent = "Please enter your mnemonic phrase";
+          errEl.textContent = i18next.t('errors.mnemonic.required');
           return;
         }
         await api.importWallet(mnemonic, password);
@@ -590,10 +590,10 @@ function setupRealtimeEvents() {
     const text = document.getElementById("connection-text");
     if (status.connected) {
       indicator.className = "connected";
-      text.textContent = "Connected";
+      text.textContent = i18next.t('common.connection.connected');
     } else {
       indicator.className = "disconnected";
-      text.textContent = "Disconnected";
+      text.textContent = i18next.t('common.connection.disconnected');
     }
   });
 
@@ -628,7 +628,7 @@ async function loadPairedDevices() {
   const devices = await api.getPairedDevices();
   const list = document.getElementById("paired-devices-list");
   if (devices.length === 0) {
-    list.innerHTML = '<p style="color: var(--text-secondary)">No paired devices yet.</p>';
+    list.innerHTML = `<p style="color: var(--text-secondary)">${i18next.t('pairing.noDevices')}</p>`;
     return;
   }
   list.innerHTML = devices.map(d => `
@@ -693,7 +693,7 @@ async function loadSecurityEvents() {
   const events = await api.getSecurityEvents();
   const list = document.getElementById("security-events-list");
   if (events.length === 0) {
-    list.innerHTML = '<p style="color: var(--text-secondary)">No security events.</p>';
+    list.innerHTML = `<p style="color: var(--text-secondary)">${i18next.t('security.events.noEvents')}</p>`;
     return;
   }
   list.innerHTML = events.slice(0, 50).map(e => `
@@ -709,7 +709,7 @@ async function loadSigningHistory() {
   const list = document.getElementById("signing-history-list");
   
   if (!records || records.length === 0) {
-    list.innerHTML = '<p style="color: var(--text-secondary)">No signing history.</p>';
+    list.innerHTML = `<p style="color: var(--text-secondary)">${i18next.t('security.history.noHistory')}</p>`;
     return;
   }
 
@@ -795,7 +795,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
   const list = document.getElementById("activity-list");
   
   if (reset) {
-    list.innerHTML = '<div class="loading">Loading activity...</div>';
+    list.innerHTML = `<div class="loading">${i18next.t('common.messages.loading')}</div>`;
   }
 
   try {
@@ -816,7 +816,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
     }
 
     if (!records || records.length === 0) {
-      list.innerHTML = '<p style="color: #888; text-align: center; padding: 20px;">No activity records found</p>';
+      list.innerHTML = `<p style="color: #888; text-align: center; padding: 20px;">${i18next.t('activity.noRecords')}</p>`;
       document.getElementById("activity-load-more").style.display = "none";
       return;
     }

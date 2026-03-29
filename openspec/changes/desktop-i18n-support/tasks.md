@@ -51,11 +51,11 @@
 - [ ] Replace common JavaScript strings with i18next.t()
 
 ### 2.4 HTML Markup Updates
-- [ ] Add data-i18n attributes to all <h1>, <h2>, <h3> tags
-- [ ] Add data-i18n attributes to all <button> tags
-- [ ] Add data-i18n-placeholder attributes to all <input> placeholders
-- [ ] Add data-i18n attributes to all <label> tags
-- [ ] Add data-i18n attributes to all <p> text elements
+- [x] Add data-i18n attributes to all <h1>, <h2>, <h3> tags
+- [x] Add data-i18n attributes to all <button> tags
+- [x] Add data-i18n-placeholder attributes to all <input> placeholders
+- [x] Add data-i18n attributes to all <label> tags
+- [x] Add data-i18n attributes to all <p> text elements
 - [ ] Test updateStaticTexts() updates all marked elements
 
 ## Phase 3: Dynamic Content Translation (High Priority)

@@ -75,17 +75,17 @@
 
 ## 6. Phase 2: WebSocket Connection Pool (Week 4)
 
-- [ ] 6.1 Create `ConnectionPool` class in `desktop/src/main/connection-pool.ts`
-- [ ] 6.2 Implement unique Pair ID computation per account (BLAKE3(mnemonic + account_index))
-- [ ] 6.3 Implement `connectAccount(accountIndex)` method with WebSocket establishment
-- [ ] 6.4 Add connection state tracking (Map<accountIndex, WebSocketConnection>)
-- [ ] 6.5 Implement `connectAllAccounts()` to establish all connections in parallel
-- [ ] 6.6 Add connection health monitoring with ping/pong every 30 seconds
-- [ ] 6.7 Implement automatic reconnection with exponential backoff (5s, 10s, 30s, 60s)
-- [ ] 6.8 Add reconnection success handler with backoff reset
-- [ ] 6.9 Implement graceful connection cleanup on application exit
-- [ ] 6.10 Add connection timeout handling (3-second limit for close)
-- [ ] 6.11 Implement connection error handling and logging
+- [x] 6.1 Create `ConnectionPool` class in `desktop/src/main/connection-pool.ts`
+- [x] 6.2 Implement unique Pair ID computation per account (BLAKE3(mnemonic + account_index))
+- [x] 6.3 Implement `connectAccount(accountIndex)` method with WebSocket establishment
+- [x] 6.4 Add connection state tracking (Map<accountIndex, WebSocketConnection>)
+- [x] 6.5 Implement `connectAllAccounts()` to establish all connections in parallel
+- [x] 6.6 Add connection health monitoring with ping/pong every 30 seconds
+- [x] 6.7 Implement automatic reconnection with exponential backoff (5s, 10s, 30s, 60s)
+- [x] 6.8 Add reconnection success handler with backoff reset
+- [x] 6.9 Implement graceful connection cleanup on application exit
+- [x] 6.10 Add connection timeout handling (3-second limit for close)
+- [x] 6.11 Implement connection error handling and logging
 - [ ] 6.12 Add unit tests for connection pool management
 - [ ] 6.13 Add integration tests with mock WebSocket server (10 simultaneous connections)
 

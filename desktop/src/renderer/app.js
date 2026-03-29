@@ -1,3 +1,5 @@
+import i18next, { initI18n, changeLanguage } from './i18n.js';
+
 const api = window.walletAPI;
 
 const WEI_DECIMALS = 18;
@@ -47,6 +49,8 @@ let currentContactAddRequest = null;
 let currentAlert = null;
 
 async function init() {
+  await initializeI18n();
+  
   const status = await api.getStatus();
 
   if (!status.hasWallet) {
@@ -904,6 +908,64 @@ function formatRelativeTime(timestamp) {
   if (minutes < 60) return `${minutes}m ago`;
   if (hours < 24) return `${hours}h ago`;
   return `${days}d ago`;
+}
+
+/**
+ * Update all static UI elements with current language
+ */
+function updateStaticTexts() {
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    const translation = i18next.t(key);
+    
+    if (el.tagName === 'INPUT' && el.type === 'button') {
+      el.value = translation;
+    } else {
+      el.textContent = translation;
+    }
+  });
+  
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    const key = el.getAttribute('data-i18n-placeholder');
+    el.placeholder = i18next.t(key);
+  });
+  
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    const key = el.getAttribute('data-i18n-title');
+    el.title = i18next.t(key);
+  });
+}
+
+/**
+ * Initialize i18n on app startup
+ */
+async function initializeI18n() {
+  await initI18n();
+  updateStaticTexts();
+  initializeLanguageSwitcher();
+}
+
+/**
+ * Initialize language switcher UI component
+ */
+function initializeLanguageSwitcher() {
+  const selector = document.getElementById('language-selector');
+  if (!selector) return;
+  
+  selector.value = i18next.language;
+  
+  selector.addEventListener('change', async (e) => {
+    const newLang = e.target.value;
+    
+    try {
+      await changeLanguage(newLang);
+      updateStaticTexts();
+      console.log(`Language changed to: ${newLang}`);
+    } catch (err) {
+      console.error('Failed to change language:', err);
+      selector.value = i18next.language;
+    }
+  });
 }
 
 init();

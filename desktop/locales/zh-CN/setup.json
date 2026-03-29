@@ -1,0 +1,32 @@
+{
+  "welcome": {
+    "title": "欢迎使用 Claw 钱包",
+    "description": "创建新钱包或导入现有钱包。"
+  },
+  "password": {
+    "title": "设置密码",
+    "titleImport": "设置密码",
+    "description": "选择一个强密码来加密您的钱包。",
+    "placeholder": "密码（最少 8 个字符）",
+    "confirmPlaceholder": "确认密码",
+    "mnemonicPlaceholder": "输入 12 个助记词"
+  },
+  "mnemonic": {
+    "title": "备份您的助记词",
+    "warning": "请写下这 12 个单词并妥善保管。这是恢复钱包的唯一方式。",
+    "confirmLabel": "我已写下助记词"
+  },
+  "unlock": {
+    "title": "解锁钱包",
+    "passwordPlaceholder": "输入您的密码",
+    "biometricButton": "使用生物识别"
+  },
+  "buttons": {
+    "createNew": "创建新钱包",
+    "import": "导入钱包",
+    "continue": "继续",
+    "back": "返回",
+    "done": "完成",
+    "unlock": "解锁"
+  }
+}

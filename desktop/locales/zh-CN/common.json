@@ -1,0 +1,54 @@
+{
+  "buttons": {
+    "create": "创建",
+    "import": "导入",
+    "continue": "继续",
+    "back": "返回",
+    "cancel": "取消",
+    "confirm": "确认",
+    "done": "完成",
+    "close": "关闭",
+    "refresh": "刷新",
+    "export": "导出",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "add": "添加",
+    "remove": "移除",
+    "copy": "复制",
+    "loadMore": "加载更多"
+  },
+  "labels": {
+    "address": "地址",
+    "balance": "余额",
+    "amount": "金额",
+    "status": "状态",
+    "timestamp": "时间戳",
+    "wallet": "钱包",
+    "name": "名称",
+    "chain": "链",
+    "token": "代币",
+    "type": "类型"
+  },
+  "connection": {
+    "connected": "已连接",
+    "disconnected": "未连接",
+    "connecting": "连接中..."
+  },
+  "tabs": {
+    "home": "首页",
+    "pairing": "配对",
+    "settings": "设置",
+    "security": "安全",
+    "activity": "活动",
+    "contacts": "联系人"
+  },
+  "messages": {
+    "loading": "加载中...",
+    "noData": "未找到数据",
+    "success": "成功",
+    "error": "错误",
+    "copied": "已复制！",
+    "sameMachineWarning": "⚠ Agent 和钱包在同一台机器上 — 安全性显著降低！"
+  }
+}

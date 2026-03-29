@@ -3,36 +3,36 @@
 ## Phase 1: Infrastructure Setup
 
 ### 1.1 Install Dependencies
-- [ ] Install i18next: `npm install i18next`
-- [ ] Install i18next-resources-to-backend: `npm install i18next-resources-to-backend`
-- [ ] Verify package.json updated correctly
+- [x] Install i18next: `npm install i18next`
+- [x] Install i18next-resources-to-backend: `npm install i18next-resources-to-backend`
+- [x] Verify package.json updated correctly
 
 ### 1.2 Create Translation File Structure
-- [ ] Create `desktop/locales/` directory
-- [ ] Create `desktop/locales/en/` directory
-- [ ] Create `desktop/locales/zh-CN/` directory
-- [ ] Create empty placeholder files for all namespaces (common, setup, activity, security, settings, errors, pairing)
+- [x] Create `desktop/locales/` directory
+- [x] Create `desktop/locales/en/` directory
+- [x] Create `desktop/locales/zh-CN/` directory
+- [x] Create empty placeholder files for all namespaces (common, setup, activity, security, settings, errors, pairing)
 
 ### 1.3 Create i18n Configuration Module
-- [ ] Create `desktop/src/renderer/i18n.js`
-- [ ] Implement `initI18n()` function with i18next configuration
-- [ ] Implement `detectLanguage()` with localStorage + system language detection
-- [ ] Implement `changeLanguage(lng)` with persistence
-- [ ] Export i18next instance
+- [x] Create `desktop/src/renderer/i18n.js`
+- [x] Implement `initI18n()` function with i18next configuration
+- [x] Implement `detectLanguage()` with localStorage + system language detection
+- [x] Implement `changeLanguage(lng)` with persistence
+- [x] Export i18next instance
 
 ### 1.4 Integrate i18n into App
-- [ ] Import i18n.js in app.js
-- [ ] Call `initializeI18n()` in init() function
-- [ ] Create `updateStaticTexts()` function for DOM updates
+- [x] Import i18n.js in app.js
+- [x] Call `initializeI18n()` in init() function
+- [x] Create `updateStaticTexts()` function for DOM updates
 - [ ] Test initialization in both languages
 
 ## Phase 2: Static Content Translation (Critical Path)
 
 ### 2.1 Setup Flow Translation
-- [ ] Extract English text from Setup screen HTML
-- [ ] Create `locales/en/setup.json` with hierarchical structure
-- [ ] Translate to Chinese in `locales/zh-CN/setup.json`
-- [ ] Add data-i18n attributes to Setup screen HTML elements
+- [x] Extract English text from Setup screen HTML
+- [x] Create `locales/en/setup.json` with hierarchical structure
+- [x] Translate to Chinese in `locales/zh-CN/setup.json`
+- [x] Add data-i18n attributes to Setup screen HTML elements
 - [ ] Test Setup flow in both languages
 
 ### 2.2 Error Messages Translation
@@ -43,11 +43,11 @@
 - [ ] Test error scenarios in both languages
 
 ### 2.3 Common Elements Translation
-- [ ] Extract common buttons (Create, Import, Back, Continue, etc.)
-- [ ] Extract common labels (Address, Balance, etc.)
-- [ ] Create `locales/en/common.json`
-- [ ] Translate to `locales/zh-CN/common.json`
-- [ ] Add data-i18n attributes to common HTML elements
+- [x] Extract common buttons (Create, Import, Back, Continue, etc.)
+- [x] Extract common labels (Address, Balance, etc.)
+- [x] Create `locales/en/common.json`
+- [x] Translate to `locales/zh-CN/common.json`
+- [x] Add data-i18n attributes to common HTML elements
 - [ ] Replace common JavaScript strings with i18next.t()
 
 ### 2.4 HTML Markup Updates
@@ -103,18 +103,18 @@
 ## Phase 4: Language Switcher UI (Medium Priority)
 
 ### 4.1 Design and Implement UI Component
-- [ ] Add language switcher HTML to Header (`<select>` dropdown)
-- [ ] Position in top-right corner of Header
-- [ ] Add CSS styles for language selector (.language-switcher, .language-select)
-- [ ] Ensure responsive design (works on small windows)
+- [x] Add language switcher HTML to Header (`<select>` dropdown)
+- [x] Position in top-right corner of Header
+- [x] Add CSS styles for language selector (.language-switcher, .language-select)
+- [x] Ensure responsive design (works on small windows)
 - [ ] Test visual appearance
 
 ### 4.2 Wire Up Functionality
-- [ ] Create `initializeLanguageSwitcher()` function
-- [ ] Add onChange event handler for language selector
-- [ ] Call `changeLanguage()` on selection
-- [ ] Update DOM via `updateStaticTexts()`
-- [ ] Show current language as selected on page load
+- [x] Create `initializeLanguageSwitcher()` function
+- [x] Add onChange event handler for language selector
+- [x] Call `changeLanguage()` on selection
+- [x] Update DOM via `updateStaticTexts()`
+- [x] Show current language as selected on page load
 - [ ] Test language switching flow
 
 ### 4.3 Add User Feedback (Optional)

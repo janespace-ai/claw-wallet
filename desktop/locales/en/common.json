@@ -1,0 +1,54 @@
+{
+  "buttons": {
+    "create": "Create",
+    "import": "Import",
+    "continue": "Continue",
+    "back": "Back",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "done": "Done",
+    "close": "Close",
+    "refresh": "Refresh",
+    "export": "Export",
+    "save": "Save",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "remove": "Remove",
+    "copy": "Copy",
+    "loadMore": "Load More"
+  },
+  "labels": {
+    "address": "Address",
+    "balance": "Balance",
+    "amount": "Amount",
+    "status": "Status",
+    "timestamp": "Timestamp",
+    "wallet": "Wallet",
+    "name": "Name",
+    "chain": "Chain",
+    "token": "Token",
+    "type": "Type"
+  },
+  "connection": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "connecting": "Connecting..."
+  },
+  "tabs": {
+    "home": "Home",
+    "pairing": "Pairing",
+    "settings": "Settings",
+    "security": "Security",
+    "activity": "Activity",
+    "contacts": "Contacts"
+  },
+  "messages": {
+    "loading": "Loading...",
+    "noData": "No data found",
+    "success": "Success",
+    "error": "Error",
+    "copied": "Copied!",
+    "sameMachineWarning": "⚠ Agent and Wallet are on the same machine — security is significantly reduced!"
+  }
+}

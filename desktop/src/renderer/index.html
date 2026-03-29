@@ -11,6 +11,12 @@
   <div id="app">
     <header id="header">
       <h1>Claw Wallet</h1>
+      <div class="language-switcher">
+        <select id="language-selector" class="language-select">
+          <option value="en">English</option>
+          <option value="zh-CN">简体中文</option>
+        </select>
+      </div>
       <div id="connection-indicator" class="disconnected">
         <span class="dot"></span>
         <span id="connection-text">Disconnected</span>
@@ -20,63 +26,63 @@
     <!-- Screens -->
     <div id="screen-setup" class="screen active">
       <div class="card">
-        <h2>Welcome to Claw Wallet</h2>
-        <p>Create a new wallet or import an existing one.</p>
-        <button id="btn-create" class="btn primary">Create New Wallet</button>
-        <button id="btn-import" class="btn secondary">Import Wallet</button>
+        <h2 data-i18n="setup.welcome.title">Welcome to Claw Wallet</h2>
+        <p data-i18n="setup.welcome.description">Create a new wallet or import an existing one.</p>
+        <button id="btn-create" class="btn primary" data-i18n="setup.buttons.createNew">Create New Wallet</button>
+        <button id="btn-import" class="btn secondary" data-i18n="setup.buttons.import">Import Wallet</button>
       </div>
     </div>
 
     <div id="screen-password" class="screen">
       <div class="card">
-        <h2 id="password-title">Set Password</h2>
-        <p id="password-desc">Choose a strong password to encrypt your wallet.</p>
-        <input type="password" id="input-password" placeholder="Password (min 8 chars)" autocomplete="off">
-        <input type="password" id="input-password-confirm" placeholder="Confirm password" autocomplete="off">
+        <h2 id="password-title" data-i18n="setup.password.title">Set Password</h2>
+        <p id="password-desc" data-i18n="setup.password.description">Choose a strong password to encrypt your wallet.</p>
+        <input type="password" id="input-password" data-i18n-placeholder="setup.password.placeholder" placeholder="Password (min 8 chars)" autocomplete="off">
+        <input type="password" id="input-password-confirm" data-i18n-placeholder="setup.password.confirmPlaceholder" placeholder="Confirm password" autocomplete="off">
         <div id="mnemonic-input-area" style="display:none">
-          <textarea id="input-mnemonic" rows="3" placeholder="Enter 12-word mnemonic phrase"></textarea>
+          <textarea id="input-mnemonic" rows="3" data-i18n-placeholder="setup.password.mnemonicPlaceholder" placeholder="Enter 12-word mnemonic phrase"></textarea>
         </div>
-        <button id="btn-password-submit" class="btn primary">Continue</button>
-        <button id="btn-password-back" class="btn ghost">Back</button>
+        <button id="btn-password-submit" class="btn primary" data-i18n="setup.buttons.continue">Continue</button>
+        <button id="btn-password-back" class="btn ghost" data-i18n="setup.buttons.back">Back</button>
         <div id="password-error" class="error"></div>
       </div>
     </div>
 
     <div id="screen-mnemonic" class="screen">
       <div class="card">
-        <h2>Backup Your Mnemonic</h2>
-        <p class="warning">Write down these 12 words and keep them safe. This is the only way to recover your wallet.</p>
+        <h2 data-i18n="setup.mnemonic.title">Backup Your Mnemonic</h2>
+        <p class="warning" data-i18n="setup.mnemonic.warning">Write down these 12 words and keep them safe. This is the only way to recover your wallet.</p>
         <div id="mnemonic-display" class="mnemonic-grid"></div>
         <label class="checkbox-label">
-          <input type="checkbox" id="mnemonic-confirmed"> I have written down my mnemonic
+          <input type="checkbox" id="mnemonic-confirmed"> <span data-i18n="setup.mnemonic.confirmLabel">I have written down my mnemonic</span>
         </label>
-        <button id="btn-mnemonic-done" class="btn primary" disabled>Done</button>
+        <button id="btn-mnemonic-done" class="btn primary" data-i18n="setup.buttons.done" disabled>Done</button>
       </div>
     </div>
 
     <div id="screen-unlock" class="screen">
       <div class="card">
-        <h2>Unlock Wallet</h2>
+        <h2 data-i18n="setup.unlock.title">Unlock Wallet</h2>
         <p id="unlock-address" class="address"></p>
-        <input type="password" id="input-unlock-password" placeholder="Enter your password" autocomplete="off">
-        <button id="btn-unlock" class="btn primary">Unlock</button>
-        <button id="btn-biometric" class="btn secondary" style="display:none">Use Biometrics</button>
+        <input type="password" id="input-unlock-password" data-i18n-placeholder="setup.unlock.passwordPlaceholder" placeholder="Enter your password" autocomplete="off">
+        <button id="btn-unlock" class="btn primary" data-i18n="setup.buttons.unlock">Unlock</button>
+        <button id="btn-biometric" class="btn secondary" data-i18n="setup.unlock.biometricButton" style="display:none">Use Biometrics</button>
         <div id="unlock-error" class="error"></div>
       </div>
     </div>
 
     <div id="screen-main" class="screen">
-      <div id="same-machine-warning" class="alert-banner" style="display:none">
+      <div id="same-machine-warning" class="alert-banner" data-i18n="common.messages.sameMachineWarning" style="display:none">
         ⚠ Agent and Wallet are on the same machine — security is significantly reduced!
       </div>
 
       <nav class="tab-bar">
-        <button class="tab active" data-tab="home">Home</button>
-        <button class="tab" data-tab="pairing">Pairing</button>
-        <button class="tab" data-tab="settings">Settings</button>
-        <button class="tab" data-tab="security">Security</button>
-        <button class="tab" data-tab="activity">Activity</button>
-        <button class="tab" data-tab="contacts">Contacts</button>
+        <button class="tab active" data-tab="home" data-i18n="common.tabs.home">Home</button>
+        <button class="tab" data-tab="pairing" data-i18n="common.tabs.pairing">Pairing</button>
+        <button class="tab" data-tab="settings" data-i18n="common.tabs.settings">Settings</button>
+        <button class="tab" data-tab="security" data-i18n="common.tabs.security">Security</button>
+        <button class="tab" data-tab="activity" data-i18n="common.tabs.activity">Activity</button>
+        <button class="tab" data-tab="contacts" data-i18n="common.tabs.contacts">Contacts</button>
       </nav>
 
       <!-- Home tab -->

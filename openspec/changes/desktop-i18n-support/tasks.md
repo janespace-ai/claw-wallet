@@ -93,8 +93,8 @@
 - [ ] Test Pairing flow in both languages
 
 ### 3.5 Refactor JavaScript Strings
-- [ ] Replace alert() messages with i18next.t()
-- [ ] Replace confirm() messages with i18next.t()
+- [x] Replace alert() messages with i18next.t()
+- [x] Replace confirm() messages with i18next.t()
 - [ ] Replace innerHTML string literals with template + i18next.t()
 - [ ] Replace textContent assignments with i18next.t()
 - [ ] Grep for remaining hardcoded English text: `grep -r "Create\|Import\|Welcome" desktop/src/renderer/`
@@ -166,10 +166,10 @@
 - [ ] Add comments to complex i18n logic
 
 ### 5.6 Documentation
-- [ ] Update README with i18n architecture section
-- [ ] Document how to add a new language
-- [ ] Document translation key naming conventions
-- [ ] Document how to use i18next.t() for developers
+- [x] Update README with i18n architecture section
+- [x] Document how to add a new language
+- [x] Document translation key naming conventions
+- [x] Document how to use i18next.t() for developers
 - [ ] Add translation workflow to CONTRIBUTING.md
 - [ ] Document testing procedures
 

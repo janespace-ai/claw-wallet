@@ -24,15 +24,27 @@ function detectLanguage() {
 export async function initI18n() {
   const lng = detectLanguage();
   
+  // JSON paths are `./locales/...` relative to this module. `npm run build` copies
+  // `desktop/locales/*` into `dist/renderer/locales/` so packaged apps resolve imports inside asar.
   await i18next
     .use(resourcesToBackend((language, namespace) => {
-      return import(`../../locales/${language}/${namespace}.json`);
+      return import(`./locales/${language}/${namespace}.json`);
     }))
     .init({
       lng,
       fallbackLng: 'en',
       defaultNS: 'common',
-      ns: ['common', 'setup', 'activity', 'security', 'settings', 'errors', 'pairing'],
+      ns: [
+        'common',
+        'setup',
+        'activity',
+        'security',
+        'settings',
+        'errors',
+        'pairing',
+        'modals',
+        'contactsPage',
+      ],
       
       interpolation: {
         escapeValue: false,

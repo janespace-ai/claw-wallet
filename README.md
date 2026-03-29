@@ -602,14 +602,17 @@ The Desktop app supports multiple languages with runtime language switching:
 i18next Framework
 ├── Translation Files (desktop/locales/)
 │   ├── en/
-│   │   ├── common.json      # Buttons, labels, messages
+│   │   ├── common.json      # Buttons labels messages
 │   │   ├── setup.json       # Wallet setup flow
 │   │   ├── activity.json    # Transaction activity
 │   │   ├── security.json    # Security events
 │   │   ├── settings.json    # Settings panel
 │   │   ├── pairing.json     # Device pairing
-│   │   └── errors.json      # Error messages
-│   └── zh-CN/ (same structure)
+│   │   ├── errors.json      # Error messages
+│   │   ├── modals.json      # Approval export alert dialogs
+│   │   └── contactsPage.json
+│   └── zh-CN/ (same structure; keep keys in sync with en)
+│   Note: `npm run build` copies these files to dist/renderer/locales/ for Electron.
 ├── Language Detection (i18n.js)
 │   ├── 1. Check localStorage (user preference)
 │   ├── 2. Check navigator.language (system)

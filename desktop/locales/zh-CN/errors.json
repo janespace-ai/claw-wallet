@@ -32,5 +32,12 @@
   "general": {
     "unknownError": "发生未知错误",
     "tryAgain": "请重试"
+  },
+  "activity": {
+    "loadFailed": "加载活动失败"
+  },
+  "biometric": {
+    "promptPassword": "请输入钱包密码以启用生物识别解锁：",
+    "changeFailed": "更改生物识别设置失败"
   }
 }

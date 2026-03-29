@@ -5,8 +5,9 @@
   },
   "password": {
     "title": "Set Password",
-    "titleImport": "Set Password",
+    "importTitle": "Import Wallet",
     "description": "Choose a strong password to encrypt your wallet.",
+    "importDescription": "Enter your mnemonic and set a password.",
     "placeholder": "Password (min 8 chars)",
     "confirmPlaceholder": "Confirm password",
     "mnemonicPlaceholder": "Enter 12-word mnemonic phrase"

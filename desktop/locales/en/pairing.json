@@ -7,6 +7,11 @@
   "deviceId": "Device ID",
   "lastSeen": "Last Seen",
   "remove": "Remove",
+  "revoke": "Revoke",
+  "rowMeta": "IP: {ip} · Paired: {date}",
+  "codeExpired": "Code expired",
+  "expiresIn": "Expires in {time}",
   "countdownExpires": "Expires in",
-  "countdownSeconds": "seconds"
+  "countdownSeconds": "seconds",
+  "clipboardPrompt": "My Claw Wallet pairing code is: {code}\nPlease pair with it using wallet_pair tool."
 }

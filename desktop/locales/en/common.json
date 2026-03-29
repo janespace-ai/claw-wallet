@@ -57,7 +57,23 @@
     "portfolioValue": "Total Portfolio Value",
     "balances": "Balances",
     "noPendingTx": "No pending transactions",
-    "noBalances": "No balances found"
+    "noBalances": "No balances found",
+    "allBalancesZero": "All balances are zero",
+    "priceUnavailable": "Price unavailable"
+  },
+  "app": {
+    "title": "Claw Wallet"
+  },
+  "biometric": {
+    "useWithLabel": "Use {label}",
+    "defaultUnlock": "Biometrics",
+    "enableConfirm": "Enable {name} for quick unlock?"
+  },
+  "relativeTime": {
+    "secondsAgo": "{count}s ago",
+    "minutesAgo": "{count}m ago",
+    "hoursAgo": "{count}h ago",
+    "daysAgo": "{count}d ago"
   },
   "contacts": {
     "trusted": "Trusted",

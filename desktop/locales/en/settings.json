@@ -9,7 +9,16 @@
     "description": "Require manual approval for all transactions (ignores limits)",
     "enable": "Enable Lock Mode",
     "disable": "Disable Lock Mode",
-    "active": "🔒 Lock Mode Active"
+    "active": "🔒 Lock Mode Active",
+    "optionConvenience": "Convenience (auto-sign within budget)",
+    "optionStrict": "Strict (lock on idle)"
+  },
+  "biometric": {
+    "enableUnlock": "Enable biometric unlock"
+  },
+  "actions": {
+    "title": "Actions",
+    "lockWallet": "Lock Wallet"
   },
   "export": {
     "title": "Export Wallet",

@@ -17,7 +17,9 @@
     "atSigning": "（签名时）",
     "txHash": "交易",
     "block": "区块",
-    "priceUnavailable": "价格不可用"
+    "priceUnavailable": "价格不可用",
+    "onChain": "在 {chain} 上",
+    "noRecipient": "—"
   },
   "status": {
     "success": "✅ 成功",

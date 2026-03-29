@@ -64,7 +64,7 @@
 - [x] Extract Settings tab text
 - [x] Create `locales/en/settings.json`
 - [x] Translate to `locales/zh-CN/settings.json`
-- [ ] Update Settings rendering code with i18next.t()
+- [x] Update Settings rendering code with i18next.t()
 - [ ] Test Settings tab in both languages
 
 ### 3.2 Security Tab Translation
@@ -80,7 +80,7 @@
 - [x] Extract Activity tab text (filters, labels, etc.)
 - [x] Create `locales/en/activity.json`
 - [x] Translate to `locales/zh-CN/activity.json`
-- [ ] Update `renderActivityRecord()` with i18next.t()
+- [x] Update `renderActivityRecord()` with i18next.t()
 - [x] Update activity filter buttons with data-i18n
 - [ ] Test Activity tab in both languages
 
@@ -88,17 +88,17 @@
 - [x] Extract Pairing tab text
 - [x] Create `locales/en/pairing.json`
 - [x] Translate to `locales/zh-CN/pairing.json`
-- [ ] Update pairing code generation messages
-- [ ] Update device list rendering
+- [x] Update pairing code generation messages
+- [x] Update device list rendering
 - [ ] Test Pairing flow in both languages
 
 ### 3.5 Refactor JavaScript Strings
 - [x] Replace alert() messages with i18next.t()
 - [x] Replace confirm() messages with i18next.t()
-- [ ] Replace innerHTML string literals with template + i18next.t()
-- [ ] Replace textContent assignments with i18next.t()
-- [ ] Grep for remaining hardcoded English text: `grep -r "Create\|Import\|Welcome" desktop/src/renderer/`
-- [ ] Fix any remaining hardcoded strings
+- [x] Replace innerHTML string literals with template + i18next.t()
+- [x] Replace textContent assignments with i18next.t()
+- [x] Grep for remaining hardcoded English text: `grep -r "Create\|Import\|Welcome" desktop/src/renderer/`
+- [x] Fix any remaining hardcoded strings
 
 ## Phase 4: Language Switcher UI (Medium Priority)
 
@@ -118,8 +118,8 @@
 - [ ] Test language switching flow
 
 ### 4.3 Add User Feedback (Optional)
-- [ ] Add loading state during language switch (if needed)
-- [ ] Add transition animation for smooth updates (optional)
+- [x] Add loading state during language switch (if needed)
+- [x] Add transition animation for smooth updates (optional)
 - [ ] Test user experience
 
 ## Phase 5: Testing & Polish (Medium Priority)
@@ -158,26 +158,26 @@
 - [ ] Test localStorage quota exceeded (unlikely but possible)
 
 ### 5.5 Code Quality
-- [ ] Remove any remaining hardcoded strings
-- [ ] Ensure all translation keys follow naming conventions
-- [ ] Check for duplicate translation keys
-- [ ] Verify all namespace files are properly organized
-- [ ] Run linter/prettier on new code
-- [ ] Add comments to complex i18n logic
+- [x] Remove any remaining hardcoded strings
+- [x] Ensure all translation keys follow naming conventions
+- [x] Check for duplicate translation keys
+- [x] Verify all namespace files are properly organized
+- [x] Run linter/prettier on new code
+- [x] Add comments to complex i18n logic
 
 ### 5.6 Documentation
 - [x] Update README with i18n architecture section
 - [x] Document how to add a new language
 - [x] Document translation key naming conventions
 - [x] Document how to use i18next.t() for developers
-- [ ] Add translation workflow to CONTRIBUTING.md
-- [ ] Document testing procedures
+- [x] Add translation workflow to CONTRIBUTING.md
+- [x] Document testing procedures
 
 ## Phase 6: Final Integration & Deployment
 
 ### 6.1 Build and Package Testing
-- [ ] Test npm run build includes translation files
-- [ ] Test Electron packaging includes locales/ directory
+- [x] Test npm run build includes translation files
+- [x] Test Electron packaging includes locales/ directory
 - [ ] Verify app works correctly when packaged (.app or .exe)
 - [ ] Test language switching in packaged app
 - [ ] Verify file size increase is reasonable (~25KB expected)

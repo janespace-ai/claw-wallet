@@ -17,7 +17,9 @@
     "atSigning": "(at signing)",
     "txHash": "TX",
     "block": "Block",
-    "priceUnavailable": "Price unavailable"
+    "priceUnavailable": "Price unavailable",
+    "onChain": "on {chain}",
+    "noRecipient": "—"
   },
   "status": {
     "success": "✅ Success",

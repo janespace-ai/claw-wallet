@@ -9,7 +9,16 @@
     "description": "所有交易都需要手动批准（忽略限额）",
     "enable": "启用锁定模式",
     "disable": "禁用锁定模式",
-    "active": "🔒 锁定模式已启用"
+    "active": "🔒 锁定模式已启用",
+    "optionConvenience": "便捷（限额内可自动签名）",
+    "optionStrict": "严格（空闲时锁定）"
+  },
+  "biometric": {
+    "enableUnlock": "启用生物识别解锁"
+  },
+  "actions": {
+    "title": "操作",
+    "lockWallet": "锁定钱包"
   },
   "export": {
     "title": "导出钱包",

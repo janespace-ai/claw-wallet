@@ -40,7 +40,8 @@ function buildContactLookup(contacts) {
 }
 
 function trustedContactBadgeHtml() {
-  return ` <span style="font-size:11px;background:#1a472a;color:#8f8;padding:2px 6px;border-radius:4px;margin-left:6px">可信任</span>`;
+  const label = i18next.t("common.contacts.trusted");
+  return ` <span style="font-size:11px;background:#1a472a;color:#8f8;padding:2px 6px;border-radius:4px;margin-left:6px">${escapeHtml(label)}</span>`;
 }
 
 let currentMode = "setup";
@@ -122,7 +123,7 @@ function renderBalances(balances, prices) {
   const balancesList = document.getElementById("balances-list");
   
   if (!balances || balances.length === 0) {
-    balancesList.innerHTML = '<p style="color: #888;">No balances found</p>';
+    balancesList.innerHTML = `<p style="color: #888;">${i18next.t("common.home.noBalances")}</p>`;
     return;
   }
 
@@ -132,8 +133,9 @@ function renderBalances(balances, prices) {
       if (amount === 0) return '';
 
       const price = prices[balance.symbol] || null;
-      const usdValue = price ? (amount * price).toFixed(2) : "N/A";
-      const unitPrice = price ? `$${price.toFixed(2)}/${balance.symbol}` : "";
+      const hasPrice = price != null;
+      const usdStr = hasPrice ? (amount * price).toFixed(2) : null;
+      const unitPrice = hasPrice ? `$${price.toFixed(2)}/${balance.symbol}` : "";
 
       return `
         <div class="balance-card">
@@ -142,7 +144,7 @@ function renderBalances(balances, prices) {
             <span class="balance-chain">${escapeHtml(balance.chain)}</span>
           </div>
           <div class="balance-amount">${amount.toFixed(6)}</div>
-          <div class="balance-usd">${usdValue !== "N/A" ? `$${usdValue}` : "Price unavailable"}</div>
+          <div class="balance-usd">${hasPrice && usdStr ? `$${usdStr}` : i18next.t("common.home.priceUnavailable")}</div>
           ${unitPrice ? `<div class="balance-unit-price">${unitPrice}</div>` : ""}
         </div>
       `;
@@ -151,7 +153,7 @@ function renderBalances(balances, prices) {
     .join('');
 
   if (!balancesList.innerHTML.trim()) {
-    balancesList.innerHTML = '<p style="color: #888;">All balances are zero</p>';
+    balancesList.innerHTML = `<p style="color: #888;">${i18next.t("common.home.allBalancesZero")}</p>`;
   }
 }
 
@@ -188,7 +190,9 @@ async function updateBiometricButton() {
   const bioAvailable = await api.getBiometricAvailable();
   if (bioAvailable) {
     const label = await api.getBiometricLabel();
-    btn.textContent = label ? `Use ${label}` : "Use Biometrics";
+    btn.textContent = label
+      ? i18next.t("common.biometric.useWithLabel", { label })
+      : i18next.t("setup.unlock.biometricButton");
     btn.style.display = "block";
   } else {
     btn.style.display = "none";
@@ -217,7 +221,8 @@ async function syncSettingsFromStatus(status) {
       const bioAvailable = await api.getBiometricAvailable();
       document.getElementById("toggle-biometric").checked = bioAvailable;
       const label = await api.getBiometricLabel();
-      document.getElementById("biometric-label").textContent = label || "Biometrics";
+      document.getElementById("biometric-label").textContent =
+        label || i18next.t("common.biometric.defaultUnlock");
     } else {
       bioCard.style.display = "none";
     }
@@ -229,16 +234,16 @@ async function syncSettingsFromStatus(status) {
 function setupEventListeners() {
   // Setup screen
   document.getElementById("btn-create").onclick = () => {
-    document.getElementById("password-title").textContent = "Set Password";
-    document.getElementById("password-desc").textContent = "Choose a strong password to encrypt your wallet.";
+    document.getElementById("password-title").textContent = i18next.t("setup.password.title");
+    document.getElementById("password-desc").textContent = i18next.t("setup.password.description");
     document.getElementById("mnemonic-input-area").style.display = "none";
     document.getElementById("btn-password-submit").dataset.action = "create";
     showScreen("password");
   };
 
   document.getElementById("btn-import").onclick = () => {
-    document.getElementById("password-title").textContent = "Import Wallet";
-    document.getElementById("password-desc").textContent = "Enter your mnemonic and set a password.";
+    document.getElementById("password-title").textContent = i18next.t("setup.password.importTitle");
+    document.getElementById("password-desc").textContent = i18next.t("setup.password.importDescription");
     document.getElementById("mnemonic-input-area").style.display = "block";
     document.getElementById("btn-password-submit").dataset.action = "import";
     showScreen("password");
@@ -363,7 +368,7 @@ function setupEventListeners() {
       startCountdown(result.expiresAt);
 
       // Auto-copy to clipboard with Agent-friendly prompt
-      const agentPrompt = `My Claw Wallet pairing code is: ${result.code}\nPlease pair with it using wallet_pair tool.`;
+      const agentPrompt = i18next.t("pairing.clipboardPrompt", { code: result.code });
       try {
         await navigator.clipboard.writeText(agentPrompt);
         showClipboardFeedback();
@@ -404,7 +409,7 @@ function setupEventListeners() {
   document.getElementById("toggle-biometric").onchange = async (e) => {
     try {
       if (e.target.checked) {
-        const password = prompt("Enter your wallet password to enable biometric unlock:");
+        const password = prompt(i18next.t("errors.biometric.promptPassword"));
         if (!password) {
           e.target.checked = false;
           return;
@@ -415,7 +420,7 @@ function setupEventListeners() {
       }
     } catch (err) {
       e.target.checked = !e.target.checked;
-      alert(err.message || "Failed to change biometric setting");
+      alert(err.message || i18next.t("errors.biometric.changeFailed"));
     }
   };
 
@@ -541,7 +546,7 @@ function setupRealtimeEvents() {
     const cc = req.counterpartyContact;
     const bookLine =
       cc && cc.name
-        ? `<p><strong>通讯录:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
+        ? `<p><strong>${escapeHtml(i18next.t("modals.tx.addressBook"))}:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
         : "";
     const transferText =
       req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
@@ -550,17 +555,17 @@ function setupRealtimeEvents() {
     const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
     const canValuate = req.priceAvailable === true;
     const usdtLine = canValuate
-      ? `<p><strong>预估价值:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">（按桌面市价换算）</span></p>`
-      : `<p><strong>预估价值:</strong> <span style="color:var(--text-secondary)">暂无法换算为 USDT</span></p>`;
+      ? `<p><strong>${escapeHtml(i18next.t("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(i18next.t("modals.tx.estimatedHint"))}</span></p>`
+      : `<p><strong>${escapeHtml(i18next.t("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(i18next.t("modals.tx.noUsdt"))}</span></p>`;
     details.innerHTML = `
-      <p><strong>Method:</strong> ${escapeHtml(req.method)}</p>
+      <p><strong>${escapeHtml(i18next.t("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
       ${bookLine}
-      <p><strong>To:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
-      <p><strong>转账（币种 × 数量）:</strong> ${transferText}</p>
+      <p><strong>${escapeHtml(i18next.t("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
+      <p><strong>${escapeHtml(i18next.t("modals.tx.transfer"))}:</strong> ${transferText}</p>
       ${usdtLine}
-      <p><strong>Chain:</strong> ${escapeHtml(req.chain)}</p>
-      <p><strong>From Device:</strong> ${escapeHtml(req.fromDevice)}</p>
-      <p><strong>Source IP:</strong> ${escapeHtml(req.sourceIP)}</p>
+      <p><strong>${escapeHtml(i18next.t("modals.tx.chain"))}:</strong> ${escapeHtml(req.chain)}</p>
+      <p><strong>${escapeHtml(i18next.t("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
+      <p><strong>${escapeHtml(i18next.t("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
     `;
     const trustWrap = document.getElementById("tx-trust-wrap");
     const trustChk = document.getElementById("chk-trust-after-success");
@@ -579,7 +584,7 @@ function setupRealtimeEvents() {
     const summary = document.getElementById("contact-add-summary");
     summary.innerHTML = `
       <strong>${escapeHtml(req.name)}</strong><br>
-      链: ${escapeHtml(req.chain)}<br>
+      ${escapeHtml(i18next.t("modals.contactAdd.chainLine", { chain: req.chain }))}<br>
       <span class="address">${escapeHtml(req.address)}</span>
     `;
     document.getElementById("modal-contact-add").style.display = "flex";
@@ -613,8 +618,8 @@ function setupRealtimeEvents() {
 
   api.onBiometricPrompt(async (password) => {
     const label = await api.getBiometricLabel();
-    const name = label || "biometric unlock";
-    if (confirm(`Enable ${name} for quick unlock?`)) {
+    const name = label || i18next.t("common.biometric.defaultUnlock");
+    if (confirm(i18next.t("common.biometric.enableConfirm", { name }))) {
       try {
         await api.setBiometricEnabled(true, password);
       } catch (err) {
@@ -635,9 +640,12 @@ async function loadPairedDevices() {
     <div class="device-item">
       <div class="info">
         <div>${d.deviceId}</div>
-        <div class="ip">IP: ${d.lastIP} · Paired: ${new Date(d.pairedAt).toLocaleDateString()}</div>
+        <div class="ip">${i18next.t("pairing.rowMeta", {
+          ip: d.lastIP,
+          date: new Date(d.pairedAt).toLocaleDateString(),
+        })}</div>
       </div>
-      <button class="btn danger" style="width:auto;padding:6px 12px" onclick="revokeDevice('${d.deviceId}')">Revoke</button>
+      <button class="btn danger" style="width:auto;padding:6px 12px" onclick="revokeDevice('${d.deviceId}')">${i18next.t("pairing.revoke")}</button>
     </div>
   `).join("");
 }
@@ -652,8 +660,7 @@ async function loadDesktopContacts() {
   try {
     const rows = await api.listDesktopContacts();
     if (!rows || rows.length === 0) {
-      list.innerHTML =
-        '<p style="color: var(--text-secondary)">No contacts yet. Add them from the Agent (wallet_contacts_add).</p>';
+      list.innerHTML = `<p style="color: var(--text-secondary)">${i18next.t("contactsPage.empty")}</p>`;
       return;
     }
     list.innerHTML = "";
@@ -720,7 +727,7 @@ async function loadSigningHistory() {
     lookup = new Map();
   }
 
-  const typeIcons = {
+    const typeIcons = {
     auto: "🤖",
     manual: "👤",
     rejected: "❌"
@@ -728,6 +735,7 @@ async function loadSigningHistory() {
 
   list.innerHTML = records.slice(0, 100).map(record => {
     const icon = typeIcons[record.type] || "⚪";
+    const typeLabel = i18next.t(`activity.types.${record.type}`);
     const timestamp = new Date(record.timestamp).toLocaleString();
     const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
     const toAddr = record.tx_to;
@@ -738,21 +746,22 @@ async function loadSigningHistory() {
       : "";
     const shortTo = toAddr
       ? `${escapeHtml(toAddr.slice(0, 10))}...${escapeHtml(toAddr.slice(-8))}`
-      : "—";
+      : escapeHtml(i18next.t("activity.details.noRecipient"));
     const est = typeof record.estimated_usd === "number" ? record.estimated_usd : 0;
+    const onChain = escapeHtml(i18next.t("activity.details.onChain", { chain: record.tx_chain }));
     
     return `
       <div class="signing-record ${record.type}">
         <div class="signing-record-header">
           <span class="signing-icon">${icon}</span>
-          <span class="signing-type">${record.type.toUpperCase()}</span>
+          <span class="signing-type">${escapeHtml(typeLabel)}</span>
           <span class="signing-time">${timestamp}</span>
         </div>
         <div class="signing-details">
-          <div><strong>${amount} ${escapeHtml(record.tx_token)}</strong> on ${escapeHtml(record.tx_chain)}</div>
-          <div>To: ${toLabel}<span class="address-short">${shortTo}</span></div>
-          <div>Estimated: $${est.toFixed(2)} <span style="color: #888; font-size: 10px;">(at signing)</span></div>
-          ${record.tx_hash ? `<div>TX: <span class="address-short">${escapeHtml(record.tx_hash.slice(0, 10))}...</span></div>` : ''}
+          <div><strong>${amount} ${escapeHtml(record.tx_token)}</strong> ${onChain}</div>
+          <div>${escapeHtml(i18next.t("activity.details.to"))}: ${toLabel}<span class="address-short">${shortTo}</span></div>
+          <div>${escapeHtml(i18next.t("activity.details.estimated"))}: $${est.toFixed(2)} <span style="color: #888; font-size: 10px;">${escapeHtml(i18next.t("activity.details.atSigning"))}</span></div>
+          ${record.tx_hash ? `<div>${escapeHtml(i18next.t("activity.details.txHash"))}: <span class="address-short">${escapeHtml(record.tx_hash.slice(0, 10))}...</span></div>` : ''}
         </div>
       </div>
     `;
@@ -765,9 +774,11 @@ function startCountdown(expiresAt) {
     const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
     const min = Math.floor(remaining / 60);
     const sec = remaining % 60;
-    el.textContent = `Expires in ${min}:${sec.toString().padStart(2, "0")}`;
+    el.textContent = i18next.t("pairing.expiresIn", {
+      time: `${min}:${sec.toString().padStart(2, "0")}`,
+    });
     if (remaining <= 0) {
-      el.textContent = "Code expired";
+      el.textContent = i18next.t("pairing.codeExpired");
       document.getElementById("pair-code-display").style.display = "none";
     }
   };
@@ -840,7 +851,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
     activityOffset += records.length;
   } catch (err) {
     console.error("Failed to load activity:", err);
-    list.innerHTML = '<p style="color: red;">Failed to load activity</p>';
+    list.innerHTML = `<p style="color: red;">${escapeHtml(i18next.t("errors.activity.loadFailed"))}</p>`;
   }
 }
 
@@ -849,7 +860,6 @@ function renderActivityRecord(record, contactLookup) {
   div.className = `activity-record ${record.type} ${record.tx_status || "no-tx"}`;
 
   const statusIcon = getStatusIcon(record);
-  const typeIcon = getTypeIcon(record.type);
   const timestamp = formatRelativeTime(record.timestamp);
   const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
 
@@ -863,19 +873,26 @@ function renderActivityRecord(record, contactLookup) {
     ? `${escapeHtml(match.name)}${match.trusted ? trustedContactBadgeHtml() : ""} · `
     : "";
 
+  const typeLabel = escapeHtml(i18next.t(`activity.types.${record.type}`));
+  const onChain = escapeHtml(i18next.t("activity.details.onChain", { chain: record.tx_chain }));
+  const estLine =
+    signedPolicyUsd > 0
+      ? `$${signedPolicyUsd.toFixed(2)}`
+      : escapeHtml(i18next.t("activity.details.priceUnavailable"));
+
   div.innerHTML = `
     <div class="activity-record-header">
       <span class="activity-status">${statusIcon}</span>
-      <span class="activity-type">${typeIcon} ${record.type.toUpperCase()}</span>
+      <span class="activity-type">${typeLabel}</span>
       <span class="activity-time">${timestamp}</span>
     </div>
     <div class="activity-details">
       <div class="activity-amount"><strong>${amount} ${escapeHtml(record.tx_token)}</strong></div>
-      <div class="activity-chain">on ${escapeHtml(record.tx_chain)}</div>
-      ${record.tx_to ? `<div>To: ${toPrefix}<span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
-      <div>Estimated: ${signedPolicyUsd > 0 ? `$${signedPolicyUsd.toFixed(2)}` : 'Price unavailable'} <span style="color: #888; font-size: 10px;">(at signing)</span></div>
-      ${record.tx_hash ? `<div>TX: <span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span></div>` : ''}
-      ${record.block_number ? `<div>Block: ${record.block_number}</div>` : ''}
+      <div class="activity-chain">${onChain}</div>
+      ${record.tx_to ? `<div>${escapeHtml(i18next.t("activity.details.to"))}: ${toPrefix}<span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
+      <div>${escapeHtml(i18next.t("activity.details.estimated"))}: ${estLine} <span style="color: #888; font-size: 10px;">${escapeHtml(i18next.t("activity.details.atSigning"))}</span></div>
+      ${record.tx_hash ? `<div>${escapeHtml(i18next.t("activity.details.txHash"))}: <span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span></div>` : ''}
+      ${record.block_number ? `<div>${escapeHtml(i18next.t("activity.details.block"))}: ${record.block_number}</div>` : ''}
     </div>
   `;
 
@@ -891,11 +908,6 @@ function getStatusIcon(record) {
   return "❓";
 }
 
-function getTypeIcon(type) {
-  const icons = { auto: "🤖", manual: "👤", rejected: "❌" };
-  return icons[type] || "⚪";
-}
-
 function formatRelativeTime(timestamp) {
   const now = Date.now();
   const diff = now - timestamp;
@@ -904,10 +916,10 @@ function formatRelativeTime(timestamp) {
   const hours = Math.floor(minutes / 60);
   const days = Math.floor(hours / 24);
 
-  if (seconds < 60) return `${seconds}s ago`;
-  if (minutes < 60) return `${minutes}m ago`;
-  if (hours < 24) return `${hours}h ago`;
-  return `${days}d ago`;
+  if (seconds < 60) return i18next.t("common.relativeTime.secondsAgo", { count: seconds });
+  if (minutes < 60) return i18next.t("common.relativeTime.minutesAgo", { count: minutes });
+  if (hours < 24) return i18next.t("common.relativeTime.hoursAgo", { count: hours });
+  return i18next.t("common.relativeTime.daysAgo", { count: days });
 }
 
 /**
@@ -924,6 +936,11 @@ function updateStaticTexts() {
       el.textContent = translation;
     }
   });
+
+  document.querySelectorAll("option[data-i18n]").forEach((el) => {
+    const key = el.getAttribute("data-i18n");
+    el.textContent = i18next.t(key);
+  });
   
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
@@ -934,6 +951,47 @@ function updateStaticTexts() {
     const key = el.getAttribute('data-i18n-title');
     el.title = i18next.t(key);
   });
+
+  document.title = i18next.t("modals.app.title");
+}
+
+function applyPasswordScreenI18n() {
+  const action = document.getElementById("btn-password-submit")?.dataset?.action;
+  const titleEl = document.getElementById("password-title");
+  const descEl = document.getElementById("password-desc");
+  if (!titleEl || !descEl) return;
+  if (action === "import") {
+    titleEl.textContent = i18next.t("setup.password.importTitle");
+    descEl.textContent = i18next.t("setup.password.importDescription");
+  } else {
+    titleEl.textContent = i18next.t("setup.password.title");
+    descEl.textContent = i18next.t("setup.password.description");
+  }
+}
+
+async function refreshDynamicI18n() {
+  await updateBiometricButton();
+  const main = document.getElementById("screen-main");
+  if (main?.classList.contains("active")) {
+    const activeTab = document.querySelector(".tab.active");
+    const tab = activeTab?.dataset.tab;
+    try {
+      if (tab === "pairing") await loadPairedDevices();
+      else if (tab === "security") {
+        await loadSecurityEvents();
+        await loadSigningHistory();
+      } else if (tab === "activity") await loadActivityRecords(currentActivityFilter, true);
+      else if (tab === "contacts") await loadDesktopContacts();
+      else if (tab === "home") {
+        const status = await api.getStatus();
+        if (status.address) await loadWalletBalances(status.address);
+      }
+    } catch (e) {
+      console.error("refreshDynamicI18n:", e);
+    }
+  }
+  const pwd = document.getElementById("screen-password");
+  if (pwd?.classList.contains("active")) applyPasswordScreenI18n();
 }
 
 /**
@@ -956,14 +1014,22 @@ function initializeLanguageSwitcher() {
   
   selector.addEventListener('change', async (e) => {
     const newLang = e.target.value;
-    
+    const appRoot = document.getElementById("app");
+
+    selector.disabled = true;
+    appRoot?.classList.add("i18n-switching");
+
     try {
       await changeLanguage(newLang);
       updateStaticTexts();
+      await refreshDynamicI18n();
       console.log(`Language changed to: ${newLang}`);
     } catch (err) {
       console.error('Failed to change language:', err);
       selector.value = i18next.language;
+    } finally {
+      selector.disabled = false;
+      appRoot?.classList.remove("i18n-switching");
     }
   });
 }

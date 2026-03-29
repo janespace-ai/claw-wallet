@@ -32,5 +32,12 @@
   "general": {
     "unknownError": "An unknown error occurred",
     "tryAgain": "Please try again"
+  },
+  "activity": {
+    "loadFailed": "Failed to load activity"
+  },
+  "biometric": {
+    "promptPassword": "Enter your wallet password to enable biometric unlock:",
+    "changeFailed": "Failed to change biometric setting"
   }
 }

@@ -57,11 +57,27 @@
     "portfolioValue": "总资产价值",
     "balances": "余额",
     "noPendingTx": "无待处理交易",
-    "noBalances": "未找到余额"
+    "noBalances": "未找到余额",
+    "allBalancesZero": "余额均为零",
+    "priceUnavailable": "价格不可用"
   },
   "contacts": {
     "trusted": "可信任",
-    "removeConfirm": "移除联系人"{name}"的所有条目？",
+    "removeConfirm": "移除联系人「{name}」的所有条目？",
     "nameRequired": "请填写可信任联系人的显示名称。"
+  },
+  "app": {
+    "title": "Claw 钱包"
+  },
+  "biometric": {
+    "useWithLabel": "使用 {label}",
+    "defaultUnlock": "生物识别",
+    "enableConfirm": "是否启用 {name} 以快速解锁？"
+  },
+  "relativeTime": {
+    "secondsAgo": "{count} 秒前",
+    "minutesAgo": "{count} 分钟前",
+    "hoursAgo": "{count} 小时前",
+    "daysAgo": "{count} 天前"
   }
 }

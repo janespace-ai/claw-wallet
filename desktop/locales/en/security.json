@@ -5,6 +5,7 @@
   },
   "history": {
     "title": "Signing History",
+    "subtitle": "All signing decisions (auto-approved, manually approved, and rejected)",
     "noHistory": "No signing history",
     "filters": {
       "all": "All",

@@ -7,6 +7,11 @@
   "deviceId": "设备 ID",
   "lastSeen": "最后在线",
   "remove": "移除",
+  "revoke": "撤销",
+  "rowMeta": "IP：{ip} · 配对：{date}",
+  "codeExpired": "配对码已过期",
+  "expiresIn": "剩余 {time}",
   "countdownExpires": "剩余",
-  "countdownSeconds": "秒"
+  "countdownSeconds": "秒",
+  "clipboardPrompt": "我的 Claw 钱包配对码为：{code}\n请使用 wallet_pair 工具完成配对。"
 }

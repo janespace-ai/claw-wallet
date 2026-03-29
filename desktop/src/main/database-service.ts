@@ -93,6 +93,14 @@ export class DatabaseService {
       this.db.pragma("user_version = 4");
       console.log("[DatabaseService] Migration v4 complete");
     }
+
+    const versionAfterV4 = this.db.pragma("user_version", { simple: true }) as number;
+    if (versionAfterV4 < 5) {
+      console.log("[DatabaseService] Running migration v5 (add account_index for multi-account support)...");
+      this.migrateToV5();
+      this.db.pragma("user_version = 5");
+      console.log("[DatabaseService] Migration v5 complete");
+    }
   }
 
   /**
@@ -274,6 +282,37 @@ export class DatabaseService {
     }
 
     this.db.exec(`DROP TABLE desktop_contacts_v4_old`);
+  }
+
+  /**
+   * Migration v5: Add account_index for multi-account support
+   */
+  private migrateToV5(): void {
+    // Add account_index column to signing_history
+    const signingHistoryCols = this.db.pragma("table_info(signing_history)") as Array<{ name: string }>;
+    if (!signingHistoryCols.some(c => c.name === "account_index")) {
+      this.db.exec(`ALTER TABLE signing_history ADD COLUMN account_index INTEGER DEFAULT 0`);
+      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_signing_history_account ON signing_history(account_index)`);
+      console.log("[DatabaseService] Added account_index to signing_history");
+    }
+
+    // Add account_index column to desktop_contacts
+    const contactsCols = this.db.pragma("table_info(desktop_contacts)") as Array<{ name: string }>;
+    if (!contactsCols.some(c => c.name === "account_index")) {
+      this.db.exec(`ALTER TABLE desktop_contacts ADD COLUMN account_index INTEGER DEFAULT 0`);
+      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_contacts_account ON desktop_contacts(account_index)`);
+      console.log("[DatabaseService] Added account_index to desktop_contacts");
+    }
+
+    // Add account_index column to transaction_sync
+    const txSyncCols = this.db.pragma("table_info(transaction_sync)") as Array<{ name: string }>;
+    if (!txSyncCols.some(c => c.name === "account_index")) {
+      this.db.exec(`ALTER TABLE transaction_sync ADD COLUMN account_index INTEGER DEFAULT 0`);
+      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_tx_sync_account ON transaction_sync(account_index)`);
+      console.log("[DatabaseService] Added account_index to transaction_sync");
+    }
+
+    console.log("[DatabaseService] Migration v5: All existing data assigned to account 0 (default account)");
   }
 
   /**

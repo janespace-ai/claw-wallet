@@ -43,18 +43,18 @@
 
 ## 4. Phase 2: Account Derivation & Management (Week 3)
 
-- [ ] 4.1 Create `AccountManager` class in `desktop/src/main/account-manager.ts`
-- [ ] 4.2 Implement BIP-44 account derivation using ethers.js (`m/44'/60'/0'/0/{index}`)
-- [ ] 4.3 Add account index validation (0-9 only)
-- [ ] 4.4 Implement account creation with automatic index assignment
-- [ ] 4.5 Add "Maximum 10 accounts" limit enforcement
-- [ ] 4.6 Create `accounts` SQLite table with schema (account_index, nickname, created_at, last_used_at)
-- [ ] 4.7 Implement account metadata storage (insert, update, query)
-- [ ] 4.8 Add default account (Account 0) creation on first wallet setup
-- [ ] 4.9 Implement `listAccounts()` API to retrieve all created accounts
-- [ ] 4.10 Implement `switchAccount(accountIndex)` API with state update
-- [ ] 4.11 Add account nickname update functionality
-- [ ] 4.12 Implement last_used_at timestamp tracking on account switch
+- [x] 4.1 Create `AccountManager` class in `desktop/src/main/account-manager.ts`
+- [x] 4.2 Implement BIP-44 account derivation using ethers.js (`m/44'/60'/0'/0/{index}`)
+- [x] 4.3 Add account index validation (0-9 only)
+- [x] 4.4 Implement account creation with automatic index assignment
+- [x] 4.5 Add "Maximum 10 accounts" limit enforcement
+- [x] 4.6 Create `accounts` SQLite table with schema (account_index, nickname, created_at, last_used_at)
+- [x] 4.7 Implement account metadata storage (insert, update, query)
+- [x] 4.8 Add default account (Account 0) creation on first wallet setup
+- [x] 4.9 Implement `listAccounts()` API to retrieve all created accounts
+- [x] 4.10 Implement `switchAccount(accountIndex)` API with state update
+- [x] 4.11 Add account nickname update functionality
+- [x] 4.12 Implement last_used_at timestamp tracking on account switch
 - [ ] 4.13 Add unit tests for account derivation and validation
 - [ ] 4.14 Add integration tests for account metadata persistence
 

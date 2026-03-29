@@ -60,18 +60,18 @@
 
 ## 5. Phase 2: SQLite Schema Migration for Account Isolation (Week 3)
 
-- [ ] 5.1 Create migration script `20240325_add_account_index.sql`
-- [ ] 5.2 Add `account_index INTEGER DEFAULT 0` column to `signing_history` table
-- [ ] 5.3 Add `account_index INTEGER DEFAULT 0` column to `security_events` table
-- [ ] 5.4 Add `account_index INTEGER DEFAULT 0` column to `desktop_contacts` table
-- [ ] 5.5 Add `account_index INTEGER DEFAULT 0` column to `transaction_sync` table
-- [ ] 5.6 Create indexes: `idx_signing_history_account`, `idx_security_events_account`, `idx_contacts_account`
-- [ ] 5.7 Insert migration record for Account 0 in `accounts` table (for existing users)
-- [ ] 5.8 Update `DatabaseService` to execute migration on startup
+- [x] 5.1 Create migration script `20240325_add_account_index.sql`
+- [x] 5.2 Add `account_index INTEGER DEFAULT 0` column to `signing_history` table
+- [x] 5.3 Add `account_index INTEGER DEFAULT 0` column to `security_events` table
+- [x] 5.4 Add `account_index INTEGER DEFAULT 0` column to `desktop_contacts` table
+- [x] 5.5 Add `account_index INTEGER DEFAULT 0` column to `transaction_sync` table
+- [x] 5.6 Create indexes: `idx_signing_history_account`, `idx_security_events_account`, `idx_contacts_account`
+- [x] 5.7 Insert migration record for Account 0 in `accounts` table (for existing users)
+- [x] 5.8 Update `DatabaseService` to execute migration on startup
 - [ ] 5.9 Add database backup before migration
 - [ ] 5.10 Add migration rollback script
 - [ ] 5.11 Test migration on copy of production database with 100+ records
-- [ ] 5.12 Update all database queries to include `account_index` in WHERE clause
+- [x] 5.12 Update all database queries to include `account_index` in WHERE clause
 
 ## 6. Phase 2: WebSocket Connection Pool (Week 4)
 

@@ -863,6 +863,9 @@ function setupEventListeners() {
     };
   });
 
+  // Activity network filter
+  initializeActivityNetworkFilter();
+
   // Activity load more
   document.getElementById("btn-load-more-activity").onclick = () => {
     loadActivityRecords(currentActivityFilter, false);
@@ -1107,6 +1110,7 @@ function startCountdown(expiresAt) {
 // ==========================================
 
 let currentActivityFilter = "all";
+let currentNetworkFilter = "all";
 let activityOffset = 0;
 const ACTIVITY_PAGE_SIZE = 50;
 
@@ -1145,6 +1149,17 @@ async function loadActivityRecords(filter = "all", reset = true) {
       return;
     }
 
+    // Apply network filter
+    if (currentNetworkFilter !== "all") {
+      records = records.filter(record => record.tx_chain?.toLowerCase() === currentNetworkFilter.toLowerCase());
+    }
+
+    if (records.length === 0) {
+      list.innerHTML = `<p style="color: #888; text-align: center; padding: 20px;">${tKey('activity.noRecords')}</p>`;
+      document.getElementById("activity-load-more").style.display = "none";
+      return;
+    }
+
     if (reset) {
       list.innerHTML = "";
     }
@@ -1155,7 +1170,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
     });
 
     // Show/hide load more button
-    if (filter === "all" && records.length === ACTIVITY_PAGE_SIZE) {
+    if (filter === "all" && records.length === ACTIVITY_PAGE_SIZE && currentNetworkFilter === "all") {
       document.getElementById("activity-load-more").style.display = "block";
     } else {
       document.getElementById("activity-load-more").style.display = "none";
@@ -1166,6 +1181,42 @@ async function loadActivityRecords(filter = "all", reset = true) {
     console.error("Failed to load activity:", err);
     list.innerHTML = `<p style="color: red;">${escapeHtml(tKey("errors.activity.loadFailed"))}</p>`;
   }
+}
+
+function initializeActivityNetworkFilter() {
+  const networkFilter = document.getElementById("activity-network-filter");
+  if (!networkFilter) return;
+
+  // Populate network options
+  const networks = [
+    { value: 'ethereum', label: 'Ethereum' },
+    { value: 'base', label: 'Base' },
+    { value: 'optimism', label: 'Optimism' },
+    { value: 'arbitrum', label: 'Arbitrum' },
+    { value: 'polygon', label: 'Polygon' },
+    { value: 'zksync', label: 'zkSync Era' },
+    { value: 'linea', label: 'Linea' },
+    { value: 'scroll', label: 'Scroll' }
+  ];
+
+  // Clear existing options (except "All Networks")
+  while (networkFilter.options.length > 1) {
+    networkFilter.remove(1);
+  }
+
+  // Add network options
+  networks.forEach(net => {
+    const option = document.createElement('option');
+    option.value = net.value;
+    option.textContent = `${getNetworkIcon(net.value)} ${net.label}`;
+    networkFilter.appendChild(option);
+  });
+
+  // Handle network filter change
+  networkFilter.addEventListener('change', (e) => {
+    currentNetworkFilter = e.target.value;
+    loadActivityRecords(currentActivityFilter, true);
+  });
 }
 
 function renderActivityRecord(record, contactLookup) {

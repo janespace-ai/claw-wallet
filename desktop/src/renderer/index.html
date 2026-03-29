@@ -213,6 +213,14 @@
             <button class="filter-btn" data-filter="rejected">❌ <span data-i18n="activity.filters.rejected">Rejected</span></button>
             <button class="filter-btn" data-filter="pending">⏳ <span data-i18n="activity.filters.pending">Pending</span></button>
             <button class="filter-btn" data-filter="failed">⛔ <span data-i18n="activity.filters.failed">Failed</span></button>
+            
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+              <label style="font-size: 12px; color: var(--text-secondary);" data-i18n="activity.filters.network">Network:</label>
+              <select id="activity-network-filter" class="network-filter" style="padding: 4px 8px; font-size: 12px;">
+                <option value="all" data-i18n="activity.filters.allNetworks">All Networks</option>
+                <!-- Networks populated dynamically -->
+              </select>
+            </div>
           </div>
 
           <!-- Activity List -->

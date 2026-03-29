@@ -153,11 +153,11 @@
 
 ## 11. Phase 5: Agent Tool API Updates (Week 7)
 
-- [ ] 11.1 Update `agent/tools/wallet_send.ts` to add optional `chain` parameter
-- [ ] 11.2 Update `agent/tools/wallet_balance.ts` to add optional `chain` parameter
-- [ ] 11.3 Implement multi-network balance query when `chain` parameter omitted
-- [ ] 11.4 Add network selection prompt generation for Agent when multiple networks detected
-- [ ] 11.5 Implement insufficient balance error with cross-chain suggestion
+- [x] 11.1 Update `agent/tools/wallet_send.ts` to add optional `chain` parameter
+- [x] 11.2 Update `agent/tools/wallet_balance.ts` to add optional `chain` parameter
+- [x] 11.3 Implement multi-network balance query when `chain` parameter omitted
+- [x] 11.4 Add network selection prompt generation for Agent when multiple networks detected
+- [x] 11.5 Implement insufficient balance error with cross-chain suggestion
 - [ ] 11.6 Update Agent tool signatures in documentation
 - [ ] 11.7 Create Agent migration guide for new `chain` parameter
 - [ ] 11.8 Add backward compatibility handling (no `chain` = prompt user)

@@ -51,6 +51,7 @@ let currentMode = "setup";
 let currentTxRequest = null;
 let currentContactAddRequest = null;
 let currentAlert = null;
+let currentAccountIndex = 0; // Active account index
 
 async function init() {
   await initializeI18n();
@@ -1018,7 +1019,7 @@ async function loadSecurityEvents() {
 }
 
 async function loadSigningHistory() {
-  const records = await wapi().getSigningHistory();
+  const records = await wapi().getSigningHistory(currentAccountIndex);
   const list = document.getElementById("signing-history-list");
   
   if (!records || records.length === 0) {
@@ -1028,7 +1029,7 @@ async function loadSigningHistory() {
 
   let lookup;
   try {
-    lookup = buildContactLookup(await wapi().listDesktopContacts());
+    lookup = buildContactLookup(await wapi().listDesktopContacts(currentAccountIndex));
   } catch {
     lookup = new Map();
   }
@@ -1118,18 +1119,18 @@ async function loadActivityRecords(filter = "all", reset = true) {
   try {
     let lookup;
     try {
-      lookup = buildContactLookup(await wapi().listDesktopContacts());
+      lookup = buildContactLookup(await wapi().listDesktopContacts(currentAccountIndex));
     } catch {
       lookup = new Map();
     }
 
     let records;
     if (filter === "all") {
-      records = await wapi().getActivityRecords(ACTIVITY_PAGE_SIZE, activityOffset);
+      records = await wapi().getActivityRecords(currentAccountIndex, ACTIVITY_PAGE_SIZE, activityOffset);
     } else if (["auto", "manual", "rejected"].includes(filter)) {
-      records = await wapi().getActivityByType(filter);
+      records = await wapi().getActivityByType(currentAccountIndex, filter);
     } else if (["pending", "success", "failed"].includes(filter)) {
-      records = await wapi().getActivityByStatus(filter);
+      records = await wapi().getActivityByStatus(currentAccountIndex, filter);
     }
 
     if (!records || records.length === 0) {

@@ -121,6 +121,11 @@ export class WalletAuthorityStore {
   }
 
   listContacts(accountIndex: number): DesktopContactRow[] {
+    // Defensive check
+    if (accountIndex === undefined || accountIndex === null) {
+      throw new Error("[WalletAuthorityStore] account_index is required for listContacts");
+    }
+
     const rows = this.db
       .prepare(
         `SELECT name, chain, address, trusted FROM desktop_contacts WHERE account_index = ? ORDER BY name ASC, chain ASC`,
@@ -141,6 +146,14 @@ export class WalletAuthorityStore {
     address: string,
     opts?: { trusted?: boolean },
   ): DesktopContactRow {
+    // Defensive check
+    if (accountIndex === undefined || accountIndex === null) {
+      throw new Error("[WalletAuthorityStore] account_index is required for upsertContact");
+    }
+    if (accountIndex < 0 || accountIndex > 9) {
+      throw new Error(`[WalletAuthorityStore] Invalid account_index: ${accountIndex} (must be 0-9)`);
+    }
+
     const n = name.trim();
     const c = normChain(chain);
     const a = normAddr(address);

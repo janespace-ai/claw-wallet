@@ -56,6 +56,14 @@ export class SigningHistory {
     estimatedUSD: number;
     accountIndex: number;
   }): number {
+    // Defensive check: Ensure account_index is present
+    if (record.accountIndex === undefined || record.accountIndex === null) {
+      throw new Error("[SigningHistory] account_index is required");
+    }
+    if (record.accountIndex < 0 || record.accountIndex > 9) {
+      throw new Error(`[SigningHistory] Invalid account_index: ${record.accountIndex} (must be 0-9)`);
+    }
+
     const stmt = this.db.prepare(`
       INSERT INTO signing_history 
       (request_id, timestamp, type, method, tx_to, tx_value, tx_token, tx_chain, estimated_usd, account_index)
@@ -123,6 +131,11 @@ export class SigningHistory {
    * Get records with pagination
    */
   getRecords(accountIndex: number, limit = 50, offset = 0): SigningRecord[] {
+    // Defensive check
+    if (accountIndex === undefined || accountIndex === null) {
+      throw new Error("[SigningHistory] account_index is required for getRecords");
+    }
+
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history
       WHERE account_index = ?
@@ -137,6 +150,11 @@ export class SigningHistory {
    * Get records filtered by type
    */
   getRecordsByType(accountIndex: number, type: "auto" | "manual" | "rejected"): SigningRecord[] {
+    // Defensive check
+    if (accountIndex === undefined || accountIndex === null) {
+      throw new Error("[SigningHistory] account_index is required for getRecordsByType");
+    }
+
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history
       WHERE account_index = ? AND type = ?

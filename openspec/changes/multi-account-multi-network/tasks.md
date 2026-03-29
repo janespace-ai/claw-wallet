@@ -130,8 +130,8 @@
 - [x] 9.5 Update `TransactionSyncService` queries to filter by `account_index`
 - [x] 9.6 Update `WalletAuthorityStore` to scope policies by `account_index`
 - [x] 9.7 Add account_index parameter to all IPC handlers (sign, send, contacts, etc.)
-- [ ] 9.8 Implement account-scoped state management in renderer process
-- [ ] 9.9 Add defensive checks: verify account_index present in all database queries
+- [x] 9.8 Implement account-scoped state management in renderer process
+- [x] 9.9 Add defensive checks: verify account_index present in all database queries
 - [ ] 9.10 Add unit tests for data isolation (create 2 accounts, verify no cross-contamination)
 - [ ] 9.11 Add integration tests for account-scoped queries
 

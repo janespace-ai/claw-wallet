@@ -1,0 +1,83 @@
+{
+  "buttons": {
+    "create": "创建",
+    "import": "导入",
+    "continue": "继续",
+    "back": "返回",
+    "cancel": "取消",
+    "confirm": "确认",
+    "done": "完成",
+    "close": "关闭",
+    "refresh": "刷新",
+    "export": "导出",
+    "save": "保存",
+    "delete": "删除",
+    "edit": "编辑",
+    "add": "添加",
+    "remove": "移除",
+    "copy": "复制",
+    "loadMore": "加载更多"
+  },
+  "labels": {
+    "address": "地址",
+    "balance": "余额",
+    "amount": "金额",
+    "status": "状态",
+    "timestamp": "时间戳",
+    "wallet": "钱包",
+    "name": "名称",
+    "chain": "链",
+    "token": "代币",
+    "type": "类型",
+    "method": "方法"
+  },
+  "connection": {
+    "connected": "已连接",
+    "disconnected": "未连接",
+    "connecting": "连接中..."
+  },
+  "tabs": {
+    "home": "首页",
+    "pairing": "配对",
+    "settings": "设置",
+    "security": "安全",
+    "activity": "活动",
+    "contacts": "联系人"
+  },
+  "messages": {
+    "loading": "加载中...",
+    "noData": "未找到数据",
+    "success": "成功",
+    "error": "错误",
+    "copied": "已复制！",
+    "sameMachineWarning": "⚠ Agent 和钱包在同一台机器上 — 安全性显著降低！",
+    "copiedToClipboard": "已复制到剪贴板！"
+  },
+  "home": {
+    "portfolioValue": "总资产价值",
+    "balances": "余额",
+    "noPendingTx": "无待处理交易",
+    "noBalances": "未找到余额",
+    "allBalancesZero": "余额均为零",
+    "priceUnavailable": "价格不可用"
+  },
+  "contacts": {
+    "trusted": "可信任",
+    "removeConfirm": "移除联系人「{name}」的所有条目？",
+    "nameRequired": "请填写可信任联系人的显示名称。"
+  },
+  "app": {
+    "title": "Claw 钱包"
+  },
+  "biometric": {
+    "useWithLabel": "使用 {label}",
+    "defaultUnlock": "生物识别",
+    "enableConfirm": "是否启用 {name} 以快速解锁？"
+  },
+  "relativeTime": {
+    "secondsAgo": "{count} 秒前",
+    "minutesAgo": "{count} 分钟前",
+    "hoursAgo": "{count} 小时前",
+    "daysAgo": "{count} 天前"
+  }
+}

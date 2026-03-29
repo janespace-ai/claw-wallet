@@ -1,0 +1,43 @@
+{
+  "app": {
+    "title": "Claw Wallet"
+  },
+  "tx": {
+    "title": "Transaction Approval",
+    "addressBook": "Address book",
+    "method": "Method",
+    "to": "To",
+    "transfer": "Transfer (token × amount)",
+    "estimatedUsd": "Est. value",
+    "estimatedHint": "(desktop spot price)",
+    "noUsdt": "USDT estimate unavailable",
+    "chain": "Chain",
+    "fromDevice": "From device",
+    "sourceIp": "Source IP",
+    "trustCheckbox": "After the transaction succeeds, add this recipient as a trusted contact (on-chain success required).",
+    "trustNameLabel": "Contact display name (required)",
+    "trustNamePlaceholder": "e.g. Exchange withdrawal",
+    "approve": "Approve",
+    "reject": "Reject"
+  },
+  "contactAdd": {
+    "title": "Add contact",
+    "chainLine": "Chain: {chain}",
+    "normal": "Add as regular contact",
+    "trusted": "Add as trusted contact",
+    "reject": "Reject"
+  },
+  "export": {
+    "title": "Export mnemonic",
+    "warning": "Anyone with these words can control your wallet. Use in a private place.",
+    "passwordPlaceholder": "Wallet password",
+    "reveal": "Reveal",
+    "close": "Close"
+  },
+  "alert": {
+    "title": "⚠ Security alert",
+    "freeze": "Freeze (30 min)",
+    "allowOnce": "Allow once",
+    "trustDevice": "Trust new device"
+  }
+}

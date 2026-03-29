@@ -1,0 +1,37 @@
+{
+  "title": "Transaction Activity",
+  "filters": {
+    "all": "All",
+    "auto": "Auto",
+    "manual": "Manual",
+    "rejected": "Rejected",
+    "success": "Success",
+    "failed": "Failed",
+    "pending": "Pending"
+  },
+  "noRecords": "No activity records",
+  "loadMore": "Load More",
+  "details": {
+    "to": "To",
+    "estimated": "Estimated",
+    "atSigning": "(at signing)",
+    "txHash": "TX",
+    "block": "Block",
+    "priceUnavailable": "Price unavailable",
+    "onChain": "on {chain}",
+    "noRecipient": "—"
+  },
+  "status": {
+    "success": "✅ Success",
+    "failed": "⛔ Failed",
+    "pending": "⏳ Pending",
+    "signed": "📝 Signed",
+    "rejected": "❌ Rejected",
+    "unknown": "❓ Unknown"
+  },
+  "types": {
+    "auto": "🤖 Auto",
+    "manual": "👤 Manual",
+    "rejected": "❌ Rejected"
+  }
+}

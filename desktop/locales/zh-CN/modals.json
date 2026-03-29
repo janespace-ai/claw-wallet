@@ -1,0 +1,43 @@
+{
+  "app": {
+    "title": "Claw 钱包"
+  },
+  "tx": {
+    "title": "交易审批",
+    "addressBook": "通讯录",
+    "method": "方法",
+    "to": "收款地址",
+    "transfer": "转账（币种 × 数量）",
+    "estimatedUsd": "预估价值",
+    "estimatedHint": "（按桌面市价换算）",
+    "noUsdt": "暂无法换算为 USDT",
+    "chain": "链",
+    "fromDevice": "来源设备",
+    "sourceIp": "来源 IP",
+    "trustCheckbox": "成功后将该收款地址加入可信任联系人（需链上成功）。",
+    "trustNameLabel": "联系人显示名称（必填）",
+    "trustNamePlaceholder": "例如：交易所提币",
+    "approve": "批准",
+    "reject": "拒绝"
+  },
+  "contactAdd": {
+    "title": "添加联系人",
+    "chainLine": "链：{chain}",
+    "normal": "添加为一般联系人",
+    "trusted": "添加为可信任联系人",
+    "reject": "拒绝"
+  },
+  "export": {
+    "title": "导出助记词",
+    "warning": "任何人获得这些单词即可控制您的钱包。请在私密环境下操作。",
+    "passwordPlaceholder": "钱包密码",
+    "reveal": "显示",
+    "close": "关闭"
+  },
+  "alert": {
+    "title": "⚠ 安全警报",
+    "freeze": "冻结（30 分钟）",
+    "allowOnce": "仅允许一次",
+    "trustDevice": "信任新设备"
+  }
+}

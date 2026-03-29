@@ -36,6 +36,24 @@ const KNOWN_TOKENS_BASE: Record<string, string> = {
   USDC: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 };
 
+/** When RPC returns empty data (no contract on chain / wrong network), use these instead of on-chain decimals(). */
+const KNOWN_DECIMALS: Record<string, number> = {
+  USDC: 6,
+  USDT: 6,
+  DAI: 18,
+  WETH: 18,
+  ETH: 18,
+};
+
+function isEmptyContractCallResult(err: unknown): boolean {
+  if (err === null || typeof err !== "object") return false;
+  const o = err as { code?: string; value?: string; shortMessage?: string };
+  if (o.code === "BAD_DATA") return true;
+  if (o.value === "0x") return true;
+  if (typeof o.shortMessage === "string" && o.shortMessage.includes("could not decode")) return true;
+  return false;
+}
+
 const CHAIN_CONFIGS: Record<string, { chainId: number; tokens: Record<string, string> }> = {
   ethereum: { chainId: 1, tokens: KNOWN_TOKENS_ETHEREUM },
   base: { chainId: 8453, tokens: KNOWN_TOKENS_BASE },
@@ -140,26 +158,67 @@ export class BalanceService {
     chainName: string,
     tokenSymbol: string
   ): Promise<TokenBalance | null> {
+    const symUpper = tokenSymbol.toUpperCase();
     try {
       const provider = this.getProvider(chainName);
       const contract = new ethers.Contract(tokenAddress, ERC20_ABI, provider);
 
-      const [balance, decimals, symbol] = await Promise.all([
-        contract.balanceOf(walletAddress) as Promise<bigint>,
-        contract.decimals() as Promise<number>,
-        contract.symbol() as Promise<string>,
-      ]);
+      let decimals: number;
+      try {
+        decimals = Number(await contract.decimals());
+        if (!Number.isFinite(decimals) || decimals < 0 || decimals > 36) {
+          throw new RangeError("invalid decimals from chain");
+        }
+      } catch (decErr) {
+        const fallback = KNOWN_DECIMALS[symUpper];
+        if (fallback !== undefined) {
+          decimals = fallback;
+        } else if (isEmptyContractCallResult(decErr)) {
+          console.warn(
+            `[BalanceService] Skip ${symUpper} on ${chainName}: no contract at ${tokenAddress} or RPC returned empty (check RPC URL vs chain).`,
+          );
+          return null;
+        } else {
+          console.error(`[BalanceService] getERC20Balance decimals failed for ${symUpper} on ${chainName}:`, decErr);
+          return null;
+        }
+      }
+
+      let symbol = symUpper;
+      try {
+        const s = await contract.symbol();
+        if (s != null && String(s).trim() !== "") symbol = String(s);
+      } catch {
+        // optional
+      }
+
+      let balance: bigint;
+      try {
+        balance = await contract.balanceOf(walletAddress);
+      } catch (balErr) {
+        if (isEmptyContractCallResult(balErr)) {
+          console.warn(
+            `[BalanceService] Skip ${symUpper} on ${chainName}: balanceOf empty — wrong network or address.`,
+          );
+          return null;
+        }
+        throw balErr;
+      }
 
       return {
-        token: tokenSymbol.toUpperCase(),
-        symbol: symbol || tokenSymbol.toUpperCase(),
+        token: symUpper,
+        symbol,
         amount: ethers.formatUnits(balance, decimals),
         rawAmount: balance.toString(),
         chain: chainName,
         decimals,
       };
     } catch (err) {
-      console.error(`[BalanceService] getERC20Balance failed for ${tokenSymbol} on ${chainName}:`, err);
+      if (isEmptyContractCallResult(err)) {
+        console.warn(`[BalanceService] Skip ${symUpper} on ${chainName}: ERC20 call returned no data.`);
+        return null;
+      }
+      console.error(`[BalanceService] getERC20Balance failed for ${symUpper} on ${chainName}:`, err);
       return null;
     }
   }

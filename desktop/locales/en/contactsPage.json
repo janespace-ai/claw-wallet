@@ -1,0 +1,5 @@
+{
+  "title": "Contacts",
+  "description": "Authoritative list on this device (the Agent can propose adds — you choose normal, trusted, or reject in the popup). Each contact is one address on one chain; updating the same name replaces that row. Duplicate address+chain pairs are rejected. Trusted contacts may auto-sign transfers within your daily and per-transaction limits and token whitelist without prompting each time.",
+  "empty": "No contacts yet. Add them from the Agent (wallet_contacts_add)."
+}

@@ -1,0 +1,33 @@
+{
+  "welcome": {
+    "title": "Welcome to Claw Wallet",
+    "description": "Create a new wallet or import an existing one."
+  },
+  "password": {
+    "title": "Set Password",
+    "importTitle": "Import Wallet",
+    "description": "Choose a strong password to encrypt your wallet.",
+    "importDescription": "Enter your mnemonic and set a password.",
+    "placeholder": "Password (min 8 chars)",
+    "confirmPlaceholder": "Confirm password",
+    "mnemonicPlaceholder": "Enter 12-word mnemonic phrase"
+  },
+  "mnemonic": {
+    "title": "Backup Your Mnemonic",
+    "warning": "Write down these 12 words and keep them safe. This is the only way to recover your wallet.",
+    "confirmLabel": "I have written down my mnemonic"
+  },
+  "unlock": {
+    "title": "Unlock Wallet",
+    "passwordPlaceholder": "Enter your password",
+    "biometricButton": "Use Biometrics"
+  },
+  "buttons": {
+    "createNew": "Create New Wallet",
+    "import": "Import Wallet",
+    "continue": "Continue",
+    "back": "Back",
+    "done": "Done",
+    "unlock": "Unlock"
+  }
+}

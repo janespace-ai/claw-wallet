@@ -1,0 +1,17 @@
+{
+  "title": "与 Agent 配对",
+  "description": "生成代码并粘贴到您的 Agent。",
+  "generateCode": "生成配对码",
+  "pairedDevices": "已配对设备",
+  "noDevices": "无已配对设备",
+  "deviceId": "设备 ID",
+  "lastSeen": "最后在线",
+  "remove": "移除",
+  "revoke": "撤销",
+  "rowMeta": "IP：{ip} · 配对：{date}",
+  "codeExpired": "配对码已过期",
+  "expiresIn": "剩余 {time}",
+  "countdownExpires": "剩余",
+  "countdownSeconds": "秒",
+  "clipboardPrompt": "我的 Claw 钱包配对码为：{code}\n请使用 wallet_pair 工具完成配对。"
+}

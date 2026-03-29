@@ -1,0 +1,37 @@
+{
+  "title": "交易活动",
+  "filters": {
+    "all": "全部",
+    "auto": "自动",
+    "manual": "手动",
+    "rejected": "已拒绝",
+    "success": "成功",
+    "failed": "失败",
+    "pending": "待处理"
+  },
+  "noRecords": "无活动记录",
+  "loadMore": "加载更多",
+  "details": {
+    "to": "接收",
+    "estimated": "预估",
+    "atSigning": "（签名时）",
+    "txHash": "交易",
+    "block": "区块",
+    "priceUnavailable": "价格不可用",
+    "onChain": "在 {chain} 上",
+    "noRecipient": "—"
+  },
+  "status": {
+    "success": "✅ 成功",
+    "failed": "⛔ 失败",
+    "pending": "⏳ 待处理",
+    "signed": "📝 已签名",
+    "rejected": "❌ 已拒绝",
+    "unknown": "❓ 未知"
+  },
+  "types": {
+    "auto": "🤖 自动",
+    "manual": "👤 手动",
+    "rejected": "❌ 已拒绝"
+  }
+}

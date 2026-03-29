@@ -333,6 +333,7 @@ The policy engine runs **before** any signing and cannot be bypassed through pro
 - **Transaction history** — Local cache with full records
 - **Containerized Relay** — Go Relay Server with Docker support (Hertz framework)
 - **17 MCP tools** — Ready-to-register tool definitions for AI Agent integration
+- **Internationalization (i18n)** — Desktop app supports English and Simplified Chinese with runtime language switching
 
 ---
 
@@ -575,6 +576,109 @@ cd server && docker compose up --build
 | IP change alert | Configure IP policy: `block` / `warn` / `allow` |
 | Agent can't reconnect | Use `wallet_repair` to clear pairing data and re-pair |
 | Same-machine warning | Move Desktop Wallet to a separate device for full security |
+
+---
+
+## Internationalization (i18n)
+
+The Desktop app supports multiple languages with runtime language switching:
+
+### Supported Languages
+
+- **English (en)** — Default language
+- **Simplified Chinese (zh-CN)** — 简体中文
+
+### Features
+
+- **Auto-detection**: Automatically detects system language on first launch
+- **Manual switching**: Language selector in Header (top-right corner)
+- **Persistence**: User preference saved to localStorage across sessions
+- **Runtime updates**: Static UI elements (buttons, labels, tabs) update immediately
+- **Seamless UX**: No app restart required for language changes
+
+### Architecture
+
+```
+i18next Framework
+├── Translation Files (desktop/locales/)
+│   ├── en/
+│   │   ├── common.json      # Buttons labels messages
+│   │   ├── setup.json       # Wallet setup flow
+│   │   ├── activity.json    # Transaction activity
+│   │   ├── security.json    # Security events
+│   │   ├── settings.json    # Settings panel
+│   │   ├── pairing.json     # Device pairing
+│   │   ├── errors.json      # Error messages
+│   │   ├── modals.json      # Approval export alert dialogs
+│   │   └── contactsPage.json
+│   └── zh-CN/ (same structure; keep keys in sync with en)
+│   Note: `npm run build` copies these files to dist/renderer/locales/ for Electron.
+├── Language Detection (i18n.js)
+│   ├── 1. Check localStorage (user preference)
+│   ├── 2. Check navigator.language (system)
+│   └── 3. Fallback to English
+└── DOM Update System
+    ├── data-i18n attributes for static content
+    └── i18next.t() for dynamic content
+```
+
+### Adding a New Language
+
+1. Create translation directory:
+   ```bash
+   mkdir -p desktop/locales/<lang-code>
+   ```
+
+2. Copy and translate all JSON files from `en/`:
+   ```bash
+   cp desktop/locales/en/*.json desktop/locales/<lang-code>/
+   # Edit each file to translate values
+   ```
+
+3. Add language option to selector in `index.html`:
+   ```html
+   <select id="language-selector">
+     <option value="en">English</option>
+     <option value="zh-CN">简体中文</option>
+     <option value="<lang-code>">Your Language</option>
+   </select>
+   ```
+
+4. Update namespace list in `i18n.js` if needed
+
+### Translation Key Conventions
+
+Use hierarchical, semantic naming:
+
+```
+namespace.feature.element
+
+Examples:
+- common.buttons.save
+- setup.password.placeholder
+- errors.wallet.createFailed
+- activity.filters.pending
+```
+
+### For Developers
+
+**HTML (static content)**:
+```html
+<button data-i18n="common.buttons.save">Save</button>
+<input data-i18n-placeholder="setup.password.placeholder" />
+```
+
+**JavaScript (dynamic content)**:
+```javascript
+alert(i18next.t('errors.password.mismatch'));
+document.title = i18next.t('common.labels.wallet');
+```
+
+**With interpolation**:
+```javascript
+const msg = i18next.t('common.contacts.removeConfirm', { name: 'Bob' });
+// Translation: "Remove all entries for contact \"{name}\"?"
+```
 
 ---
 

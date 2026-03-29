@@ -1,0 +1,30 @@
+{
+  "allowance": {
+    "title": "Allowance",
+    "dailyLimit": "Daily Limit (USD)",
+    "perTxLimit": "Per-Transaction Limit (USD)"
+  },
+  "lockMode": {
+    "title": "Lock Mode",
+    "description": "Require manual approval for all transactions (ignores limits)",
+    "enable": "Enable Lock Mode",
+    "disable": "Disable Lock Mode",
+    "active": "🔒 Lock Mode Active",
+    "optionConvenience": "Convenience (auto-sign within budget)",
+    "optionStrict": "Strict (lock on idle)"
+  },
+  "biometric": {
+    "enableUnlock": "Enable biometric unlock"
+  },
+  "actions": {
+    "title": "Actions",
+    "lockWallet": "Lock Wallet"
+  },
+  "export": {
+    "title": "Export Wallet",
+    "description": "Export your mnemonic phrase to import into another wallet.",
+    "warning": "⚠ Never share your mnemonic with anyone!",
+    "button": "Export Mnemonic",
+    "copied": "Mnemonic copied to clipboard!"
+  }
+}

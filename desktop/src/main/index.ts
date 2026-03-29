@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type * as Electron from "electron";
 import { KeyManager } from "./key-manager.js";
@@ -14,6 +15,42 @@ import { WalletAuthorityStore } from "./wallet-authority-store.js";
 import { ChainAdapter } from "./chain-adapter.js";
 import { TxSyncService } from "./tx-sync-service.js";
 import { config } from "./config.js";
+
+/**
+ * Disk locales are only `en/` and `zh-CN/`. i18next may pass `zh`, `zh-Hans`, `zh-Hans-CN`, etc.
+ */
+function normalizeLocaleDir(language: string): string {
+  const t = (language ?? "").trim();
+  if (!t) return "en";
+  const lower = t.toLowerCase();
+  if (lower === "en" || lower.startsWith("en-")) return "en";
+  if (lower === "zh" || lower.startsWith("zh-")) return "zh-CN";
+  return t;
+}
+
+async function readLocaleNamespace(language: string, namespace: string): Promise<Record<string, unknown>> {
+  const base = join(app.getAppPath(), "dist", "renderer", "locales");
+  const primary = normalizeLocaleDir(language);
+  const candidates = [...new Set([primary, "en"])];
+  let lastENOENT: NodeJS.ErrnoException | undefined;
+  for (const dir of candidates) {
+    const file = join(base, dir, `${namespace}.json`);
+    try {
+      const raw = await readFile(file, "utf-8");
+      return JSON.parse(raw) as Record<string, unknown>;
+    } catch (e) {
+      const err = e as NodeJS.ErrnoException;
+      if (err.code === "ENOENT") {
+        lastENOENT = err;
+        continue;
+      }
+      throw e;
+    }
+  }
+  throw new Error(
+    `Missing i18n ${namespace}.json under locales (tried ${candidates.join(", ")}): ${lastENOENT?.message ?? ""}`,
+  );
+}
 
 /** Isolated profile + predictable window close behavior for Playwright E2E */
 if (process.env.E2E_USER_DATA) {
@@ -102,6 +139,10 @@ function createTray(): void {
 }
 
 function registerIpcHandlers(): void {
+  ipcMain.handle("wallet:load-i18n-resource", async (_evt, language: string, namespace: string) => {
+    return readLocaleNamespace(language, namespace);
+  });
+
   ipcMain.handle("wallet:create", async (_, password: string) => {
     const result = await keyManager.createWallet(password);
     return { address: result.address, mnemonic: result.mnemonic };

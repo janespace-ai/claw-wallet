@@ -45,6 +45,12 @@ export interface WalletAPI {
   onSecurityAlert: (callback: (alert: SecurityAlert) => void) => () => void;
   onLockStateChange: (callback: (locked: boolean) => void) => () => void;
   onBiometricPrompt: (callback: (password: string) => void) => () => void;
+
+  /** When non-null (E2E / dev harness), renderer uses this locale instead of storage / navigator. */
+  e2eUiLang: string | null;
+
+  /** Load i18n JSON from disk (`file://` blocks `fetch`; preload reads via Node). */
+  loadI18nResource: (language: string, namespace: string) => Promise<Record<string, unknown>>;
 }
 
 export interface WalletStatus {
@@ -241,6 +247,13 @@ const api: WalletAPI = {
     ipcRenderer.on("wallet:biometric-prompt", handler);
     return () => ipcRenderer.removeListener("wallet:biometric-prompt", handler);
   },
+
+  e2eUiLang: process.env.E2E_USER_DATA
+    ? (process.env.E2E_UI_LANG?.trim() || "en")
+    : null,
+
+  loadI18nResource: (language, namespace) =>
+    ipcRenderer.invoke("wallet:load-i18n-resource", language, namespace),
 };
 
 contextBridge.exposeInMainWorld("walletAPI", api);

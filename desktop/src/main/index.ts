@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
+import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type * as Electron from "electron";
 import { KeyManager } from "./key-manager.js";
@@ -102,6 +103,22 @@ function createTray(): void {
 }
 
 function registerIpcHandlers(): void {
+  ipcMain.handle(
+    "wallet:load-i18n-resource",
+    async (_evt, language: string, namespace: string) => {
+      const file = join(
+        app.getAppPath(),
+        "dist",
+        "renderer",
+        "locales",
+        language,
+        `${namespace}.json`,
+      );
+      const raw = await readFile(file, "utf-8");
+      return JSON.parse(raw) as Record<string, unknown>;
+    },
+  );
+
   ipcMain.handle("wallet:create", async (_, password: string) => {
     const result = await keyManager.createWallet(password);
     return { address: result.address, mnemonic: result.mnemonic };

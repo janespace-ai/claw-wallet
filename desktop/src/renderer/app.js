@@ -425,13 +425,19 @@ function showTxApprovalModal(req) {
   const usdtLine = canValuate
     ? `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></p>`
     : `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(tKey("modals.tx.noUsdt"))}</span></p>`;
+  
+  // Network badge with icon and styling
+  const networkIcon = getNetworkIcon(req.chain);
+  const networkClass = getNetworkClass(req.chain);
+  const networkBadge = `<span class="network-badge ${networkClass}">${networkIcon} ${escapeHtml(req.chain)}</span>`;
+  
   details.innerHTML = `
       <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
       ${bookLine}
       <p><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
       <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
       ${usdtLine}
-      <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${escapeHtml(req.chain)}</p>
+      <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>
       <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
       <p><strong>${escapeHtml(tKey("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
     `;
@@ -1181,7 +1187,20 @@ function renderActivityRecord(record, contactLookup) {
     : "";
 
   const typeLabel = escapeHtml(tKey(`activity.types.${record.type}`));
-  const onChain = escapeHtml(tKey("activity.details.onChain", { chain: record.tx_chain }));
+  
+  // Network badge with icon
+  const networkIcon = getNetworkIcon(record.tx_chain);
+  const networkClass = getNetworkClass(record.tx_chain);
+  const networkBadge = `<span class="network-badge ${networkClass}">${networkIcon} ${escapeHtml(record.tx_chain)}</span>`;
+  
+  // Block explorer link
+  const explorerUrl = getBlockExplorerUrl(record.tx_chain, record.tx_hash);
+  const txHashDisplay = explorerUrl && record.tx_hash
+    ? `<a href="${explorerUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none;">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</a>`
+    : record.tx_hash 
+      ? `<span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span>`
+      : '';
+  
   const estLine =
     signedPolicyUsd > 0
       ? `$${signedPolicyUsd.toFixed(2)}`
@@ -1195,15 +1214,32 @@ function renderActivityRecord(record, contactLookup) {
     </div>
     <div class="activity-details">
       <div class="activity-amount"><strong>${amount} ${escapeHtml(record.tx_token)}</strong></div>
-      <div class="activity-chain">${onChain}</div>
+      <div class="activity-chain">${networkBadge}</div>
       ${record.tx_to ? `<div>${escapeHtml(tKey("activity.details.to"))}: ${toPrefix}<span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
       <div>${escapeHtml(tKey("activity.details.estimated"))}: ${estLine} <span style="color: #888; font-size: 10px;">${escapeHtml(tKey("activity.details.atSigning"))}</span></div>
-      ${record.tx_hash ? `<div>${escapeHtml(tKey("activity.details.txHash"))}: <span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span></div>` : ''}
+      ${record.tx_hash ? `<div>${escapeHtml(tKey("activity.details.txHash"))}: ${txHashDisplay}</div>` : ''}
       ${record.block_number ? `<div>${escapeHtml(tKey("activity.details.block"))}: ${record.block_number}</div>` : ''}
     </div>
   `;
 
   return div;
+}
+
+function getBlockExplorerUrl(chain, txHash) {
+  if (!txHash) return null;
+  
+  const explorers = {
+    'ethereum': `https://etherscan.io/tx/${txHash}`,
+    'base': `https://basescan.org/tx/${txHash}`,
+    'optimism': `https://optimistic.etherscan.io/tx/${txHash}`,
+    'arbitrum': `https://arbiscan.io/tx/${txHash}`,
+    'polygon': `https://polygonscan.com/tx/${txHash}`,
+    'zksync': `https://explorer.zksync.io/tx/${txHash}`,
+    'linea': `https://lineascan.build/tx/${txHash}`,
+    'scroll': `https://scrollscan.com/tx/${txHash}`,
+  };
+  
+  return explorers[chain?.toLowerCase()] || null;
 }
 
 function getStatusIcon(record) {

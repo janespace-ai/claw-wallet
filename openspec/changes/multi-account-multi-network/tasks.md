@@ -167,13 +167,13 @@
 
 ## 12. Phase 5: Network-Specific Transaction Handling (Week 7)
 
-- [ ] 12.1 Update `ChainAdapter.sendTransaction()` to accept `chainId` parameter
-- [ ] 12.2 Implement network-specific gas price estimation
-- [ ] 12.3 Add network-specific transaction broadcasting
-- [ ] 12.4 Implement network badge display in transaction confirmation dialog
-- [ ] 12.5 Add network selection validation (ensure sufficient balance on target network)
-- [ ] 12.6 Update Activity tab to display network badge per transaction
-- [ ] 12.7 Add network-specific block explorer links to transactions
+- [x] 12.1 Update `ChainAdapter.sendTransaction()` to accept `chainId` parameter
+- [x] 12.2 Implement network-specific gas price estimation
+- [x] 12.3 Add network-specific transaction broadcasting
+- [x] 12.4 Implement network badge display in transaction confirmation dialog
+- [x] 12.5 Add network selection validation (ensure sufficient balance on target network)
+- [x] 12.6 Update Activity tab to display network badge per transaction
+- [x] 12.7 Add network-specific block explorer links to transactions
 - [ ] 12.8 Implement transaction history filtering by network
 - [ ] 12.9 Add unit tests for network-specific transaction sending
 - [ ] 12.10 Add integration tests for multi-network transaction flows

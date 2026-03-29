@@ -32,6 +32,10 @@ export interface WalletAPI {
   exportMnemonic: (password: string) => Promise<{ mnemonic: string }>;
   getTokenPrices: (tokens: string[]) => Promise<Record<string, number>>;
   getWalletBalances: (address: string) => Promise<TokenBalance[]>;
+  /** Add user ERC-20 on a supported chain (saved to user config, clears balance cache). */
+  addCustomToken: (input: CustomTokenInput) => Promise<CustomTokenConfig>;
+  listCustomTokens: () => Promise<CustomTokenConfig[]>;
+  removeCustomToken: (symbol: string, chainId: number) => Promise<void>;
   getSigningHistory: () => Promise<SigningRecord[]>;
   getActivityRecords: (limit?: number, offset?: number) => Promise<ActivityRecord[]>;
   getActivityByType: (type: "auto" | "manual" | "rejected") => Promise<ActivityRecord[]>;
@@ -39,12 +43,20 @@ export interface WalletAPI {
   listDesktopContacts: () => Promise<DesktopContactEntry[]>;
   removeDesktopContact: (name: string) => Promise<void>;
 
+  listWalletAccounts: () => Promise<WalletAccountSummary[]>;
+  switchWalletAccount: (index: number) => Promise<void>;
+  createWalletSubAccount: (nickname?: string) => Promise<WalletAccountSummary[]>;
+  updateWalletAccountNickname: (index: number, nickname: string) => Promise<WalletAccountSummary[]>;
+
   onTransactionRequest: (callback: (req: TransactionRequest) => void) => () => void;
   onContactAddRequest: (callback: (req: ContactAddRequest) => void) => () => void;
   onConnectionStatus: (callback: (status: ConnectionStatus) => void) => () => void;
   onSecurityAlert: (callback: (alert: SecurityAlert) => void) => () => void;
   onLockStateChange: (callback: (locked: boolean) => void) => () => void;
   onBiometricPrompt: (callback: (password: string) => void) => () => void;
+  onWalletAccountChanged: (
+    callback: (payload: { address: string | null; accountIndex: number }) => void,
+  ) => () => void;
 
   /** When non-null (E2E / dev harness), renderer uses this locale instead of storage / navigator. */
   e2eUiLang: string | null;
@@ -57,9 +69,18 @@ export interface WalletStatus {
   hasWallet: boolean;
   isUnlocked: boolean;
   address: string | null;
+  /** BIP-44 account index (0–9) when unlocked */
+  activeAccountIndex?: number;
   connectedAgents: number;
   lockMode: "convenience" | "strict";
   sameMachineWarning: boolean;
+}
+
+export interface WalletAccountSummary {
+  index: number;
+  nickname: string;
+  address: string;
+  isActive: boolean;
 }
 
 export interface PairedDevice {
@@ -92,6 +113,11 @@ export interface TransactionRequest {
   transferDisplay: string | null;
   estimatedUsd: number;
   priceAvailable: boolean;
+  fromAccountIndex?: number;
+  fromAccountNickname?: string;
+  fromAccountAddress?: string;
+  isActiveAccount?: boolean;
+  signingAccountIndex?: number;
 }
 
 export interface ContactAddRequest {
@@ -129,6 +155,21 @@ export interface TokenBalance {
   rawAmount: string;
   chain: string;
   decimals: number;
+}
+
+export interface CustomTokenInput {
+  chainId: number;
+  contractAddress: string;
+  symbol: string;
+  name?: string;
+  decimals?: number;
+}
+
+export interface CustomTokenConfig {
+  name: string;
+  symbol: string;
+  decimals: number;
+  contracts: Record<string, string>;
 }
 
 /** Matches `signing_history` rows from main process (snake_case). */
@@ -210,12 +251,21 @@ const api: WalletAPI = {
   exportMnemonic: (password) => ipcRenderer.invoke("wallet:export-mnemonic", password),
   getTokenPrices: (tokens) => ipcRenderer.invoke("wallet:get-token-prices", tokens),
   getWalletBalances: (address) => ipcRenderer.invoke("wallet:get-wallet-balances", address),
+  addCustomToken: (input) => ipcRenderer.invoke("wallet:add-custom-token", input),
+  listCustomTokens: () => ipcRenderer.invoke("wallet:list-custom-tokens"),
+  removeCustomToken: (symbol, chainId) => ipcRenderer.invoke("wallet:remove-custom-token", symbol, chainId),
   getSigningHistory: () => ipcRenderer.invoke("wallet:get-signing-history"),
   getActivityRecords: (limit?, offset?) => ipcRenderer.invoke("wallet:get-activity-records", limit, offset),
   getActivityByType: (type) => ipcRenderer.invoke("wallet:get-activity-by-type", type),
   getActivityByStatus: (status) => ipcRenderer.invoke("wallet:get-activity-by-status", status),
   listDesktopContacts: () => ipcRenderer.invoke("wallet:list-contacts"),
   removeDesktopContact: (name) => ipcRenderer.invoke("wallet:remove-contact", name),
+
+  listWalletAccounts: () => ipcRenderer.invoke("wallet:list-accounts"),
+  switchWalletAccount: (index) => ipcRenderer.invoke("wallet:switch-account", index),
+  createWalletSubAccount: (nickname) => ipcRenderer.invoke("wallet:create-sub-account", nickname),
+  updateWalletAccountNickname: (index, nickname) =>
+    ipcRenderer.invoke("wallet:update-account-nickname", index, nickname),
 
   onTransactionRequest: (callback) => {
     const handler = (_: unknown, req: TransactionRequest) => callback(req);
@@ -246,6 +296,12 @@ const api: WalletAPI = {
     const handler = (_: unknown, password: string) => callback(password);
     ipcRenderer.on("wallet:biometric-prompt", handler);
     return () => ipcRenderer.removeListener("wallet:biometric-prompt", handler);
+  },
+  onWalletAccountChanged: (callback) => {
+    const handler = (_: unknown, payload: { address: string | null; accountIndex: number }) =>
+      callback(payload);
+    ipcRenderer.on("wallet:account-changed", handler);
+    return () => ipcRenderer.removeListener("wallet:account-changed", handler);
   },
 
   e2eUiLang: process.env.E2E_USER_DATA

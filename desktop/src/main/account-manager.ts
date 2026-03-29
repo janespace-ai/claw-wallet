@@ -197,6 +197,39 @@ export class AccountManager {
   }
 
   /**
+   * Prefer account with latest last_used_at (ties → lower index). Empty DB → 0.
+   */
+  resolveStartupAccountIndex(): number {
+    const rows = this.db
+      .prepare(
+        `SELECT account_index, last_used_at FROM accounts ORDER BY account_index ASC`,
+      )
+      .all() as { account_index: number; last_used_at: number | null }[];
+    if (rows.length === 0) return 0;
+    let bestIdx = rows[0].account_index;
+    let bestT = rows[0].last_used_at ?? 0;
+    for (const r of rows) {
+      const t = r.last_used_at ?? 0;
+      if (t > bestT) {
+        bestT = t;
+        bestIdx = r.account_index;
+      }
+    }
+    return bestIdx;
+  }
+
+  /**
+   * Set in-memory active index only (no DB write — used when restoring last session).
+   */
+  setActiveAccountIndexSilent(accountIndex: number): void {
+    const account = this.getAccount(accountIndex);
+    if (!account) {
+      throw new Error(`Account ${accountIndex} not found`);
+    }
+    this.activeAccountIndex = accountIndex;
+  }
+
+  /**
    * Switch active account
    */
   switchAccount(accountIndex: number): void {

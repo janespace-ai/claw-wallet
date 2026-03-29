@@ -1,6 +1,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { app } from 'electron';
+import { ethers } from 'ethers';
 
 export interface RPCProvider {
   url: string;
@@ -37,6 +38,10 @@ export interface NetworkConfigData {
 
 export class NetworkConfigService {
   private config: NetworkConfigData | null = null;
+  /** Bundled `network-config.json` token entries (for restoring defaults when removing user overrides). */
+  private bundledTokenDefaults: Record<string, TokenConfig> = {};
+  /** User-added or user-overridden token contracts persisted in `network-config-user.json`. */
+  private userTokenOverlay: Record<string, TokenConfig> = {};
   private configPath: string;
   private userConfigPath: string;
 
@@ -55,10 +60,15 @@ export class NetworkConfigService {
   load(): void {
     try {
       const defaultConfig = JSON.parse(fs.readFileSync(this.configPath, 'utf-8')) as NetworkConfigData;
+      this.bundledTokenDefaults = structuredClone(defaultConfig.tokens);
       this.config = defaultConfig;
+      this.userTokenOverlay = {};
 
       if (fs.existsSync(this.userConfigPath)) {
         const userConfig = JSON.parse(fs.readFileSync(this.userConfigPath, 'utf-8')) as Partial<NetworkConfigData>;
+        if (userConfig.tokens && typeof userConfig.tokens === 'object') {
+          this.userTokenOverlay = structuredClone(userConfig.tokens) as Record<string, TokenConfig>;
+        }
         this.mergeUserConfig(userConfig);
       }
 
@@ -87,7 +97,26 @@ export class NetworkConfigService {
     }
 
     if (userConfig.tokens) {
-      this.config.tokens = { ...this.config.tokens, ...userConfig.tokens };
+      for (const [sym, userTok] of Object.entries(userConfig.tokens)) {
+        if (!userTok || typeof userTok !== 'object') continue;
+        const key = sym.toUpperCase();
+        const u = userTok as TokenConfig;
+        const existing = this.config.tokens[key];
+        const merged: TokenConfig = existing
+          ? {
+              name: u.name ?? existing.name,
+              symbol: (u.symbol ?? existing.symbol).toUpperCase(),
+              decimals: u.decimals ?? existing.decimals,
+              contracts: { ...existing.contracts, ...(u.contracts || {}) },
+            }
+          : {
+              name: u.name ?? key,
+              symbol: (u.symbol ?? key).toUpperCase(),
+              decimals: u.decimals ?? 18,
+              contracts: { ...(u.contracts || {}) },
+            };
+        this.config.tokens[key] = merged;
+      }
     }
   }
 
@@ -203,23 +232,151 @@ export class NetworkConfigService {
   }
 
   /**
+   * Add or update a user-defined ERC-20 on a supported chain (persisted to user config).
+   */
+  addCustomToken(input: {
+    chainId: number;
+    contractAddress: string;
+    symbol: string;
+    name?: string;
+    decimals?: number;
+  }): TokenConfig {
+    if (!this.config) {
+      throw new Error('NetworkConfigService not initialized. Call load() first.');
+    }
+    if (!this.getNetwork(input.chainId)) {
+      throw new Error(`Unsupported chain ${input.chainId}`);
+    }
+    let address: string;
+    try {
+      address = ethers.getAddress(input.contractAddress.trim());
+    } catch {
+      throw new Error('Invalid contract address');
+    }
+    const rawSymbol = input.symbol.trim();
+    if (!/^[A-Za-z0-9]{1,32}$/.test(rawSymbol)) {
+      throw new Error('Invalid token symbol');
+    }
+    const key = rawSymbol.toUpperCase();
+    const chainStr = String(input.chainId);
+    const prevOverlay = this.userTokenOverlay[key];
+    const decimals = input.decimals ?? prevOverlay?.decimals ?? 18;
+    const name = (input.name?.trim() || prevOverlay?.name || key).trim();
+
+    const nextOverlay: TokenConfig = {
+      name,
+      symbol: key,
+      decimals,
+      contracts: {
+        ...(prevOverlay?.contracts || {}),
+        [chainStr]: address,
+      },
+    };
+    this.userTokenOverlay[key] = nextOverlay;
+    this.applyUserTokenEntry(key, nextOverlay);
+    this.saveUserConfig();
+    console.log(`[NetworkConfigService] Custom token ${key} on chain ${input.chainId}: ${address}`);
+    return this.config.tokens[key];
+  }
+
+  /**
+   * Remove a user-added contract for a symbol on a chain. Built-in addresses from the bundle are restored when applicable.
+   */
+  removeCustomToken(symbol: string, chainId: number): void {
+    if (!this.config) {
+      throw new Error('NetworkConfigService not initialized. Call load() first.');
+    }
+    const key = symbol.trim().toUpperCase();
+    const chainStr = String(chainId);
+    const overlay = this.userTokenOverlay[key];
+    if (!overlay?.contracts[chainStr]) {
+      throw new Error('No user-added token contract on this chain');
+    }
+
+    const nextContracts = { ...overlay.contracts };
+    delete nextContracts[chainStr];
+    if (Object.keys(nextContracts).length === 0) {
+      delete this.userTokenOverlay[key];
+    } else {
+      this.userTokenOverlay[key] = { ...overlay, contracts: nextContracts };
+    }
+
+    const live = this.config.tokens[key];
+    if (live?.contracts[chainStr]) {
+      delete live.contracts[chainStr];
+      const def = this.bundledTokenDefaults[key]?.contracts[chainStr];
+      if (def) {
+        live.contracts[chainStr] = def;
+      }
+      if (Object.keys(live.contracts).length === 0 && !this.bundledTokenDefaults[key]) {
+        delete this.config.tokens[key];
+      }
+    }
+
+    this.saveUserConfig();
+    console.log(`[NetworkConfigService] Removed custom token ${key} on chain ${chainId}`);
+  }
+
+  /**
+   * Tokens the user added or extended (subset persisted in user config).
+   */
+  listCustomTokens(): TokenConfig[] {
+    return Object.values(this.userTokenOverlay);
+  }
+
+  private applyUserTokenEntry(key: string, userTok: TokenConfig): void {
+    if (!this.config) return;
+    const existing = this.config.tokens[key];
+    const merged: TokenConfig = existing
+      ? {
+          name: userTok.name ?? existing.name,
+          symbol: key,
+          decimals: userTok.decimals ?? existing.decimals,
+          contracts: { ...existing.contracts, ...userTok.contracts },
+        }
+      : {
+          name: userTok.name,
+          symbol: key,
+          decimals: userTok.decimals,
+          contracts: { ...userTok.contracts },
+        };
+    this.config.tokens[key] = merged;
+  }
+
+  /**
    * Save user configuration to disk
    */
   private saveUserConfig(): void {
     if (!this.config) return;
 
-    const userConfig: Partial<NetworkConfigData> = {
-      networks: {}
-    };
+    const userConfig: Partial<NetworkConfigData> = {};
+    const networks: Record<string, NetworkConfig> = {};
 
     for (const [chainIdStr, network] of Object.entries(this.config.networks)) {
       const customRPCs = network.rpcs.filter(rpc => rpc.custom);
       if (customRPCs.length > 0) {
-        userConfig.networks![chainIdStr] = {
+        networks[chainIdStr] = {
           ...network,
           rpcs: customRPCs
         };
       }
+    }
+    if (Object.keys(networks).length > 0) {
+      userConfig.networks = networks;
+    }
+
+    if (Object.keys(this.userTokenOverlay).length > 0) {
+      userConfig.tokens = structuredClone(this.userTokenOverlay);
+    }
+
+    const hasNetworks = userConfig.networks && Object.keys(userConfig.networks).length > 0;
+    const hasTokens = userConfig.tokens && Object.keys(userConfig.tokens).length > 0;
+    if (!hasNetworks && !hasTokens) {
+      if (fs.existsSync(this.userConfigPath)) {
+        fs.unlinkSync(this.userConfigPath);
+      }
+      console.log('[NetworkConfigService] User config cleared');
+      return;
     }
 
     fs.writeFileSync(this.userConfigPath, JSON.stringify(userConfig, null, 2));

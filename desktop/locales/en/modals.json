@@ -18,7 +18,10 @@
     "trustNameLabel": "Contact display name (required)",
     "trustNamePlaceholder": "e.g. Exchange withdrawal",
     "approve": "Approve",
-    "reject": "Reject"
+    "reject": "Reject",
+    "fromAccountLabel": "Signing account",
+    "fromAccountFallback": "Account {index}",
+    "switchAndView": "Switch & View"
   },
   "contactAdd": {
     "title": "Add contact",

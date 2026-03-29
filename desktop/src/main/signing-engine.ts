@@ -23,6 +23,8 @@ interface PendingSignRequest {
   params: Record<string, unknown>;
   /** USD estimate for allowance accounting after user approves an over-budget request */
   estimatedUSD: number;
+  /** BIP-44 account index whose key signs this request (multi-account). */
+  signingAccountIndex?: number;
   resolve: (value: unknown) => void;
   reject: (reason: Error) => void;
   expiryTimer?: ReturnType<typeof setTimeout>;
@@ -132,7 +134,7 @@ export class SigningEngine {
     params: Record<string, unknown>,
     estimatedUSD: number,
     onNeedApproval: (req: PendingSignRequest) => void,
-    options?: { priceAvailable?: boolean },
+    options?: { priceAvailable?: boolean; signingAccountIndex?: number },
   ): Promise<unknown> {
     const priceKnown =
       method !== "sign_transaction" || options?.priceAvailable === true;
@@ -158,7 +160,7 @@ export class SigningEngine {
 
     if (canSilentSign) {
       console.log(`[signing-engine] auto-approve within budget for requestId=${requestId}`);
-      return this.signDirectly(method, params, estimatedUSD, requestId, true);
+      return this.signDirectly(method, params, estimatedUSD, requestId, true, options?.signingAccountIndex);
     }
 
     console.log(`[signing-engine] needs manual approval for requestId=${requestId} (withinBudget=${withinBudget})`);
@@ -168,6 +170,7 @@ export class SigningEngine {
         method,
         params,
         estimatedUSD,
+        signingAccountIndex: options?.signingAccountIndex,
         resolve,
         reject,
       };
@@ -213,7 +216,14 @@ export class SigningEngine {
 
     try {
       console.log(`[signing-engine] signDirectly START requestId=${requestId} method=${pending.method}`);
-      const result = await this.signDirectly(pending.method, pending.params, pending.estimatedUSD, requestId, false);
+      const result = await this.signDirectly(
+        pending.method,
+        pending.params,
+        pending.estimatedUSD,
+        requestId,
+        false,
+        pending.signingAccountIndex,
+      );
       console.log(`[signing-engine] signDirectly OK requestId=${requestId}`);
       pending.resolve(result);
     } catch (err) {
@@ -321,8 +331,12 @@ export class SigningEngine {
     estimatedUSD: number,
     requestId?: string,
     isAutoApproved?: boolean,
+    signingAccountIndex?: number,
   ): Promise<unknown> {
-    const privateKey = this.keyManager.getPrivateKey();
+    const privateKey =
+      signingAccountIndex !== undefined && signingAccountIndex !== null
+        ? this.keyManager.getPrivateKeyForAccountIndex(signingAccountIndex)
+        : this.keyManager.getPrivateKey();
     if (!privateKey) throw new Error("Wallet is locked");
 
     const wallet = new ethers.Wallet(privateKey);

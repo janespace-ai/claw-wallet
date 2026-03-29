@@ -10,8 +10,8 @@
 - [x] 1.6 Implement automatic RPC failover logic (Primary → Secondary → Fallback)
 - [x] 1.7 Add "All providers failed" notification system
 - [x] 1.8 Create `RPCHealthMonitor` background service with interval timer
-- [ ] 1.9 Add unit tests for RPCProviderManager failover logic
-- [ ] 1.10 Add integration tests for health check system with mock RPC endpoints
+- [x] 1.9 Add unit tests for RPCProviderManager failover logic
+- [x] 1.10 Add integration tests for health check system with mock RPC endpoints
 
 ## 2. Phase 1: Multi-Network Balance Aggregation (Week 1-2)
 
@@ -23,8 +23,8 @@
 - [x] 2.6 Implement balance query timeout (5 seconds per network)
 - [x] 2.7 Add error handling for individual network query failures
 - [x] 2.8 Create `TokenRegistry` to manage ERC-20 token contracts per network
-- [ ] 2.9 Add support for custom ERC-20 token addition by user
-- [ ] 2.10 Add unit tests for balance aggregation logic
+- [x] 2.9 Add support for custom ERC-20 token addition by user
+- [x] 2.10 Add unit tests for balance aggregation logic
 
 ## 3. Phase 1: UI - Network Filter & Balance Display (Week 2)
 
@@ -55,8 +55,8 @@
 - [x] 4.10 Implement `switchAccount(accountIndex)` API with state update
 - [x] 4.11 Add account nickname update functionality
 - [x] 4.12 Implement last_used_at timestamp tracking on account switch
-- [ ] 4.13 Add unit tests for account derivation and validation
-- [ ] 4.14 Add integration tests for account metadata persistence
+- [x] 4.13 Add unit tests for account derivation and validation
+- [x] 4.14 Add integration tests for account metadata persistence
 
 ## 5. Phase 2: SQLite Schema Migration for Account Isolation (Week 3)
 
@@ -68,7 +68,7 @@
 - [x] 5.6 Create indexes: `idx_signing_history_account`, `idx_security_events_account`, `idx_contacts_account`
 - [x] 5.7 Insert migration record for Account 0 in `accounts` table (for existing users)
 - [x] 5.8 Update `DatabaseService` to execute migration on startup
-- [ ] 5.9 Add database backup before migration
+- [x] 5.9 Add database backup before migration
 - [ ] 5.10 Add migration rollback script
 - [ ] 5.11 Test migration on copy of production database with 100+ records
 - [x] 5.12 Update all database queries to include `account_index` in WHERE clause
@@ -101,24 +101,24 @@
 - [x] 7.8 Implement balance update deduplication for inactive accounts
 - [x] 7.9 Add error handling with account isolation (one account's error doesn't affect others)
 - [x] 7.10 Implement dead letter queue for failed messages (3 retries)
-- [ ] 7.11 Add unit tests for message routing logic
+- [x] 7.11 Add unit tests for message routing logic
 - [ ] 7.12 Add integration tests for cross-account message delivery
 
 ## 8. Phase 3: UI - Account Selector & Cross-Account Notifications (Week 5)
 
-- [ ] 8.1 Add account selector dropdown component to Header (right of title)
-- [ ] 8.2 Implement account list display with nickname and truncated address
-- [ ] 8.3 Add "Create New Account" button to account selector (disabled at 10 accounts)
-- [ ] 8.4 Implement account switch handler with UI state update
-- [ ] 8.5 Add active account indicator (checkmark) in dropdown
-- [ ] 8.6 Implement fast account switching with cached state loading
-- [ ] 8.7 Create cross-account approval notification modal
-- [ ] 8.8 Add "From Account" badge to approval notifications (nickname + address)
-- [ ] 8.9 Implement three-button approval UI: [Approve] [Reject] [Switch & View]
-- [ ] 8.10 Add "Switch & View" action handler (switch account, keep dialog open)
-- [ ] 8.11 Add "Approve without switching" handler (sign, stay on current account)
-- [ ] 8.12 Implement account nickname edit functionality in Settings
-- [ ] 8.13 Add CSS styling for account selector and cross-account notifications
+- [x] 8.1 Add account selector dropdown component to Header (right of title)
+- [x] 8.2 Implement account list display with nickname and truncated address
+- [x] 8.3 Add "Create New Account" button to account selector (disabled at 10 accounts)
+- [x] 8.4 Implement account switch handler with UI state update
+- [x] 8.5 Add active account indicator (checkmark) in dropdown
+- [x] 8.6 Implement fast account switching with cached state loading
+- [x] 8.7 Create cross-account approval notification modal
+- [x] 8.8 Add "From Account" badge to approval notifications (nickname + address)
+- [x] 8.9 Implement three-button approval UI: [Approve] [Reject] [Switch & View]
+- [x] 8.10 Add "Switch & View" action handler (switch account, keep dialog open)
+- [x] 8.11 Add "Approve without switching" handler (sign, stay on current account)
+- [x] 8.12 Implement account nickname edit functionality in Settings
+- [x] 8.13 Add CSS styling for account selector and cross-account notifications
 - [ ] 8.14 Test UI with 10 accounts and simultaneous approval requests from multiple accounts
 
 ## 9. Phase 3: Account-Scoped Data Isolation (Week 5)

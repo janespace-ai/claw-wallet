@@ -16,6 +16,7 @@ import { ChainAdapter } from "./chain-adapter.js";
 import { TxSyncService } from "./tx-sync-service.js";
 import { NetworkConfigService } from "./network-config-service.js";
 import { RPCProviderManager } from "./rpc-provider-manager.js";
+import { AccountManager } from "./account-manager.js";
 import { config } from "./config.js";
 
 /**
@@ -65,6 +66,7 @@ let tray: InstanceType<typeof Tray> | null = null;
 const dataDir = join(app.getPath("userData"), "wallet-data");
 const dbPath = join(dataDir, "wallet.db");
 const dbService = DatabaseService.getInstance(dbPath);
+const accountManager = new AccountManager(dbService);
 const networkConfigService = new NetworkConfigService();
 networkConfigService.load();
 const rpcProviderManager = new RPCProviderManager(networkConfigService);
@@ -89,6 +91,37 @@ const lockManager = new LockManager(keyManager, {
 const priceService = new PriceService();
 const balanceService = new BalanceService(networkConfigService, rpcProviderManager);
 let relayBridge: RelayBridge | null = null;
+
+function syncWalletAccountsAfterUnlock(): void {
+  const mnemonic = keyManager.getMnemonicIfUnlocked();
+  if (!mnemonic) return;
+  try {
+    accountManager.ensureDefaultAccount(mnemonic);
+    const idx = accountManager.resolveStartupAccountIndex();
+    accountManager.setActiveAccountIndexSilent(idx);
+    keyManager.setActiveAccountIndex(idx);
+  } catch (e) {
+    console.error("[Desktop] syncWalletAccountsAfterUnlock:", e);
+  }
+}
+
+function listWalletAccountsForRenderer(): Array<{
+  index: number;
+  nickname: string;
+  address: string;
+  isActive: boolean;
+}> {
+  const mnemonic = keyManager.getMnemonicIfUnlocked();
+  if (!mnemonic) throw new Error("Wallet locked");
+  accountManager.ensureDefaultAccount(mnemonic);
+  const active = accountManager.getActiveAccountIndex();
+  return accountManager.listAccounts().map((acc) => ({
+    index: acc.index,
+    nickname: acc.nickname,
+    address: accountManager.getAddress(mnemonic, acc.index),
+    isActive: acc.index === active,
+  }));
+}
 
 function createWindow(): void {
   const base = app.getAppPath();
@@ -150,16 +183,19 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("wallet:create", async (_, password: string) => {
     const result = await keyManager.createWallet(password);
+    syncWalletAccountsAfterUnlock();
     return { address: result.address, mnemonic: result.mnemonic };
   });
 
   ipcMain.handle("wallet:import", async (_, mnemonic: string, password: string) => {
     const result = await keyManager.importWallet(mnemonic, password);
+    syncWalletAccountsAfterUnlock();
     return { address: result.address };
   });
 
   ipcMain.handle("wallet:unlock", async (_, password: string) => {
     await keyManager.unlock(password);
+    syncWalletAccountsAfterUnlock();
     lockManager.onUnlock();
     mainWindow?.webContents.send("wallet:lock-state", false);
     if (keyManager.canEnableBiometric() && !keyManager.isBiometricAvailable()) {
@@ -169,6 +205,7 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("wallet:unlock-biometric", async () => {
     await keyManager.unlockBiometric();
+    syncWalletAccountsAfterUnlock();
     lockManager.onUnlock();
     mainWindow?.webContents.send("wallet:lock-state", false);
   });
@@ -179,14 +216,53 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("wallet:status", async () => {
+    let activeAccountIndex = 0;
+    if (keyManager.isUnlocked()) {
+      try {
+        activeAccountIndex = accountManager.getActiveAccountIndex();
+      } catch {
+        activeAccountIndex = 0;
+      }
+    }
     return {
       hasWallet: keyManager.hasWallet(),
       isUnlocked: keyManager.isUnlocked(),
       address: keyManager.getAddress(),
+      activeAccountIndex,
       connectedAgents: relayBridge?.connectedDeviceCount() ?? 0,
       lockMode: lockManager.getMode(),
       sameMachineWarning: securityMonitor.hasSameMachineWarning(),
     };
+  });
+
+  ipcMain.handle("wallet:list-accounts", async () => {
+    return listWalletAccountsForRenderer();
+  });
+
+  ipcMain.handle("wallet:switch-account", async (_, index: number) => {
+    const mnemonic = keyManager.getMnemonicIfUnlocked();
+    if (!mnemonic) throw new Error("Wallet locked");
+    accountManager.switchAccount(index);
+    keyManager.setActiveAccountIndex(index);
+    balanceService.clearCache();
+    const addr = keyManager.getAddress();
+    mainWindow?.webContents.send("wallet:account-changed", {
+      address: addr,
+      accountIndex: index,
+    });
+  });
+
+  ipcMain.handle("wallet:create-sub-account", async (_, nickname?: string) => {
+    const mnemonic = keyManager.getMnemonicIfUnlocked();
+    if (!mnemonic) throw new Error("Wallet locked");
+    accountManager.createAccount(mnemonic, nickname);
+    balanceService.clearCache();
+    return listWalletAccountsForRenderer();
+  });
+
+  ipcMain.handle("wallet:update-account-nickname", async (_, index: number, nickname: string) => {
+    accountManager.updateNickname(index, nickname.trim());
+    return listWalletAccountsForRenderer();
   });
 
   ipcMain.handle("wallet:pair-code", async () => {
@@ -302,6 +378,27 @@ function registerIpcHandlers(): void {
     return balanceService.getWalletBalances(address, config.signing.tokenWhitelist);
   });
 
+  ipcMain.handle(
+    "wallet:add-custom-token",
+    async (
+      _,
+      input: { chainId: number; contractAddress: string; symbol: string; name?: string; decimals?: number },
+    ) => {
+      const token = networkConfigService.addCustomToken(input);
+      balanceService.clearCache();
+      return token;
+    },
+  );
+
+  ipcMain.handle("wallet:list-custom-tokens", async () => {
+    return networkConfigService.listCustomTokens();
+  });
+
+  ipcMain.handle("wallet:remove-custom-token", async (_, symbol: string, chainId: number) => {
+    networkConfigService.removeCustomToken(symbol, chainId);
+    balanceService.clearCache();
+  });
+
   ipcMain.handle("wallet:get-signing-history", async () => {
     return signingHistory.getRecords();
   });
@@ -364,6 +461,28 @@ app.whenReady().then(async () => {
     reconnectBaseMs: config.relay.reconnectBaseMs,
     reconnectMaxMs: config.relay.reconnectMaxMs,
     ipChangePolicy: config.ipChangePolicy,
+    getMultiAccountTxContext: () => {
+      const mnemonic = keyManager.getMnemonicIfUnlocked();
+      const activeAccountIndex = accountManager.getActiveAccountIndex();
+      const signingAccountIndex = activeAccountIndex;
+      const activeAddress = keyManager.getAddress() ?? "";
+      let signingNickname = `Account ${signingAccountIndex}`;
+      if (mnemonic) {
+        try {
+          const acc = accountManager.getAccount(signingAccountIndex);
+          if (acc) signingNickname = acc.nickname;
+        } catch {
+          /* ignore */
+        }
+      }
+      return {
+        activeAccountIndex,
+        signingAccountIndex,
+        signingAddress: activeAddress,
+        activeAddress,
+        signingNickname,
+      };
+    },
     onTransactionRequest: (req) => {
       console.log("[desktop] Showing tx approval modal for", req.requestId);
       mainWindow?.show();

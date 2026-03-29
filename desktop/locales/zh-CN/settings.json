@@ -1,4 +1,9 @@
 {
+  "accounts": {
+    "title": "账户",
+    "hint": "昵称会显示在顶部账户列表中。",
+    "newNicknamePrompt": "新账户昵称（可留空使用默认）："
+  },
   "allowance": {
     "title": "限额",
     "dailyLimit": "每日限额（美元）",

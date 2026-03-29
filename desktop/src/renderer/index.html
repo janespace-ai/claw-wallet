@@ -11,6 +11,11 @@
   <div id="app">
     <header id="header">
       <h1 data-i18n="modals.app.title">Claw Wallet</h1>
+      <div id="account-header-group" class="account-header-group" style="display: none;" aria-label="Accounts">
+        <label for="account-selector" class="sr-only" data-i18n="common.accounts.selectorLabel">Active account</label>
+        <select id="account-selector" class="account-selector"></select>
+        <button type="button" id="btn-new-sub-account" class="btn ghost btn-account-new" data-i18n="common.accounts.newAccount">+ Account</button>
+      </div>
       <div class="language-switcher">
         <select id="language-selector" class="language-select">
           <option value="en">English</option>
@@ -144,6 +149,11 @@
 
       <!-- Settings tab -->
       <div id="tab-settings" class="tab-content">
+        <div class="card" id="settings-accounts-card" style="display: none;">
+          <h3 data-i18n="settings.accounts.title">Accounts</h3>
+          <p class="settings-hint" data-i18n="settings.accounts.hint">Nicknames are shown in the header account list.</p>
+          <div id="settings-account-nicknames"></div>
+        </div>
         <div class="card">
           <h3 data-i18n="settings.allowance.title">Allowance</h3>
           <div class="form-group">
@@ -232,6 +242,10 @@
     <div id="modal-tx" class="modal" style="display:none">
       <div class="modal-content">
         <h3 data-i18n="modals.tx.title">Transaction Approval</h3>
+        <div id="tx-from-account-row" class="tx-from-account-badge" style="display: none;">
+          <span class="tx-from-label" data-i18n="modals.tx.fromAccountLabel">Signing account</span>
+          <span id="tx-from-account-text" class="tx-from-account-text"></span>
+        </div>
         <div id="tx-details"></div>
         <label id="tx-trust-wrap" class="checkbox-label" style="display:none; flex-direction: column; align-items: stretch; gap: 8px; margin: 12px 0;">
           <span style="display:flex; align-items:center; gap:8px;">
@@ -243,9 +257,10 @@
             <input type="text" id="input-trust-contact-name" data-i18n-placeholder="modals.tx.trustNamePlaceholder" placeholder="e.g. Exchange withdrawal" style="width:100%; margin-top:6px; padding:8px;">
           </label>
         </label>
-        <div class="modal-actions">
-          <button id="btn-approve-tx" class="btn primary" data-i18n="modals.tx.approve">Approve</button>
-          <button id="btn-reject-tx" class="btn danger" data-i18n="modals.tx.reject">Reject</button>
+        <div class="modal-actions modal-actions-tx">
+          <button type="button" id="btn-tx-switch-view" class="btn secondary" style="display: none;" data-i18n="modals.tx.switchAndView">Switch &amp; View</button>
+          <button type="button" id="btn-approve-tx" class="btn primary" data-i18n="modals.tx.approve">Approve</button>
+          <button type="button" id="btn-reject-tx" class="btn danger" data-i18n="modals.tx.reject">Reject</button>
         </div>
       </div>
     </div>

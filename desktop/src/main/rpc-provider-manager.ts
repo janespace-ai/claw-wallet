@@ -148,8 +148,13 @@ export class RPCProviderManager {
     }
 
     const selectedRPC = healthyRPCs[0];
-    
-    if (!this.providers.has(cacheKey) || this.providers.get(cacheKey)!.connection.url !== selectedRPC.url) {
+
+    const cached = this.providers.get(cacheKey);
+    const cachedUrl =
+      cached != null
+        ? (cached as unknown as { _getConnection: () => { url: string } })._getConnection().url
+        : null;
+    if (cachedUrl !== selectedRPC.url) {
       const provider = new ethers.JsonRpcProvider(selectedRPC.url);
       this.providers.set(cacheKey, provider);
     }

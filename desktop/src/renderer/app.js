@@ -90,6 +90,8 @@ function enterMainScreen(status) {
   syncSettingsFromStatus(status);
   loadWalletBalances(status.address);
   initializeNetworkFilter();
+  refreshAccountHeader().catch((e) => console.error(e));
+  renderSettingsAccountsCard().catch((e) => console.error(e));
 }
 
 let currentBalances = [];
@@ -336,6 +338,131 @@ function escapeHtml(s) {
     .replace(/"/g, "&quot;");
 }
 
+function truncateEthAddress(addr) {
+  const a = String(addr || "").trim();
+  if (a.length < 12) return a;
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+
+async function refreshAccountHeader() {
+  const wrap = document.getElementById("account-header-group");
+  const sel = document.getElementById("account-selector");
+  const btnNew = document.getElementById("btn-new-sub-account");
+  if (!wrap || !sel || !btnNew) return;
+  try {
+    const accounts = await wapi().listWalletAccounts();
+    wrap.style.display = "flex";
+    sel.innerHTML = "";
+    for (const a of accounts) {
+      const opt = document.createElement("option");
+      opt.value = String(a.index);
+      const mark = a.isActive ? "✓ " : "";
+      opt.textContent = `${mark}${a.nickname} (${truncateEthAddress(a.address)})`;
+      if (a.isActive) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    btnNew.disabled = accounts.length >= 10;
+    btnNew.title = accounts.length >= 10 ? tKey("common.accounts.maxReached") : "";
+  } catch (e) {
+    console.error("refreshAccountHeader:", e);
+    wrap.style.display = "none";
+  }
+}
+
+async function renderSettingsAccountsCard() {
+  const card = document.getElementById("settings-accounts-card");
+  const list = document.getElementById("settings-account-nicknames");
+  if (!card || !list) return;
+  try {
+    const accounts = await wapi().listWalletAccounts();
+    card.style.display = "block";
+    list.innerHTML = accounts
+      .map(
+        (a) => `
+      <div class="settings-account-row" data-index="${a.index}">
+        <span class="settings-account-addr">${escapeHtml(truncateEthAddress(a.address))}</span>
+        <input type="text" class="input-nick" data-index="${a.index}" value="${escapeHtml(a.nickname)}" />
+        <button type="button" class="btn ghost btn-sm btn-save-nick" data-index="${a.index}">${escapeHtml(tKey("common.buttons.save"))}</button>
+      </div>`,
+      )
+      .join("");
+    list.querySelectorAll(".btn-save-nick").forEach((btn) => {
+      btn.onclick = async () => {
+        const idx = parseInt(btn.getAttribute("data-index"), 10);
+        const row = btn.closest(".settings-account-row");
+        const inp = row && row.querySelector(".input-nick");
+        if (!inp) return;
+        try {
+          await wapi().updateWalletAccountNickname(idx, inp.value);
+          await refreshAccountHeader();
+          await renderSettingsAccountsCard();
+        } catch (err) {
+          alert(err.message || String(err));
+        }
+      };
+    });
+  } catch (e) {
+    console.error("renderSettingsAccountsCard:", e);
+    card.style.display = "none";
+  }
+}
+
+function showTxApprovalModal(req) {
+  currentTxRequest = req;
+  const details = document.getElementById("tx-details");
+  const cc = req.counterpartyContact;
+  const bookLine =
+    cc && cc.name
+      ? `<p><strong>${escapeHtml(tKey("modals.tx.addressBook"))}:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
+      : "";
+  const transferText =
+    req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
+      ? escapeHtml(req.transferDisplay)
+      : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+  const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
+  const canValuate = req.priceAvailable === true;
+  const usdtLine = canValuate
+    ? `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></p>`
+    : `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(tKey("modals.tx.noUsdt"))}</span></p>`;
+  details.innerHTML = `
+      <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
+      ${bookLine}
+      <p><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
+      <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
+      ${usdtLine}
+      <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${escapeHtml(req.chain)}</p>
+      <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
+      <p><strong>${escapeHtml(tKey("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
+    `;
+  const trustWrap = document.getElementById("tx-trust-wrap");
+  const trustChk = document.getElementById("chk-trust-after-success");
+  const nameWrap = document.getElementById("tx-trust-name-wrap");
+  const nameInput = document.getElementById("input-trust-contact-name");
+  const showTrust = req.allowSaveTrustedContact === true;
+  trustWrap.style.display = showTrust ? "flex" : "none";
+  trustChk.checked = false;
+  if (nameInput) nameInput.value = "";
+  if (nameWrap) nameWrap.style.display = "none";
+
+  const fromRow = document.getElementById("tx-from-account-row");
+  const fromText = document.getElementById("tx-from-account-text");
+  const btnSwitch = document.getElementById("btn-tx-switch-view");
+  const isCross = req.isActiveAccount === false;
+  if (isCross && req.fromAccountIndex != null && req.fromAccountIndex !== undefined) {
+    fromRow.style.display = "flex";
+    const nick =
+      req.fromAccountNickname ||
+      tKey("modals.tx.fromAccountFallback", { index: String(req.fromAccountIndex) });
+    fromText.textContent = `${nick} · ${truncateEthAddress(req.fromAccountAddress || "")}`;
+    btnSwitch.style.display = "inline-block";
+  } else {
+    fromRow.style.display = "none";
+    btnSwitch.style.display = "none";
+  }
+
+  document.getElementById("modal-tx").style.display = "flex";
+}
+
 function toggleBalanceExpand(element) {
   if (!element.classList.contains('multi-network')) {
     return;
@@ -505,6 +632,8 @@ function setupEventListeners() {
         loadActivityRecords(currentActivityFilter, true);
       } else if (tab.dataset.tab === "contacts") {
         loadDesktopContacts();
+      } else if (tab.dataset.tab === "settings") {
+        renderSettingsAccountsCard().catch((e) => console.error(e));
       }
     };
   });
@@ -669,6 +798,50 @@ function setupEventListeners() {
     }
   };
 
+  document.getElementById("btn-tx-switch-view").onclick = async () => {
+    if (!currentTxRequest || currentTxRequest.fromAccountIndex == null) return;
+    try {
+      await wapi().switchWalletAccount(currentTxRequest.fromAccountIndex);
+      currentTxRequest = { ...currentTxRequest, isActiveAccount: true };
+      showTxApprovalModal(currentTxRequest);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const accountSel = document.getElementById("account-selector");
+  if (accountSel) {
+    accountSel.addEventListener("change", async () => {
+      const idx = parseInt(accountSel.value, 10);
+      if (Number.isNaN(idx)) return;
+      try {
+        const st = await wapi().getStatus();
+        if (idx === (st.activeAccountIndex ?? 0)) return;
+        await wapi().switchWalletAccount(idx);
+      } catch (e) {
+        console.error(e);
+        await refreshAccountHeader();
+      }
+    });
+  }
+
+  document.getElementById("btn-new-sub-account").onclick = async () => {
+    const hint = tKey("settings.accounts.newNicknamePrompt");
+    const name = window.prompt(hint, "");
+    if (name === null) return;
+    try {
+      await wapi().createWalletSubAccount(name.trim() || undefined);
+      const st = await wapi().getStatus();
+      const addrEl = document.getElementById("main-address");
+      if (addrEl && st.address) addrEl.textContent = st.address;
+      await refreshAccountHeader();
+      await renderSettingsAccountsCard();
+      if (st.address) loadWalletBalances(st.address);
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  };
+
   // Security alert modal
   document.getElementById("btn-alert-freeze").onclick = () => respondAlert("freeze");
   document.getElementById("btn-alert-allow").onclick = () => respondAlert("allow_once");
@@ -699,42 +872,7 @@ async function respondAlert(action) {
 
 function setupRealtimeEvents() {
   wapi().onTransactionRequest((req) => {
-    currentTxRequest = req;
-    const details = document.getElementById("tx-details");
-    const cc = req.counterpartyContact;
-    const bookLine =
-      cc && cc.name
-        ? `<p><strong>${escapeHtml(tKey("modals.tx.addressBook"))}:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
-        : "";
-    const transferText =
-      req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
-        ? escapeHtml(req.transferDisplay)
-        : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
-    const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
-    const canValuate = req.priceAvailable === true;
-    const usdtLine = canValuate
-      ? `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></p>`
-      : `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(tKey("modals.tx.noUsdt"))}</span></p>`;
-    details.innerHTML = `
-      <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
-      ${bookLine}
-      <p><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
-      <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
-      ${usdtLine}
-      <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${escapeHtml(req.chain)}</p>
-      <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
-      <p><strong>${escapeHtml(tKey("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
-    `;
-    const trustWrap = document.getElementById("tx-trust-wrap");
-    const trustChk = document.getElementById("chk-trust-after-success");
-    const nameWrap = document.getElementById("tx-trust-name-wrap");
-    const nameInput = document.getElementById("input-trust-contact-name");
-    const showTrust = req.allowSaveTrustedContact === true;
-    trustWrap.style.display = showTrust ? "flex" : "none";
-    trustChk.checked = false;
-    if (nameInput) nameInput.value = "";
-    if (nameWrap) nameWrap.style.display = "none";
-    document.getElementById("modal-tx").style.display = "flex";
+    showTxApprovalModal(req);
   });
 
   wapi().onContactAddRequest((req) => {
@@ -769,9 +907,19 @@ function setupRealtimeEvents() {
 
   wapi().onLockStateChange((locked) => {
     if (locked) {
+      const ag = document.getElementById("account-header-group");
+      if (ag) ag.style.display = "none";
       showScreen("unlock");
       updateBiometricButton();
     }
+  });
+
+  wapi().onWalletAccountChanged(({ address }) => {
+    const el = document.getElementById("main-address");
+    if (el) el.textContent = address ?? "";
+    if (address) loadWalletBalances(address);
+    refreshAccountHeader().catch((e) => console.error(e));
+    renderSettingsAccountsCard().catch((e) => console.error(e));
   });
 
   wapi().onBiometricPrompt(async (password) => {

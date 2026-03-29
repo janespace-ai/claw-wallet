@@ -132,6 +132,40 @@ export class KeyManager {
     return this.decryptedPrivateKey;
   }
 
+  /** In-memory mnemonic when unlocked — main process only, never expose to renderer. */
+  getMnemonicIfUnlocked(): string | null {
+    return this.decryptedMnemonic;
+  }
+
+  /**
+   * Re-derive signing key for BIP-44 account index (m/44'/60'/0'/0/index).
+   * Requires wallet unlocked with mnemonic in memory.
+   */
+  setActiveAccountIndex(accountIndex: number): void {
+    if (accountIndex < 0 || accountIndex > 9) {
+      throw new Error("Account index must be 0-9");
+    }
+    if (!this.decryptedMnemonic) {
+      throw new Error("Wallet locked");
+    }
+    const path = `m/44'/60'/0'/0/${accountIndex}`;
+    const wallet = ethers.HDNodeWallet.fromPhrase(this.decryptedMnemonic, undefined, path);
+    this.decryptedPrivateKey = wallet.privateKey;
+    this.address = wallet.address;
+  }
+
+  getPrivateKeyForAccountIndex(accountIndex: number): string {
+    if (accountIndex < 0 || accountIndex > 9) {
+      throw new Error("Account index must be 0-9");
+    }
+    if (!this.decryptedMnemonic) {
+      throw new Error("Wallet locked");
+    }
+    const path = `m/44'/60'/0'/0/${accountIndex}`;
+    const wallet = ethers.HDNodeWallet.fromPhrase(this.decryptedMnemonic, undefined, path);
+    return wallet.privateKey;
+  }
+
   async createWallet(password: string): Promise<{ address: string; mnemonic: string }> {
     if (this.store) throw new Error("Wallet already exists");
     this.validatePassword(password);

@@ -79,5 +79,10 @@
     "minutesAgo": "{count} 分钟前",
     "hoursAgo": "{count} 小时前",
     "daysAgo": "{count} 天前"
+  },
+  "accounts": {
+    "selectorLabel": "当前账户",
+    "newAccount": "+ 账户",
+    "maxReached": "最多 10 个账户"
   }
 }

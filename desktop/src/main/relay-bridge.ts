@@ -39,6 +39,14 @@ export interface RelayBridgeOptions {
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
   ipChangePolicy?: "block" | "warn" | "allow";
+  /** Multi-account UI + signing index (optional; single-account wallets omit). */
+  getMultiAccountTxContext?: () => {
+    activeAccountIndex: number;
+    signingAccountIndex: number;
+    signingAddress: string;
+    activeAddress: string;
+    signingNickname: string;
+  };
   onTransactionRequest?: (req: TransactionRequestInfo) => void;
   onContactAddRequest?: (req: ContactAddRequestInfo) => void;
   onConnectionStatus?: (status: ConnectionStatusInfo) => void;
@@ -65,6 +73,12 @@ export interface TransactionRequestInfo {
   estimatedUsd: number;
   /** False when calldata/price cannot support a reliable estimate */
   priceAvailable: boolean;
+  /** Signing account (same as active until multi-connection relay lands). */
+  fromAccountIndex?: number;
+  fromAccountNickname?: string;
+  fromAccountAddress?: string;
+  isActiveAccount?: boolean;
+  signingAccountIndex?: number;
 }
 
 export interface ContactAddRequestInfo {
@@ -597,6 +611,13 @@ export class RelayBridge {
     console.log(`[relay-bridge] handleSignRequest START requestId=${requestId} method=${method} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);
 
     try {
+      const ctx = this.options.getMultiAccountTxContext?.();
+      const signingAccountIndex = ctx?.signingAccountIndex ?? 0;
+      const activeIdx = ctx?.activeAccountIndex ?? signingAccountIndex;
+      const signingAddr = ctx?.signingAddress ?? this.options.keyManager.getAddress() ?? "";
+      const activeAddr = ctx?.activeAddress ?? signingAddr;
+      const signingNick = ctx?.signingNickname ?? `Account ${signingAccountIndex}`;
+
       const result = await this.options.signingEngine.handleSignRequest(
         requestId,
         method,
@@ -635,10 +656,15 @@ export class RelayBridge {
             transferDisplay,
             estimatedUsd: pendingReq.estimatedUSD,
             priceAvailable,
+            fromAccountIndex: signingAccountIndex,
+            fromAccountNickname: signingNick,
+            fromAccountAddress: signingAddr,
+            isActiveAccount: signingAccountIndex === activeIdx,
+            signingAccountIndex,
           };
           this.options.onTransactionRequest?.(txInfo);
         },
-        { priceAvailable },
+        { priceAvailable, signingAccountIndex },
       );
 
       console.log(`[relay-bridge] handleSignRequest APPROVED requestId=${requestId} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);

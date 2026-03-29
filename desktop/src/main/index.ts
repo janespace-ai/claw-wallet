@@ -14,6 +14,8 @@ import { SigningHistory } from "./signing-history.js";
 import { WalletAuthorityStore } from "./wallet-authority-store.js";
 import { ChainAdapter } from "./chain-adapter.js";
 import { TxSyncService } from "./tx-sync-service.js";
+import { NetworkConfigService } from "./network-config-service.js";
+import { RPCProviderManager } from "./rpc-provider-manager.js";
 import { config } from "./config.js";
 
 /**
@@ -63,6 +65,9 @@ let tray: InstanceType<typeof Tray> | null = null;
 const dataDir = join(app.getPath("userData"), "wallet-data");
 const dbPath = join(dataDir, "wallet.db");
 const dbService = DatabaseService.getInstance(dbPath);
+const networkConfigService = new NetworkConfigService();
+networkConfigService.load();
+const rpcProviderManager = new RPCProviderManager(networkConfigService);
 const keyManager = new KeyManager(dataDir, { scryptN: config.keyring.scryptN });
 const signingHistory = new SigningHistory(dbService);
 const authorityStore = new WalletAuthorityStore(dbService);
@@ -337,6 +342,10 @@ app.whenReady().then(async () => {
   // Start transaction sync service
   txSyncService.startPeriodicSync(30000); // Every 30 seconds
 
+  // Start RPC health monitoring
+  rpcProviderManager.startHealthChecks();
+  console.log('[Desktop] RPC health monitoring started');
+
   createWindow();
   if (!process.env.E2E_SKIP_TRAY) {
     createTray();
@@ -393,6 +402,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", async () => {
+  rpcProviderManager.stopHealthChecks();
   txSyncService.stopPeriodicSync();
   relayBridge?.shutdown();
   lockManager.lock();

@@ -2,14 +2,14 @@
 
 ## 1. Phase 1: Network Configuration & RPC Management (Week 1)
 
-- [ ] 1.1 Create `desktop/network-config.json` with 8+ network configurations (Ethereum, Base, Optimism, Arbitrum, Polygon, zkSync Era, Linea, Scroll)
-- [ ] 1.2 Implement `NetworkConfigService` class to load and validate network configuration
-- [ ] 1.3 Create `RPCProviderManager` class with provider pool management
-- [ ] 1.4 Implement RPC health check system with `eth_blockNumber` ping every 10 seconds
-- [ ] 1.5 Add health metrics tracking (latency, consecutive failures, last check timestamp)
-- [ ] 1.6 Implement automatic RPC failover logic (Primary → Secondary → Fallback)
-- [ ] 1.7 Add "All providers failed" notification system
-- [ ] 1.8 Create `RPCHealthMonitor` background service with interval timer
+- [x] 1.1 Create `desktop/network-config.json` with 8+ network configurations (Ethereum, Base, Optimism, Arbitrum, Polygon, zkSync Era, Linea, Scroll)
+- [x] 1.2 Implement `NetworkConfigService` class to load and validate network configuration
+- [x] 1.3 Create `RPCProviderManager` class with provider pool management
+- [x] 1.4 Implement RPC health check system with `eth_blockNumber` ping every 10 seconds
+- [x] 1.5 Add health metrics tracking (latency, consecutive failures, last check timestamp)
+- [x] 1.6 Implement automatic RPC failover logic (Primary → Secondary → Fallback)
+- [x] 1.7 Add "All providers failed" notification system
+- [x] 1.8 Create `RPCHealthMonitor` background service with interval timer
 - [ ] 1.9 Add unit tests for RPCProviderManager failover logic
 - [ ] 1.10 Add integration tests for health check system with mock RPC endpoints
 

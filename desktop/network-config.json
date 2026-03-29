@@ -1,0 +1,277 @@
+{
+  "networks": {
+    "1": {
+      "name": "Ethereum",
+      "chainId": 1,
+      "nativeCurrency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://eth.llamarpc.com",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://rpc.ankr.com/eth",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://ethereum.publicnode.com",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://etherscan.io"],
+      "icon": "🟦"
+    },
+    "8453": {
+      "name": "Base",
+      "chainId": 8453,
+      "nativeCurrency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://mainnet.base.org",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://base.llamarpc.com",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://base.publicnode.com",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://basescan.org"],
+      "icon": "🔵"
+    },
+    "10": {
+      "name": "Optimism",
+      "chainId": 10,
+      "nativeCurrency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://mainnet.optimism.io",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://optimism.llamarpc.com",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://optimism.publicnode.com",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://optimistic.etherscan.io"],
+      "icon": "🔴"
+    },
+    "42161": {
+      "name": "Arbitrum",
+      "chainId": 42161,
+      "nativeCurrency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://arb1.arbitrum.io/rpc",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://arbitrum.llamarpc.com",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://arbitrum-one.publicnode.com",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://arbiscan.io"],
+      "icon": "🟣"
+    },
+    "137": {
+      "name": "Polygon",
+      "chainId": 137,
+      "nativeCurrency": {
+        "name": "Matic",
+        "symbol": "MATIC",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://polygon-rpc.com",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://polygon.llamarpc.com",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://polygon-bor-rpc.publicnode.com",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://polygonscan.com"],
+      "icon": "🟣"
+    },
+    "324": {
+      "name": "zkSync Era",
+      "chainId": 324,
+      "nativeCurrency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://mainnet.era.zksync.io",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://zksync.drpc.org",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://zksync-era.blockpi.network/v1/rpc/public",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://explorer.zksync.io"],
+      "icon": "⚡"
+    },
+    "59144": {
+      "name": "Linea",
+      "chainId": 59144,
+      "nativeCurrency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://rpc.linea.build",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://linea.drpc.org",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://linea.blockpi.network/v1/rpc/public",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://lineascan.build"],
+      "icon": "🟢"
+    },
+    "534352": {
+      "name": "Scroll",
+      "chainId": 534352,
+      "nativeCurrency": {
+        "name": "Ether",
+        "symbol": "ETH",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://rpc.scroll.io",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://scroll.drpc.org",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://scroll.blockpi.network/v1/rpc/public",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://scrollscan.com"],
+      "icon": "📜"
+    }
+  },
+  "tokens": {
+    "USDC": {
+      "name": "USD Coin",
+      "symbol": "USDC",
+      "decimals": 6,
+      "contracts": {
+        "1": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+        "8453": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+        "10": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+        "42161": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+        "137": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+        "324": "0x1d17CBcF0D6D143135aE902365D2E5e2A16538D4"
+      }
+    },
+    "USDT": {
+      "name": "Tether USD",
+      "symbol": "USDT",
+      "decimals": 6,
+      "contracts": {
+        "1": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+        "10": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+        "42161": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+        "137": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+      }
+    },
+    "DAI": {
+      "name": "Dai Stablecoin",
+      "symbol": "DAI",
+      "decimals": 18,
+      "contracts": {
+        "1": "0x6B175474E89094C44Da98b954EedeAC495271d0F",
+        "10": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+        "42161": "0xDA10009cBd5D07dd0CeCc66161FC93D7c9000da1",
+        "137": "0x8f3Cf7ad23Cd3CaDbD9735AFf958023239c6A063"
+      }
+    },
+    "WETH": {
+      "name": "Wrapped Ether",
+      "symbol": "WETH",
+      "decimals": 18,
+      "contracts": {
+        "1": "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+        "8453": "0x4200000000000000000000000000000000000006",
+        "10": "0x4200000000000000000000000000000000000006",
+        "42161": "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",
+        "137": "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619"
+      }
+    }
+  }
+}

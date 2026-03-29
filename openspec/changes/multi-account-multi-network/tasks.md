@@ -123,13 +123,13 @@
 
 ## 9. Phase 3: Account-Scoped Data Isolation (Week 5)
 
-- [ ] 9.1 Update `SigningHistory.get()` to include `account_index` parameter
-- [ ] 9.2 Update `SigningHistory.add()` to include `account_index` parameter
-- [ ] 9.3 Update `ContactsService` queries to filter by `account_index`
-- [ ] 9.4 Update `SecurityEventsService` queries to filter by `account_index`
-- [ ] 9.5 Update `TransactionSyncService` queries to filter by `account_index`
-- [ ] 9.6 Update `WalletAuthorityStore` to scope policies by `account_index`
-- [ ] 9.7 Add account_index parameter to all IPC handlers (sign, send, contacts, etc.)
+- [x] 9.1 Update `SigningHistory.get()` to include `account_index` parameter
+- [x] 9.2 Update `SigningHistory.add()` to include `account_index` parameter
+- [x] 9.3 Update `ContactsService` queries to filter by `account_index`
+- [x] 9.4 Update `SecurityEventsService` queries to filter by `account_index`
+- [x] 9.5 Update `TransactionSyncService` queries to filter by `account_index`
+- [x] 9.6 Update `WalletAuthorityStore` to scope policies by `account_index`
+- [x] 9.7 Add account_index parameter to all IPC handlers (sign, send, contacts, etc.)
 - [ ] 9.8 Implement account-scoped state management in renderer process
 - [ ] 9.9 Add defensive checks: verify account_index present in all database queries
 - [ ] 9.10 Add unit tests for data isolation (create 2 accounts, verify no cross-contamination)

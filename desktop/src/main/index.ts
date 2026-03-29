@@ -399,26 +399,34 @@ function registerIpcHandlers(): void {
     balanceService.clearCache();
   });
 
-  ipcMain.handle("wallet:get-signing-history", async () => {
-    return signingHistory.getRecords();
+  ipcMain.handle("wallet:get-signing-history", async (_, accountIndex?: number) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return signingHistory.getRecords(index);
   });
 
-  ipcMain.handle("wallet:get-activity-records", async (_, limit?: number, offset?: number) => {
-    return signingHistory.getRecords(limit, offset);
+  ipcMain.handle("wallet:get-activity-records", async (_, accountIndex?: number, limit?: number, offset?: number) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return signingHistory.getRecords(index, limit, offset);
   });
 
-  ipcMain.handle("wallet:get-activity-by-type", async (_, type: "auto" | "manual" | "rejected") => {
-    return signingHistory.getRecordsByType(type);
+  ipcMain.handle("wallet:get-activity-by-type", async (_, accountIndex: number | undefined, type: "auto" | "manual" | "rejected") => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return signingHistory.getRecordsByType(index, type);
   });
 
-  ipcMain.handle("wallet:get-activity-by-status", async (_, status: "pending" | "success" | "failed") => {
-    return signingHistory.getRecordsByStatus(status);
+  ipcMain.handle("wallet:get-activity-by-status", async (_, accountIndex: number | undefined, status: "pending" | "success" | "failed") => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return signingHistory.getRecordsByStatus(index, status);
   });
 
-  ipcMain.handle("wallet:list-contacts", async () => authorityStore.listContacts());
+  ipcMain.handle("wallet:list-contacts", async (_, accountIndex?: number) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return authorityStore.listContacts(index);
+  });
 
-  ipcMain.handle("wallet:remove-contact", async (_, name: string) => {
-    if (!name?.trim() || authorityStore.removeContactsByName(name) === 0) {
+  ipcMain.handle("wallet:remove-contact", async (_, accountIndex: number | undefined, name: string) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    if (!name?.trim() || authorityStore.removeContactsByName(index, name) === 0) {
       throw new Error("Contact not found");
     }
   });

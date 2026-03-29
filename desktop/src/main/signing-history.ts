@@ -54,11 +54,12 @@ export class SigningHistory {
     token: string;
     chain: string;
     estimatedUSD: number;
+    accountIndex: number;
   }): number {
     const stmt = this.db.prepare(`
       INSERT INTO signing_history 
-      (request_id, timestamp, type, method, tx_to, tx_value, tx_token, tx_chain, estimated_usd)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      (request_id, timestamp, type, method, tx_to, tx_value, tx_token, tx_chain, estimated_usd, account_index)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -70,25 +71,26 @@ export class SigningHistory {
       record.value,
       record.token,
       record.chain,
-      record.estimatedUSD
+      record.estimatedUSD,
+      record.accountIndex
     );
 
-    console.log(`[SigningHistory] Added record: ${record.requestId} (${record.type})`);
+    console.log(`[SigningHistory] Added record: ${record.requestId} (${record.type}) for account ${record.accountIndex}`);
     return result.lastInsertRowid as number;
   }
 
   /**
    * Update transaction hash after signing
    */
-  updateTxHash(requestId: string, txHash: string): void {
+  updateTxHash(requestId: string, txHash: string, accountIndex: number): void {
     const stmt = this.db.prepare(`
       UPDATE signing_history 
       SET tx_hash = ?, tx_status = 'pending', updated_at = ?
-      WHERE request_id = ?
+      WHERE request_id = ? AND account_index = ?
     `);
 
-    stmt.run(txHash, Date.now(), requestId);
-    console.log(`[SigningHistory] Updated txHash for ${requestId}: ${txHash}`);
+    stmt.run(txHash, Date.now(), requestId, accountIndex);
+    console.log(`[SigningHistory] Updated txHash for ${requestId}: ${txHash} (account ${accountIndex})`);
   }
 
   /**
@@ -120,89 +122,91 @@ export class SigningHistory {
   /**
    * Get records with pagination
    */
-  getRecords(limit = 50, offset = 0): SigningRecord[] {
+  getRecords(accountIndex: number, limit = 50, offset = 0): SigningRecord[] {
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history
+      WHERE account_index = ?
       ORDER BY timestamp DESC
       LIMIT ? OFFSET ?
     `);
 
-    return stmt.all(limit, offset) as SigningRecord[];
+    return stmt.all(accountIndex, limit, offset) as SigningRecord[];
   }
 
   /**
    * Get records filtered by type
    */
-  getRecordsByType(type: "auto" | "manual" | "rejected"): SigningRecord[] {
+  getRecordsByType(accountIndex: number, type: "auto" | "manual" | "rejected"): SigningRecord[] {
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history
-      WHERE type = ?
+      WHERE account_index = ? AND type = ?
       ORDER BY timestamp DESC
       LIMIT 50
     `);
 
-    return stmt.all(type) as SigningRecord[];
+    return stmt.all(accountIndex, type) as SigningRecord[];
   }
 
   /**
    * Get records filtered by status
    */
-  getRecordsByStatus(status: "pending" | "success" | "failed"): SigningRecord[] {
+  getRecordsByStatus(accountIndex: number, status: "pending" | "success" | "failed"): SigningRecord[] {
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history
-      WHERE tx_status = ?
+      WHERE account_index = ? AND tx_status = ?
       ORDER BY timestamp DESC
       LIMIT 50
     `);
 
-    return stmt.all(status) as SigningRecord[];
+    return stmt.all(accountIndex, status) as SigningRecord[];
   }
 
   /**
    * Get pending transactions that need status updates
    */
-  getPendingTransactions(): SigningRecord[] {
+  getPendingTransactions(accountIndex: number): SigningRecord[] {
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history
-      WHERE tx_hash IS NOT NULL AND tx_status = 'pending'
+      WHERE account_index = ? AND tx_hash IS NOT NULL AND tx_status = 'pending'
       ORDER BY timestamp DESC
       LIMIT 50
     `);
 
-    return stmt.all() as SigningRecord[];
+    return stmt.all(accountIndex) as SigningRecord[];
   }
 
   /**
    * Get record by request ID
    */
-  getRecordByRequestId(requestId: string): SigningRecord | null {
+  getRecordByRequestId(requestId: string, accountIndex: number): SigningRecord | null {
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history
-      WHERE request_id = ?
+      WHERE request_id = ? AND account_index = ?
     `);
 
-    return (stmt.get(requestId) as SigningRecord) || null;
+    return (stmt.get(requestId, accountIndex) as SigningRecord) || null;
   }
 
-  getRecordByTxHash(txHash: string): SigningRecord | null {
+  getRecordByTxHash(txHash: string, accountIndex: number): SigningRecord | null {
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history
-      WHERE tx_hash = ?
+      WHERE tx_hash = ? AND account_index = ?
       ORDER BY updated_at DESC
       LIMIT 1
     `);
-    return (stmt.get(txHash) as SigningRecord) || null;
+    return (stmt.get(txHash, accountIndex) as SigningRecord) || null;
   }
 
   /**
    * Get total record count
    */
-  getRecordCount(): number {
+  getRecordCount(accountIndex: number): number {
     const stmt = this.db.prepare(`
       SELECT COUNT(*) as count FROM signing_history
+      WHERE account_index = ?
     `);
 
-    const result = stmt.get() as { count: number };
+    const result = stmt.get(accountIndex) as { count: number };
     return result.count;
   }
 }

@@ -1,6 +1,15 @@
 import i18next from 'i18next';
 import resourcesToBackend from 'i18next-resources-to-backend';
 
+/** Align with folders `locales/en` and `locales/zh-CN` (not bare `zh`). */
+function normalizeLanguageCode(lng) {
+  if (lng == null || lng === '') return lng;
+  const lower = String(lng).trim().toLowerCase();
+  if (lower === 'en' || lower.startsWith('en-')) return 'en';
+  if (lower === 'zh' || lower.startsWith('zh-')) return 'zh-CN';
+  return lng;
+}
+
 /**
  * Detect user's preferred language
  * Priority: localStorage > system language > fallback to 'en'
@@ -8,11 +17,11 @@ import resourcesToBackend from 'i18next-resources-to-backend';
 function detectLanguage() {
   // E2E (Playwright) uses a fresh profile; pin UI language so assertions stay stable.
   const e2e = typeof window !== 'undefined' && window.walletAPI?.e2eUiLang;
-  if (e2e) return e2e;
+  if (e2e) return normalizeLanguageCode(e2e) || e2e;
 
   // 1. Check localStorage (user preference)
   const saved = localStorage.getItem('claw-wallet-language');
-  if (saved) return saved;
+  if (saved) return normalizeLanguageCode(saved);
   
   // 2. Check system language
   const systemLang = navigator.language || navigator.userLanguage;
@@ -67,8 +76,9 @@ export async function initI18n() {
  * Change language and persist preference
  */
 export function changeLanguage(lng) {
-  localStorage.setItem('claw-wallet-language', lng);
-  return i18next.changeLanguage(lng);
+  const normalized = normalizeLanguageCode(lng) || lng;
+  localStorage.setItem('claw-wallet-language', normalized);
+  return i18next.changeLanguage(normalized);
 }
 
 /**

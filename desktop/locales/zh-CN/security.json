@@ -1,1 +1,27 @@
-{}
+{
+  "events": {
+    "title": "安全事件",
+    "noEvents": "无安全事件"
+  },
+  "history": {
+    "title": "签名历史",
+    "noHistory": "无签名历史",
+    "filters": {
+      "all": "全部",
+      "auto": "自动",
+      "manual": "手动",
+      "rejected": "已拒绝"
+    }
+  },
+  "types": {
+    "auto": "自动",
+    "manual": "手动",
+    "rejected": "已拒绝"
+  },
+  "status": {
+    "success": "成功",
+    "failed": "失败",
+    "pending": "待处理",
+    "signed": "已签名"
+  }
+}

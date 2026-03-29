@@ -1,1 +1,27 @@
-{}
+{
+  "events": {
+    "title": "Security Events",
+    "noEvents": "No security events"
+  },
+  "history": {
+    "title": "Signing History",
+    "noHistory": "No signing history",
+    "filters": {
+      "all": "All",
+      "auto": "Auto",
+      "manual": "Manual",
+      "rejected": "Rejected"
+    }
+  },
+  "types": {
+    "auto": "Auto",
+    "manual": "Manual",
+    "rejected": "Rejected"
+  },
+  "status": {
+    "success": "Success",
+    "failed": "Failed",
+    "pending": "Pending",
+    "signed": "Signed"
+  }
+}

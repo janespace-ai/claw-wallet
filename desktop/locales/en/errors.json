@@ -1,1 +1,36 @@
-{}
+{
+  "password": {
+    "mismatch": "Passwords do not match",
+    "tooShort": "Password must be at least 8 characters",
+    "required": "Password is required",
+    "incorrect": "Incorrect password"
+  },
+  "mnemonic": {
+    "invalid": "Invalid mnemonic phrase",
+    "required": "Mnemonic is required",
+    "wordCount": "Mnemonic must be 12 words"
+  },
+  "wallet": {
+    "createFailed": "Failed to create wallet",
+    "importFailed": "Failed to import wallet",
+    "unlockFailed": "Failed to unlock wallet",
+    "exportFailed": "Failed to export mnemonic"
+  },
+  "pairing": {
+    "generateFailed": "Failed to generate pairing code",
+    "removeFailed": "Failed to remove device"
+  },
+  "settings": {
+    "saveFailed": "Failed to save settings",
+    "invalidLimit": "Invalid limit value"
+  },
+  "network": {
+    "connectionFailed": "Connection failed",
+    "requestFailed": "Request failed",
+    "timeout": "Request timed out"
+  },
+  "general": {
+    "unknownError": "An unknown error occurred",
+    "tryAgain": "Please try again"
+  }
+}

@@ -1,1 +1,12 @@
-{}
+{
+  "title": "Pair with Agent",
+  "description": "Generate a code and paste it into your Agent.",
+  "generateCode": "Generate Pairing Code",
+  "pairedDevices": "Paired Devices",
+  "noDevices": "No paired devices",
+  "deviceId": "Device ID",
+  "lastSeen": "Last Seen",
+  "remove": "Remove",
+  "countdownExpires": "Expires in",
+  "countdownSeconds": "seconds"
+}

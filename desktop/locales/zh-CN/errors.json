@@ -1,1 +1,36 @@
-{}
+{
+  "password": {
+    "mismatch": "密码不匹配",
+    "tooShort": "密码至少需要 8 个字符",
+    "required": "密码为必填项",
+    "incorrect": "密码错误"
+  },
+  "mnemonic": {
+    "invalid": "无效的助记词",
+    "required": "助记词为必填项",
+    "wordCount": "助记词必须是 12 个单词"
+  },
+  "wallet": {
+    "createFailed": "创建钱包失败",
+    "importFailed": "导入钱包失败",
+    "unlockFailed": "解锁钱包失败",
+    "exportFailed": "导出助记词失败"
+  },
+  "pairing": {
+    "generateFailed": "生成配对码失败",
+    "removeFailed": "移除设备失败"
+  },
+  "settings": {
+    "saveFailed": "保存设置失败",
+    "invalidLimit": "无效的限额值"
+  },
+  "network": {
+    "connectionFailed": "连接失败",
+    "requestFailed": "请求失败",
+    "timeout": "请求超时"
+  },
+  "general": {
+    "unknownError": "发生未知错误",
+    "tryAgain": "请重试"
+  }
+}

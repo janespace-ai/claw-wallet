@@ -50,5 +50,11 @@
     "error": "Error",
     "copied": "Copied!",
     "sameMachineWarning": "⚠ Agent and Wallet are on the same machine — security is significantly reduced!"
+  },
+  "home": {
+    "portfolioValue": "Total Portfolio Value",
+    "balances": "Balances",
+    "noPendingTx": "No pending transactions",
+    "noBalances": "No balances found"
   }
 }

@@ -1,1 +1,21 @@
-{}
+{
+  "allowance": {
+    "title": "限额",
+    "dailyLimit": "每日限额（美元）",
+    "perTxLimit": "单笔交易限额（美元）"
+  },
+  "lockMode": {
+    "title": "锁定模式",
+    "description": "所有交易都需要手动批准（忽略限额）",
+    "enable": "启用锁定模式",
+    "disable": "禁用锁定模式",
+    "active": "🔒 锁定模式已启用"
+  },
+  "export": {
+    "title": "导出钱包",
+    "description": "导出助记词以导入到其他钱包。",
+    "warning": "⚠ 切勿与任何人分享您的助记词！",
+    "button": "导出助记词",
+    "copied": "助记词已复制到剪贴板！"
+  }
+}

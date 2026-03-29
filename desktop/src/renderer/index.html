@@ -88,22 +88,22 @@
       <!-- Home tab -->
       <div id="tab-home" class="tab-content active">
         <div class="card">
-          <h3>Wallet</h3>
+          <h3 data-i18n="common.labels.wallet">Wallet</h3>
           <p id="main-address" class="address"></p>
           
           <!-- Total Portfolio Value -->
           <div id="portfolio-value-section" style="margin-top: 20px;">
-            <h4 style="margin-bottom: 10px;">Total Portfolio Value</h4>
+            <h4 style="margin-bottom: 10px;" data-i18n="common.home.portfolioValue">Total Portfolio Value</h4>
             <div id="portfolio-value-display" class="portfolio-value">
-              <span id="portfolio-value">Loading...</span>
+              <span id="portfolio-value" data-i18n="common.messages.loading">Loading...</span>
             </div>
           </div>
 
           <!-- Token Balances -->
           <div id="balances-section" style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h4>Balances</h4>
-              <button id="btn-refresh-balances" class="btn ghost" style="padding: 4px 8px; font-size: 12px;">Refresh</button>
+              <h4 data-i18n="common.home.balances">Balances</h4>
+              <button id="btn-refresh-balances" class="btn ghost" data-i18n="common.buttons.refresh" style="padding: 4px 8px; font-size: 12px;">Refresh</button>
             </div>
             <div id="balances-list"></div>
           </div>

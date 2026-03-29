@@ -1,1 +1,12 @@
-{}
+{
+  "title": "与 Agent 配对",
+  "description": "生成代码并粘贴到您的 Agent。",
+  "generateCode": "生成配对码",
+  "pairedDevices": "已配对设备",
+  "noDevices": "无已配对设备",
+  "deviceId": "设备 ID",
+  "lastSeen": "最后在线",
+  "remove": "移除",
+  "countdownExpires": "剩余",
+  "countdownSeconds": "秒"
+}

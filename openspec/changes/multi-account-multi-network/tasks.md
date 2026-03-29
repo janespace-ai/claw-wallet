@@ -15,14 +15,14 @@
 
 ## 2. Phase 1: Multi-Network Balance Aggregation (Week 1-2)
 
-- [ ] 2.1 Extend `BalanceService` to support multiple networks
-- [ ] 2.2 Implement parallel balance querying across 8 networks with Promise.all
-- [ ] 2.3 Add per-network balance caching (10-second TTL)
-- [ ] 2.4 Implement balance aggregation by token symbol across networks
-- [ ] 2.5 Add token contract address mapping per network (USDC, USDT, DAI, etc.)
-- [ ] 2.6 Implement balance query timeout (5 seconds per network)
-- [ ] 2.7 Add error handling for individual network query failures
-- [ ] 2.8 Create `TokenRegistry` to manage ERC-20 token contracts per network
+- [x] 2.1 Extend `BalanceService` to support multiple networks
+- [x] 2.2 Implement parallel balance querying across 8 networks with Promise.all
+- [x] 2.3 Add per-network balance caching (10-second TTL)
+- [x] 2.4 Implement balance aggregation by token symbol across networks
+- [x] 2.5 Add token contract address mapping per network (USDC, USDT, DAI, etc.)
+- [x] 2.6 Implement balance query timeout (5 seconds per network)
+- [x] 2.7 Add error handling for individual network query failures
+- [x] 2.8 Create `TokenRegistry` to manage ERC-20 token contracts per network
 - [ ] 2.9 Add support for custom ERC-20 token addition by user
 - [ ] 2.10 Add unit tests for balance aggregation logic
 

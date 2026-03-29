@@ -87,7 +87,7 @@ const lockManager = new LockManager(keyManager, {
   strictIdleTimeoutMs: config.lock.strictIdleTimeoutMs,
 });
 const priceService = new PriceService();
-const balanceService = new BalanceService(config.chains);
+const balanceService = new BalanceService(networkConfigService, rpcProviderManager);
 let relayBridge: RelayBridge | null = null;
 
 function createWindow(): void {

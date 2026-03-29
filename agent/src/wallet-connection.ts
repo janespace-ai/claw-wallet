@@ -199,12 +199,21 @@ export class WalletConnection {
 
     const response = result as Record<string, unknown>;
     if (response.error) {
-      logger.error("WalletConnection", "Wallet returned error", { error: response.error });
-      throw new Error(response.error as string);
+      logger.error("WalletConnection", "Wallet returned error", {
+        error: response.error,
+        errorCode: response.errorCode,
+      });
+      const err = new Error(response.error as string) as Error & { walletErrorCode?: string };
+      if (typeof response.errorCode === "string") err.walletErrorCode = response.errorCode;
+      throw err;
     }
     
     logger.log("WalletConnection", "Received response from wallet", { requestId, hasResult: !!response.result });
-    return response.result;
+    const payload = response.result;
+    if (payload !== undefined && typeof payload === "object" && payload !== null && !Array.isArray(payload)) {
+      return { ...(payload as Record<string, unknown>), requestId };
+    }
+    return payload;
   }
 
   private async checkHealth(): Promise<void> {

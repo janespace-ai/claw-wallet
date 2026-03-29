@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { mkdtemp, rm } from "node:fs/promises";
 import { getAddress } from "viem";
 import { ClawWallet } from "../src/index.js";
+import { agentConfig } from "../src/config.js";
 
 describe("claw-wallet E2E (Phase 2 — no local signer)", () => {
   let tempDir: string;
@@ -54,9 +55,9 @@ describe("claw-wallet E2E (Phase 2 — no local signer)", () => {
     const policyTool = tools.find((t) => t.name === "wallet_policy_get")!;
     const result = (await policyTool.execute({})) as any;
 
-    expect(result.policy.perTransactionLimitUsd).toBe(100);
-    expect(result.policy.dailyLimitUsd).toBe(500);
-    expect(result.policy.mode).toBe("supervised");
+    expect(result.policy.perTransactionLimitUsd).toBe(agentConfig.policy.perTxLimitUsd);
+    expect(result.policy.dailyLimitUsd).toBe(agentConfig.policy.dailyLimitUsd);
+    expect(result.policy.mode).toBe(agentConfig.policy.mode);
   });
 
   it("4. wallet_contacts_add — adds a contact", async () => {

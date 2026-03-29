@@ -65,7 +65,6 @@ export type PolicyMode = "supervised" | "autonomous";
 export interface PolicyConfig {
   perTransactionLimitUsd: number;
   dailyLimitUsd: number;
-  whitelist: Address[];
   mode: PolicyMode;
 }
 
@@ -93,6 +92,8 @@ export interface Contact {
   name: string;
   addresses: Partial<Record<SupportedChain, Address>>;
   supportedTokens?: string[];
+  /** Mirrored from Desktop: trusted on a chain → eligible for silent signing there (Agent cache only). */
+  trustedOnChain?: Partial<Record<SupportedChain, boolean>>;
   lastUpdated: string;
 }
 

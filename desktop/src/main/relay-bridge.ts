@@ -19,17 +19,28 @@ import {
 import { KeyManager } from "./key-manager.js";
 import { SigningEngine } from "./signing-engine.js";
 import { SecurityMonitor } from "./security-monitor.js";
+import type { PriceService } from "./price-service.js";
+import { estimateSignTransactionUsd } from "./tx-usd-estimate.js";
+import type { WalletAuthorityStore } from "./wallet-authority-store.js";
+import type { SigningHistory } from "./signing-history.js";
+import type { TxSyncService } from "./tx-sync-service.js";
+import { extractRecipientForTrust } from "./signing-engine.js";
 
 export interface RelayBridgeOptions {
   dataDir: string;
   keyManager: KeyManager;
   signingEngine: SigningEngine;
   securityMonitor: SecurityMonitor;
+  priceService: PriceService;
+  authorityStore: WalletAuthorityStore;
+  signingHistory: SigningHistory;
+  txSyncService: TxSyncService;
   relayUrl: string;
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
   ipChangePolicy?: "block" | "warn" | "allow";
   onTransactionRequest?: (req: TransactionRequestInfo) => void;
+  onContactAddRequest?: (req: ContactAddRequestInfo) => void;
   onConnectionStatus?: (status: ConnectionStatusInfo) => void;
   onSecurityAlert?: (alert: SecurityAlertInfo) => void;
 }
@@ -44,6 +55,15 @@ export interface TransactionRequestInfo {
   fromDevice: string;
   sourceIP: string;
   withinBudget: boolean;
+  /** Show optional "save as trusted" + name when manually approving */
+  allowSaveTrustedContact: boolean;
+}
+
+export interface ContactAddRequestInfo {
+  requestId: string;
+  name: string;
+  address: string;
+  chain: string;
 }
 
 export interface ConnectionStatusInfo {
@@ -76,6 +96,25 @@ interface StoredPairings {
 
 const PAIR_CODE_ENDPOINT = "/pair/create";
 
+const WALLET_RPC_METHODS = new Set([
+  "wallet_contacts_list",
+  "wallet_contacts_add",
+  "wallet_contacts_remove",
+  "wallet_contacts_resolve",
+  "wallet_notify_tx_result",
+]);
+
+const ADDR_HEX40 = /^0x[a-fA-F0-9]{40}$/;
+
+interface PendingContactAdd {
+  session: E2EESession;
+  deviceId: string;
+  name: string;
+  address: string;
+  chain: string;
+  timer: ReturnType<typeof setTimeout>;
+}
+
 async function loadOrCreateKeyPair(dataDir: string): Promise<E2EEKeyPair> {
   const keyPairPath = join(dataDir, "comm-keypair.json");
   try {
@@ -96,7 +135,7 @@ function isSameSubnet(ip1: string, ip2: string): boolean {
   return parts1[0] === parts2[0] && parts1[1] === parts2[1] && parts1[2] === parts2[2];
 }
 
-/** Agent should supply `estimatedUSD` on the request or in params for allowance checks; otherwise 0. */
+/** Legacy: non-`sign_transaction` methods (e.g. `sign_message`) may still carry an allowance hint. */
 function parseEstimatedUsd(data: Record<string, unknown>, params: Record<string, unknown>): number {
   const raw =
     data.estimatedUSD ??
@@ -130,6 +169,7 @@ export class RelayBridge {
   private reconnectMaxMs: number;
 
   private pendingOutbound: string[] = [];
+  private pendingContactAdds = new Map<string, PendingContactAdd>();
 
   constructor(options: RelayBridgeOptions) {
     this.options = options;
@@ -408,9 +448,19 @@ export class RelayBridge {
         }
 
         if (data.requestId && data.method) {
-          this.handleSignRequest(deviceId, data, sourceIP).catch((err) => {
-            console.error(`[relay-bridge] handleSignRequest unhandled error for ${data.requestId}:`, (err as Error).message);
-          });
+          const method = data.method as string;
+          if (WALLET_RPC_METHODS.has(method)) {
+            this.handleWalletRpc(deviceId, data, sourceIP, session).catch((err) => {
+              console.error(
+                `[relay-bridge] handleWalletRpc error for ${data.requestId}:`,
+                (err as Error).message,
+              );
+            });
+          } else {
+            this.handleSignRequest(deviceId, data, sourceIP).catch((err) => {
+              console.error(`[relay-bridge] handleSignRequest unhandled error for ${data.requestId}:`, (err as Error).message);
+            });
+          }
           return;
         }
 
@@ -525,7 +575,16 @@ export class RelayBridge {
     const requestId = data.requestId as string;
     const method = data.method as string;
     const params = (data.params ?? {}) as Record<string, unknown>;
-    const estimatedUSD = parseEstimatedUsd(data, params);
+    let estimatedUSD: number;
+    let priceAvailable: boolean;
+    if (method === "sign_transaction") {
+      const est = await estimateSignTransactionUsd(params, this.options.priceService);
+      estimatedUSD = est.usd;
+      priceAvailable = est.priceAvailable;
+    } else {
+      estimatedUSD = parseEstimatedUsd(data, params);
+      priceAvailable = true;
+    }
 
     console.log(`[relay-bridge] handleSignRequest START requestId=${requestId} method=${method} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);
 
@@ -536,19 +595,27 @@ export class RelayBridge {
         params,
         estimatedUSD,
         (pendingReq) => {
+          const chain = (params.chain as string) ?? "base";
+          const toAddr = extractRecipientForTrust(params) || ((params.to as string) ?? "");
+          const allowSaveTrustedContact =
+            pendingReq.method === "sign_transaction" &&
+            ADDR_HEX40.test(toAddr.trim()) &&
+            !this.options.authorityStore.isTrustedRecipientForChain(toAddr, chain);
           const txInfo: TransactionRequestInfo = {
             requestId: pendingReq.requestId,
             method: pendingReq.method,
-            to: (params.to as string) ?? "",
+            to: toAddr,
             value: (params.value as string) ?? "0",
             token: (params.token as string) ?? "ETH",
-            chain: (params.chain as string) ?? "base",
+            chain,
             fromDevice: deviceId,
             sourceIP,
             withinBudget: false,
+            allowSaveTrustedContact,
           };
           this.options.onTransactionRequest?.(txInfo);
         },
+        { priceAvailable },
       );
 
       console.log(`[relay-bridge] handleSignRequest APPROVED requestId=${requestId} wsOpen=${this.ws?.readyState === WebSocket.OPEN}`);
@@ -568,6 +635,182 @@ export class RelayBridge {
         error: msg,
         errorCode,
       }, requestId);
+    }
+  }
+
+  private async handleWalletRpc(
+    deviceId: string,
+    data: Record<string, unknown>,
+    sourceIP: string,
+    session: E2EESession,
+  ): Promise<void> {
+    const device = this.pairings.devices.find((d) => d.deviceId === deviceId);
+    if (!device || !session) return;
+
+    if (this.isSessionFrozen(deviceId)) {
+      const frozen = this.frozenSessions.get(deviceId);
+      this.sendEncrypted(
+        session,
+        {
+          requestId: data.requestId,
+          error: `Session frozen: ${frozen?.reason ?? "security policy"}. Re-pairing required.`,
+          errorCode: "SESSION_FROZEN",
+        },
+        data.requestId as string,
+      );
+      return;
+    }
+
+    device.lastIP = sourceIP;
+    device.lastSeen = new Date().toISOString();
+
+    const requestId = data.requestId as string;
+    const method = data.method as string;
+    const params = (data.params ?? {}) as Record<string, unknown>;
+    const store = this.options.authorityStore;
+    const signingEngine = this.options.signingEngine;
+
+    const needUnlock = method !== "wallet_notify_tx_result";
+    if (needUnlock && !this.options.keyManager.isUnlocked()) {
+      this.sendEncrypted(session, { requestId, error: "Wallet is locked", errorCode: "WALLET_LOCKED" }, requestId);
+      return;
+    }
+
+    const err = (msg: string, code: string) => {
+      this.sendEncrypted(session, { requestId, error: msg, errorCode: code }, requestId);
+    };
+
+    try {
+      switch (method) {
+        case "wallet_contacts_list": {
+          const contacts = store.listContacts();
+          this.sendEncrypted(session, { requestId, result: { contacts } }, requestId);
+          return;
+        }
+        case "wallet_contacts_add": {
+          const name = params.name as string | undefined;
+          const address = params.address as string | undefined;
+          const chain = (params.chain as string | undefined) ?? "base";
+          if (!name?.trim() || !address?.trim()) {
+            err("name and address required", "INVALID_PARAMS");
+            return;
+          }
+          const a = address.trim().toLowerCase();
+          if (!ADDR_HEX40.test(a)) {
+            err("invalid address", "INVALID_PARAMS");
+            return;
+          }
+          if (this.pendingContactAdds.has(requestId)) {
+            err("duplicate contact request", "INVALID_PARAMS");
+            return;
+          }
+          const timeoutMs = signingEngine.getApprovalTimeoutMs();
+          const timer = setTimeout(() => {
+            const p = this.pendingContactAdds.get(requestId);
+            if (!p) return;
+            this.pendingContactAdds.delete(requestId);
+            this.sendEncrypted(
+              p.session,
+              {
+                requestId,
+                error: "Contact add request timed out",
+                errorCode: "APPROVAL_TIMEOUT",
+              },
+              requestId,
+            );
+          }, timeoutMs);
+          this.pendingContactAdds.set(requestId, {
+            session,
+            deviceId,
+            name: name.trim(),
+            address: a,
+            chain: chain.trim().toLowerCase(),
+            timer,
+          });
+          this.options.onContactAddRequest?.({
+            requestId,
+            name: name.trim(),
+            address: a,
+            chain: chain.trim().toLowerCase(),
+          });
+          return;
+        }
+        case "wallet_contacts_remove": {
+          const name = params.name as string | undefined;
+          if (!name?.trim()) {
+            err("name required", "INVALID_PARAMS");
+            return;
+          }
+          const removed = store.removeContactsByName(name);
+          this.sendEncrypted(session, { requestId, result: { removed } }, requestId);
+          return;
+        }
+        case "wallet_contacts_resolve": {
+          const name = params.name as string | undefined;
+          const chain = (params.chain as string | undefined) ?? "base";
+          if (!name?.trim()) {
+            err("name required", "INVALID_PARAMS");
+            return;
+          }
+          const resolved = store.resolveContact(name, chain);
+          if (!resolved) {
+            err(`Contact "${name}" not found`, "NOT_FOUND");
+            return;
+          }
+          this.sendEncrypted(
+            session,
+            {
+              requestId,
+              result: {
+                address: resolved.address,
+                chain: resolved.chain,
+                exactMatch: resolved.exactMatch,
+                trusted: resolved.trusted,
+              },
+            },
+            requestId,
+          );
+          return;
+        }
+        case "wallet_notify_tx_result": {
+          const rid = params.requestId as string | undefined;
+          const success = params.success === true;
+          if (!rid) {
+            err("requestId required", "INVALID_PARAMS");
+            return;
+          }
+          const rawHash = params.txHash;
+          const txHash =
+            typeof rawHash === "string" ? rawHash.trim() : "";
+          const chainRaw = params.chain;
+          const chainName =
+            typeof chainRaw === "string" ? chainRaw.trim() : "";
+          if (txHash.startsWith("0x") && /^0x[0-9a-fA-F]{64}$/.test(txHash)) {
+            this.options.signingHistory.updateTxHash(rid, txHash);
+            if (chainName) {
+              this.options.txSyncService
+                .syncImmediately(txHash, chainName)
+                .catch((e) =>
+                  console.error(
+                    `[relay-bridge] syncImmediately after notify:`,
+                    (e as Error).message,
+                  ),
+                );
+            }
+          }
+          const newContact = signingEngine.applyPostTxTrust(rid, success);
+          this.sendEncrypted(
+            session,
+            { requestId, result: { ok: true, ...(newContact ? { newContact } : {}) } },
+            requestId,
+          );
+          return;
+        }
+        default:
+          err(`Unknown method: ${method}`, "INTERNAL_ERROR");
+      }
+    } catch (e) {
+      err((e as Error).message || "Internal error", "INTERNAL_ERROR");
     }
   }
 
@@ -674,6 +917,38 @@ export class RelayBridge {
     return this.pairings.devices.length;
   }
 
+  resolveContactAddRequest(requestId: string, choice: "normal" | "trusted" | "reject"): void {
+    const p = this.pendingContactAdds.get(requestId);
+    if (!p) return;
+    clearTimeout(p.timer);
+    this.pendingContactAdds.delete(requestId);
+    if (choice === "reject") {
+      this.sendEncrypted(
+        p.session,
+        {
+          requestId,
+          error: "User rejected contact add",
+          errorCode: "USER_REJECTED_CONTACT",
+        },
+        requestId,
+      );
+      return;
+    }
+    try {
+      const trusted = choice === "trusted";
+      const contact = this.options.authorityStore.upsertContact(p.name, p.chain, p.address, {
+        trusted,
+      });
+      this.sendEncrypted(p.session, { requestId, result: { contact } }, requestId);
+    } catch (e) {
+      this.sendEncrypted(
+        p.session,
+        { requestId, error: (e as Error).message, errorCode: "INTERNAL_ERROR" },
+        requestId,
+      );
+    }
+  }
+
   getPairedDevices(): PairedDevice[] {
     return this.pairings.devices.map(d => ({ ...d }));
   }
@@ -704,6 +979,15 @@ export class RelayBridge {
 
   shutdown(): void {
     this.destroyed = true;
+    for (const [rid, p] of this.pendingContactAdds) {
+      clearTimeout(p.timer);
+      this.sendEncrypted(
+        p.session,
+        { requestId: rid, error: "Wallet shutting down", errorCode: "APPROVAL_TIMEOUT" },
+        rid,
+      );
+    }
+    this.pendingContactAdds.clear();
     if (this.reconnectTimer) {
       clearTimeout(this.reconnectTimer);
     }

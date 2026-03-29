@@ -93,17 +93,18 @@ export class TransferService {
     
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to,
+      recipient: to,
       value: value.toString(),
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
       nonce: nonce.toString(),
       type: 0,
       chainId,
-      amount: params.amount,
-      amountUsd,
+      /** Human-readable token amount for display / audit (desktop computes USD for limits). */
+      amount_token: params.amount,
       token: "ETH",
       chain: params.chain,
-    }) as { signedTx: Hex };
+    }) as { signedTx: Hex; requestId: string };
     
     logger.log("TransferService", "Transaction signed, broadcasting...");
 
@@ -127,6 +128,13 @@ export class TransferService {
       timestamp: Date.now(),
     };
     this.history.addRecord(record);
+
+    await this.notifyTxAndMirrorContacts(
+      result.requestId,
+      receipt.status === "success",
+      receipt.transactionHash,
+      params.chain,
+    );
 
     logger.log("TransferService", "sendETH COMPLETE");
     return {
@@ -174,16 +182,16 @@ export class TransferService {
     const chainId = await this.chainAdapter.getChainId(params.chain);
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to: tokenAddress,
+      recipient: to,
       data: transferData,
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
       type: 0,
       chainId,
-      amount: params.amount,
-      amountUsd,
+      amount_token: params.amount,
       token: tokenInfo.symbol,
       chain: params.chain,
-    }) as { signedTx: Hex };
+    }) as { signedTx: Hex; requestId: string };
 
     const receipt = await this.chainAdapter.broadcastTransaction(result.signedTx, params.chain);
 
@@ -202,6 +210,13 @@ export class TransferService {
     };
     this.history.addRecord(record);
 
+    await this.notifyTxAndMirrorContacts(
+      result.requestId,
+      receipt.status === "success",
+      receipt.transactionHash,
+      params.chain,
+    );
+
     return {
       hash: receipt.transactionHash,
       status: receipt.status === "success" ? "confirmed" : "failed",
@@ -215,6 +230,39 @@ export class TransferService {
       return this.sendETH(params);
     }
     return this.sendERC20(params);
+  }
+
+  private async notifyTxAndMirrorContacts(
+    requestId: string,
+    success: boolean,
+    txHash: string,
+    chain: SupportedChain,
+  ): Promise<void> {
+    try {
+      const raw = await this.walletConnection.sendToWallet("wallet_notify_tx_result", {
+        requestId,
+        success,
+        txHash,
+        chain,
+      });
+      const res = raw as {
+        ok?: boolean;
+        newContact?: { name: string; address: string; chain: string; trusted: boolean };
+      };
+      if (res?.newContact?.trusted === true) {
+        const nc = res.newContact;
+        const c = nc.chain as SupportedChain;
+        this.contacts.addContact(nc.name, { [c]: nc.address as Address });
+        this.contacts.setTrustedOnChain(nc.name, c, true);
+        await this.contacts.save().catch(() => {});
+      }
+    } catch (notifyErr) {
+      logger.warn(
+        "TransferService",
+        "wallet_notify_tx_result failed (non-fatal)",
+        { error: (notifyErr as Error).message },
+      );
+    }
   }
 
   private async resolveRecipient(to: string, chain: SupportedChain): Promise<Address> {

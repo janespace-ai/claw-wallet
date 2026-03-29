@@ -7,7 +7,7 @@ export interface AgentPolicyConfig {
   perTxLimitUsd: number;
   /** Maximum total USD value of transactions per day (default: 500) */
   dailyLimitUsd: number;
-  /** Policy mode: "supervised" requires whitelist, "autonomous" allows any address within limits (default: "supervised") */
+  /** Policy mode label; agent enforces USD limits only. Trusted addresses are enforced in the desktop wallet. */
   mode: "supervised" | "autonomous";
 }
 

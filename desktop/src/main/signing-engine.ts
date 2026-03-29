@@ -3,6 +3,7 @@ import { readFile, writeFile } from "node:fs/promises";
 import { ethers } from "ethers";
 import { KeyManager } from "./key-manager.js";
 import type { SigningHistory } from "./signing-history.js";
+import type { WalletAuthorityStore } from "./wallet-authority-store.js";
 
 export interface AllowanceConfig {
   dailyLimitUSD: number;
@@ -56,6 +57,12 @@ export class SigningEngine {
   private approvalTimeoutMs: number;
   private onApprovalExpired?: (requestId: string) => void;
   private autoApproveWithinBudget: boolean;
+  private authorityStore: WalletAuthorityStore | null = null;
+  /** After successful tx: upsert trusted contact */
+  private pendingTrustAfterTx = new Map<
+    string,
+    { address: string; name: string; chain: string }
+  >();
 
   constructor(keyManager: KeyManager, options?: SigningEngineOptions, signingHistory?: SigningHistory) {
     this.keyManager = keyManager;
@@ -69,6 +76,14 @@ export class SigningEngine {
       tokenWhitelist: options?.tokenWhitelist ?? [...DEFAULT_ALLOWANCE.tokenWhitelist],
       addressWhitelist: [],
     };
+  }
+
+  setAuthorityStore(store: WalletAuthorityStore | null): void {
+    this.authorityStore = store;
+  }
+
+  getApprovalTimeoutMs(): number {
+    return this.approvalTimeoutMs;
   }
 
   setDataDir(dir: string): void {
@@ -117,8 +132,13 @@ export class SigningEngine {
     params: Record<string, unknown>,
     estimatedUSD: number,
     onNeedApproval: (req: PendingSignRequest) => void,
+    options?: { priceAvailable?: boolean },
   ): Promise<unknown> {
-    console.log(`[signing-engine] handleSignRequest: requestId=${requestId} method=${method} estimatedUSD=${estimatedUSD}`);
+    const priceKnown =
+      method !== "sign_transaction" || options?.priceAvailable === true;
+    console.log(
+      `[signing-engine] handleSignRequest: requestId=${requestId} method=${method} estimatedUSD=${estimatedUSD} priceKnown=${priceKnown}`,
+    );
 
     if (this.isFrozen()) {
       throw new Error("Wallet is frozen due to security alert. Please wait or dismiss the alert.");
@@ -130,7 +150,7 @@ export class SigningEngine {
 
     this.resetDailyIfNeeded();
 
-    const withinBudget = this.checkBudget(estimatedUSD, params);
+    const withinBudget = priceKnown && this.checkBudget(estimatedUSD, params);
     const canSilentSign =
       method === "sign_transaction"
         ? withinBudget && this.autoApproveWithinBudget
@@ -165,7 +185,10 @@ export class SigningEngine {
     });
   }
 
-  async approve(requestId: string): Promise<void> {
+  async approve(
+    requestId: string,
+    options?: { trustRecipientAfterSuccess?: boolean; trustRecipientName?: string },
+  ): Promise<void> {
     console.log(`[signing-engine] approve: requestId=${requestId} pending=${this.pendingRequests.has(requestId)}`);
     const pending = this.pendingRequests.get(requestId);
     if (!pending) throw new Error("No pending request found");
@@ -173,12 +196,28 @@ export class SigningEngine {
     if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
     this.pendingRequests.delete(requestId);
 
+    if (options?.trustRecipientAfterSuccess && pending.method === "sign_transaction") {
+      const name = options.trustRecipientName?.trim();
+      if (!name) {
+        throw new Error("Contact name is required when adding recipient as trusted after success");
+      }
+      const addrRaw = extractRecipientForTrust(pending.params);
+      if (!addrRaw || !ethers.isAddress(addrRaw)) {
+        throw new Error("Invalid recipient for trusted contact");
+      }
+      const chain = String(pending.params.chain ?? "base").trim().toLowerCase();
+      const addr = ethers.getAddress(addrRaw);
+      this.pendingTrustAfterTx.set(requestId, { address: addr, name, chain });
+      console.log(`[signing-engine] pending trusted contact after success for ${requestId} → ${name} / ${addr}`);
+    }
+
     try {
       console.log(`[signing-engine] signDirectly START requestId=${requestId} method=${pending.method}`);
       const result = await this.signDirectly(pending.method, pending.params, pending.estimatedUSD, requestId, false);
       console.log(`[signing-engine] signDirectly OK requestId=${requestId}`);
       pending.resolve(result);
     } catch (err) {
+      this.pendingTrustAfterTx.delete(requestId);
       console.error(`[signing-engine] signDirectly FAILED requestId=${requestId}: ${(err as Error).message}`);
       pending.reject(err as Error);
     }
@@ -190,6 +229,7 @@ export class SigningEngine {
     if (!pending) return;
     if (pending.expiryTimer) clearTimeout(pending.expiryTimer);
     this.pendingRequests.delete(requestId);
+    this.pendingTrustAfterTx.delete(requestId);
 
     // Record rejection
     if (this.signingHistory) {
@@ -197,7 +237,7 @@ export class SigningEngine {
         requestId,
         type: "rejected",
         method: pending.method,
-        to: (pending.params.to as string) || "",
+        to: extractRecipientForTrust(pending.params) || (pending.params.to as string) || "",
         value: (pending.params.value as string) || "0",
         token: (pending.params.token as string) || "ETH",
         chain: (pending.params.chain as string) || "unknown",
@@ -206,6 +246,34 @@ export class SigningEngine {
     }
 
     pending.reject(new Error("Transaction rejected by user"));
+  }
+
+  /**
+   * After on-chain success: upsert trusted contact if user opted in. Returns payload for Agent mirror.
+   */
+  applyPostTxTrust(
+    requestId: string,
+    success: boolean,
+  ): { name: string; address: string; chain: string; trusted: boolean } | null {
+    const pend = this.pendingTrustAfterTx.get(requestId);
+    if (!pend) return null;
+    this.pendingTrustAfterTx.delete(requestId);
+    if (!success || !this.authorityStore) return null;
+    try {
+      const row = this.authorityStore.upsertContact(pend.name, pend.chain, pend.address, {
+        trusted: true,
+      });
+      console.log(`[signing-engine] trusted contact after successful tx: ${row.name} ${row.address}`);
+      return {
+        name: row.name,
+        address: row.address,
+        chain: row.chain,
+        trusted: true,
+      };
+    } catch (e) {
+      console.error(`[signing-engine] applyPostTxTrust failed:`, (e as Error).message);
+      return null;
+    }
   }
 
   getAllowance(): AllowanceConfig {
@@ -227,8 +295,19 @@ export class SigningEngine {
     }
 
     const to = params.to as string;
-    if (this.allowance.addressWhitelist.length > 0 && to && !this.allowance.addressWhitelist.includes(to.toLowerCase())) {
-      return false;
+    const recipient = extractRecipientForTrust(params);
+    const counterparty = recipient || to;
+    const chain = String(params.chain ?? "unknown")
+      .trim()
+      .toLowerCase();
+    const trusted = this.authorityStore
+      ? this.authorityStore.getTrustedRecipientKeys(this.allowance.addressWhitelist)
+      : new Set(this.allowance.addressWhitelist.map((a) => `*:${a.trim().toLowerCase()}`));
+    if (trusted.size > 0 && counterparty) {
+      const a = counterparty.trim().toLowerCase();
+      const keyChain = `${chain}:${a}`;
+      const keyAny = `*:${a}`;
+      if (!trusted.has(keyChain) && !trusted.has(keyAny)) return false;
     }
 
     return true;
@@ -258,7 +337,7 @@ export class SigningEngine {
           requestId,
           type: isAutoApproved ? "auto" : "manual",
           method,
-          to: (params.to as string) || "",
+          to: extractRecipientForTrust(params) || (params.to as string) || "",
           value: (params.value as string) || "0",
           token: (params.token as string) || "ETH",
           chain: (params.chain as string) || "unknown",
@@ -376,4 +455,13 @@ function sanitizeTxParams(raw: Record<string, unknown>): Record<string, unknown>
   }
 
   return tx;
+}
+
+/** Prefer explicit human recipient (e.g. ERC20 transfer) over contract `to`. */
+export function extractRecipientForTrust(params: Record<string, unknown>): string {
+  const r = params.recipient;
+  if (typeof r === "string" && r.startsWith("0x")) return r.trim();
+  const t = params.to;
+  if (typeof t === "string") return t.trim();
+  return "";
 }

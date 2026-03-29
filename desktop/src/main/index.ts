@@ -10,6 +10,7 @@ import { PriceService } from "./price-service.js";
 import { BalanceService } from "./balance-service.js";
 import { DatabaseService } from "./database-service.js";
 import { SigningHistory } from "./signing-history.js";
+import { WalletAuthorityStore } from "./wallet-authority-store.js";
 import { ChainAdapter } from "./chain-adapter.js";
 import { TxSyncService } from "./tx-sync-service.js";
 import { config } from "./config.js";
@@ -27,6 +28,7 @@ const dbPath = join(dataDir, "wallet.db");
 const dbService = DatabaseService.getInstance(dbPath);
 const keyManager = new KeyManager(dataDir, { scryptN: config.keyring.scryptN });
 const signingHistory = new SigningHistory(dbService);
+const authorityStore = new WalletAuthorityStore(dbService);
 const chainAdapter = new ChainAdapter(config.chains);
 const txSyncService = new TxSyncService(signingHistory, chainAdapter);
 const signingEngine = new SigningEngine(keyManager, {
@@ -35,6 +37,7 @@ const signingEngine = new SigningEngine(keyManager, {
   tokenWhitelist: config.signing.tokenWhitelist,
   autoApproveWithinBudget: config.signing.autoApproveWithinBudget,
 }, signingHistory);
+signingEngine.setAuthorityStore(authorityStore);
 const securityMonitor = new SecurityMonitor(dataDir, {
   maxEvents: config.security.maxEvents,
 });
@@ -170,12 +173,30 @@ function registerIpcHandlers(): void {
     return relayBridge.getPairedDevices();
   });
 
-  ipcMain.handle("wallet:approve-tx", async (_, requestId: string) => {
-    console.log(`[desktop] IPC approve-tx: requestId=${requestId}`);
-    if (!relayBridge) throw new Error("Relay not initialized");
-    await signingEngine.approve(requestId);
-    console.log(`[desktop] IPC approve-tx: done requestId=${requestId}`);
-  });
+  ipcMain.handle(
+    "wallet:approve-tx",
+    async (
+      _,
+      requestId: string,
+      opts?: { trustRecipientAfterSuccess?: boolean; trustRecipientName?: string },
+    ) => {
+      console.log(`[desktop] IPC approve-tx: requestId=${requestId}`, opts);
+      if (!relayBridge) throw new Error("Relay not initialized");
+      await signingEngine.approve(requestId, {
+        trustRecipientAfterSuccess: opts?.trustRecipientAfterSuccess === true,
+        trustRecipientName: opts?.trustRecipientName,
+      });
+      console.log(`[desktop] IPC approve-tx: done requestId=${requestId}`);
+    },
+  );
+
+  ipcMain.handle(
+    "wallet:respond-contact-add",
+    (_, requestId: string, choice: "normal" | "trusted" | "reject") => {
+      if (!relayBridge) throw new Error("Relay not initialized");
+      relayBridge.resolveContactAddRequest(requestId, choice);
+    },
+  );
 
   ipcMain.handle("wallet:reject-tx", async (_, requestId: string) => {
     console.log(`[desktop] IPC reject-tx: requestId=${requestId}`);
@@ -250,6 +271,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle("wallet:get-activity-by-status", async (_, status: "pending" | "success" | "failed") => {
     return signingHistory.getRecordsByStatus(status);
   });
+
+  ipcMain.handle("wallet:list-contacts", async () => authorityStore.listContacts());
+
+  ipcMain.handle("wallet:remove-contact", async (_, name: string) => {
+    if (!name?.trim() || authorityStore.removeContactsByName(name) === 0) {
+      throw new Error("Contact not found");
+    }
+  });
 }
 
 app.whenReady().then(async () => {
@@ -258,6 +287,11 @@ app.whenReady().then(async () => {
   await securityMonitor.initialize();
   signingEngine.setDataDir(dataDir);
   await signingEngine.loadAllowance();
+  const wl = signingEngine.getAllowance().addressWhitelist;
+  if (wl.length > 0) {
+    authorityStore.mergeLegacyAllowanceWhitelist(wl);
+    await signingEngine.setAllowance({ addressWhitelist: [] });
+  }
 
   // Start transaction sync service
   txSyncService.startPeriodicSync(30000); // Every 30 seconds
@@ -272,6 +306,10 @@ app.whenReady().then(async () => {
     keyManager,
     signingEngine,
     securityMonitor,
+    priceService,
+    authorityStore,
+    signingHistory,
+    txSyncService,
     relayUrl: config.relayUrl,
     reconnectBaseMs: config.relay.reconnectBaseMs,
     reconnectMaxMs: config.relay.reconnectMaxMs,
@@ -280,6 +318,11 @@ app.whenReady().then(async () => {
       console.log("[desktop] Showing tx approval modal for", req.requestId);
       mainWindow?.show();
       mainWindow?.webContents.send("wallet:tx-request", req);
+    },
+    onContactAddRequest: (req) => {
+      console.log("[desktop] Contact add request", req.requestId);
+      mainWindow?.show();
+      mainWindow?.webContents.send("wallet:contact-add-request", req);
     },
     onConnectionStatus: (status) => {
       mainWindow?.webContents.send("wallet:connection-status", status);

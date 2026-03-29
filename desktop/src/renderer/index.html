@@ -76,6 +76,7 @@
         <button class="tab" data-tab="settings">Settings</button>
         <button class="tab" data-tab="security">Security</button>
         <button class="tab" data-tab="activity">Activity</button>
+        <button class="tab" data-tab="contacts">Contacts</button>
       </nav>
 
       <!-- Home tab -->
@@ -194,6 +195,18 @@
           </div>
         </div>
       </div>
+
+      <!-- Contacts (address book + trusted flag for silent signing within limits) -->
+      <div id="tab-contacts" class="tab-content">
+        <div class="card">
+          <h3>Contacts</h3>
+          <p style="color: var(--text-secondary); font-size: 13px;">
+            Authoritative list from this device (Agent can propose adds — you choose normal, trusted, or reject in the popup).
+            <strong>可信任</strong> 联系人：在您配置的每日/单笔限额与代币白名单内，转账可能自动签名，无需每次弹窗。
+          </p>
+          <div id="contacts-list"></div>
+        </div>
+      </div>
     </div>
 
     <!-- Transaction approval modal -->
@@ -201,9 +214,32 @@
       <div class="modal-content">
         <h3>Transaction Approval</h3>
         <div id="tx-details"></div>
+        <label id="tx-trust-wrap" class="checkbox-label" style="display:none; flex-direction: column; align-items: stretch; gap: 8px; margin: 12px 0;">
+          <span style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="chk-trust-after-success">
+            <span>成功后将该收款地址加入<strong>可信任联系人</strong>（需链上成功）</span>
+          </span>
+          <label id="tx-trust-name-wrap" style="display:none; font-weight: normal;">
+            联系人显示名称（必填）
+            <input type="text" id="input-trust-contact-name" placeholder="例如：交易所提币" style="width:100%; margin-top:6px; padding:8px;">
+          </label>
+        </label>
         <div class="modal-actions">
           <button id="btn-approve-tx" class="btn primary">Approve</button>
           <button id="btn-reject-tx" class="btn danger">Reject</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Agent contact add: normal / trusted / reject -->
+    <div id="modal-contact-add" class="modal" style="display:none">
+      <div class="modal-content">
+        <h3>添加联系人</h3>
+        <p id="contact-add-summary" style="font-size: 14px; color: var(--text-secondary);"></p>
+        <div class="modal-actions" style="flex-direction: column; gap: 8px;">
+          <button type="button" id="btn-contact-add-normal" class="btn secondary">添加为一般联系人</button>
+          <button type="button" id="btn-contact-add-trusted" class="btn primary">添加为可信任联系人</button>
+          <button type="button" id="btn-contact-add-reject" class="btn danger">拒绝</button>
         </div>
       </div>
     </div>

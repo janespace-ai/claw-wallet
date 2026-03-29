@@ -43,7 +43,7 @@ export function createAllTools(deps: ToolDependencies): ToolDefinition[] {
     createWalletBalanceTool(deps.chainAdapter, deps.getAddress, deps.defaultChain),
     createWalletEstimateGasTool(deps.chainAdapter, deps.defaultChain),
     createWalletSendTool(deps.getTransferService, deps.defaultChain),
-    ...createWalletContactsTools(deps.contacts, deps.defaultChain),
+    ...createWalletContactsTools(deps.walletConnection, deps.contacts, deps.defaultChain),
     ...createWalletPolicyTools(deps.policy),
     ...createWalletApprovalTools(deps.policy),
     createWalletHistoryTool(deps.history),

@@ -956,7 +956,7 @@ async function loadPairedDevices() {
     <div class="device-item">
       <div class="info">
         <div>${d.deviceId}</div>
-        <div class="ip">${tKey("pairing.rowMeta", {
+        <div class="ip">${typeof d.accountIndex === "number" ? `Account ${d.accountIndex} · ` : ""}${tKey("pairing.rowMeta", {
           ip: d.lastIP,
           date: new Date(d.pairedAt).toLocaleDateString(),
         })}</div>

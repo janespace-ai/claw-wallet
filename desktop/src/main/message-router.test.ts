@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   MessageRouter,
   MessageType,
+  type DecryptedMessage,
   type EncryptedMessage,
 } from "./message-router.js";
 
@@ -75,5 +76,28 @@ describe("MessageRouter", () => {
     router.setDecryptFunction(async () => ({ type: "NOT_A_REAL_TYPE" }));
     await router.route(0, enc());
     expect(handler).toHaveBeenCalled();
+  });
+
+  it("routeDecrypted dispatches SIGN_REQUEST without decryptFn (Relay path)", async () => {
+    const router = new MessageRouter();
+    router.setActiveAccount(1);
+    router.setAccountInfoResolver(async (idx) => ({
+      nickname: `N${idx}`,
+      address: `0x${idx.toString().padStart(40, "0")}`,
+    }));
+    const handler = vi.fn();
+    router.on("sign-request", handler);
+    const msg: DecryptedMessage = {
+      type: MessageType.SIGN_REQUEST,
+      fromAccount: 0,
+      data: { requestId: "relay-r1", method: "sign_transaction" },
+    };
+    await router.routeDecrypted(msg);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(handler.mock.calls[0][0]).toMatchObject({
+      fromAccount: 0,
+      isActiveAccount: false,
+      requestId: "relay-r1",
+    });
   });
 });

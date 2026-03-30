@@ -205,6 +205,14 @@ export class SigningHistory {
     return (stmt.get(requestId, accountIndex) as SigningRecord) || null;
   }
 
+  /** Which account_index recorded this request (for relay notify without explicit index). */
+  findAccountIndexByRequestId(requestId: string): number | null {
+    const row = this.db
+      .prepare(`SELECT account_index FROM signing_history WHERE request_id = ? LIMIT 1`)
+      .get(requestId) as { account_index: number } | undefined;
+    return row != null ? row.account_index : null;
+  }
+
   getRecordByTxHash(txHash: string, accountIndex: number): SigningRecord | null {
     const stmt = this.db.prepare(`
       SELECT * FROM signing_history

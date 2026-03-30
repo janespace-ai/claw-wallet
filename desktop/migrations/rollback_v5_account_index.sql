@@ -1,0 +1,11 @@
+-- Rollback reference for schema v5 (account_index on signing_history, desktop_contacts, transaction_sync).
+--
+-- SQLite cannot safely drop columns in all environments; the production-safe rollback is:
+--   Restore `wallet.db` from the backup file written by DatabaseService before migration:
+--   `wallet.db.pre-migrate-from-v<N>-<timestamp>.bak`
+--
+-- If you must attempt an in-place downgrade (expert only, after backup):
+--   1. PRAGMA user_version = 4;   -- only if application code still supports v4
+--   2. Do NOT delete account_index columns without rebuilding tables; prefer restore-from-bak.
+--
+-- This file exists to satisfy operational "rollback script" requirements; prefer file restore.

@@ -166,6 +166,19 @@ export class KeyManager {
     return wallet.privateKey;
   }
 
+  /** Derived address for a sub-account without changing the active signing key (multi-account relay). */
+  getAddressForAccountIndex(accountIndex: number): string | null {
+    if (accountIndex < 0 || accountIndex > 9) {
+      throw new Error("Account index must be 0-9");
+    }
+    if (!this.decryptedMnemonic) {
+      return null;
+    }
+    const path = `m/44'/60'/0'/0/${accountIndex}`;
+    const wallet = ethers.HDNodeWallet.fromPhrase(this.decryptedMnemonic, undefined, path);
+    return wallet.address;
+  }
+
   async createWallet(password: string): Promise<{ address: string; mnemonic: string }> {
     if (this.store) throw new Error("Wallet already exists");
     this.validatePassword(password);

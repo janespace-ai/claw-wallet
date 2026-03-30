@@ -63,7 +63,7 @@ export class SigningEngine {
   /** After successful tx: upsert trusted contact */
   private pendingTrustAfterTx = new Map<
     string,
-    { address: string; name: string; chain: string }
+    { address: string; name: string; chain: string; accountIndex: number }
   >();
 
   constructor(keyManager: KeyManager, options?: SigningEngineOptions, signingHistory?: SigningHistory) {
@@ -152,7 +152,8 @@ export class SigningEngine {
 
     this.resetDailyIfNeeded();
 
-    const withinBudget = priceKnown && this.checkBudget(estimatedUSD, params);
+    const withinBudget =
+      priceKnown && this.checkBudget(estimatedUSD, params, options?.signingAccountIndex ?? 0);
     const canSilentSign =
       method === "sign_transaction"
         ? withinBudget && this.autoApproveWithinBudget
@@ -210,7 +211,12 @@ export class SigningEngine {
       }
       const chain = String(pending.params.chain ?? "base").trim().toLowerCase();
       const addr = ethers.getAddress(addrRaw);
-      this.pendingTrustAfterTx.set(requestId, { address: addr, name, chain });
+      this.pendingTrustAfterTx.set(requestId, {
+        address: addr,
+        name,
+        chain,
+        accountIndex: pending.signingAccountIndex ?? 0,
+      });
       console.log(`[signing-engine] pending trusted contact after success for ${requestId} → ${name} / ${addr}`);
     }
 
@@ -252,6 +258,7 @@ export class SigningEngine {
         token: (pending.params.token as string) || "ETH",
         chain: (pending.params.chain as string) || "unknown",
         estimatedUSD: pending.estimatedUSD,
+        accountIndex: pending.signingAccountIndex ?? 0,
       });
     }
 
@@ -270,7 +277,7 @@ export class SigningEngine {
     this.pendingTrustAfterTx.delete(requestId);
     if (!success || !this.authorityStore) return null;
     try {
-      const row = this.authorityStore.upsertContact(pend.name, pend.chain, pend.address, {
+      const row = this.authorityStore.upsertContact(pend.accountIndex, pend.name, pend.chain, pend.address, {
         trusted: true,
       });
       console.log(`[signing-engine] trusted contact after successful tx: ${row.name} ${row.address}`);
@@ -295,7 +302,7 @@ export class SigningEngine {
     await this.saveAllowance();
   }
 
-  private checkBudget(estimatedUSD: number, params: Record<string, unknown>): boolean {
+  private checkBudget(estimatedUSD: number, params: Record<string, unknown>, accountIndex: number): boolean {
     if (estimatedUSD > this.allowance.perTxLimitUSD) return false;
     if (this.dailyUsage.spentUSD + estimatedUSD > this.allowance.dailyLimitUSD) return false;
 
@@ -314,7 +321,7 @@ export class SigningEngine {
     const cp = typeof counterparty === "string" ? counterparty.trim() : "";
     if (cp.length > 0 && /^0x[a-fA-F0-9]{40}$/i.test(cp)) {
       const trusted = this.authorityStore
-        ? this.authorityStore.getTrustedRecipientKeys(this.allowance.addressWhitelist)
+        ? this.authorityStore.getTrustedRecipientKeys(accountIndex, this.allowance.addressWhitelist)
         : new Set(this.allowance.addressWhitelist.map((a) => `*:${a.trim().toLowerCase()}`));
       const a = cp.toLowerCase();
       const keyChain = `${chain}:${a}`;
@@ -358,6 +365,7 @@ export class SigningEngine {
           token: (params.token as string) || "ETH",
           chain: (params.chain as string) || "unknown",
           estimatedUSD,
+          accountIndex: signingAccountIndex ?? 0,
         });
       }
 

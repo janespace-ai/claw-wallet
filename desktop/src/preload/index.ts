@@ -85,10 +85,14 @@ export interface WalletAccountSummary {
 
 export interface PairedDevice {
   deviceId: string;
+  pairId: string;
   machineId: string;
+  agentPublicKey: string;
   lastIP: string;
   pairedAt: string;
   lastSeen: string;
+  /** Which BIP-44 sub-account this pairing belongs to (separate Relay WebSocket). */
+  accountIndex: number;
 }
 
 export interface AllowanceConfig {

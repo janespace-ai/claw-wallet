@@ -17,6 +17,7 @@ import { TxSyncService } from "./tx-sync-service.js";
 import { NetworkConfigService } from "./network-config-service.js";
 import { RPCProviderManager } from "./rpc-provider-manager.js";
 import { AccountManager } from "./account-manager.js";
+import { MessageRouter } from "./message-router.js";
 import { config } from "./config.js";
 
 /**
@@ -91,6 +92,17 @@ const lockManager = new LockManager(keyManager, {
 const priceService = new PriceService();
 const balanceService = new BalanceService(networkConfigService, rpcProviderManager);
 let relayBridge: RelayBridge | null = null;
+/** Unified routing for Relay-driven UI events (all `RelayAccountChannel`s). */
+let messageRouter: MessageRouter | null = null;
+
+function syncMessageRouterActiveAccount(): void {
+  if (!messageRouter) return;
+  try {
+    messageRouter.setActiveAccount(accountManager.getActiveAccountIndex());
+  } catch {
+    messageRouter.setActiveAccount(0);
+  }
+}
 
 function syncWalletAccountsAfterUnlock(): void {
   const mnemonic = keyManager.getMnemonicIfUnlocked();
@@ -100,6 +112,7 @@ function syncWalletAccountsAfterUnlock(): void {
     const idx = accountManager.resolveStartupAccountIndex();
     accountManager.setActiveAccountIndexSilent(idx);
     keyManager.setActiveAccountIndex(idx);
+    syncMessageRouterActiveAccount();
   } catch (e) {
     console.error("[Desktop] syncWalletAccountsAfterUnlock:", e);
   }
@@ -184,12 +197,14 @@ function registerIpcHandlers(): void {
   ipcMain.handle("wallet:create", async (_, password: string) => {
     const result = await keyManager.createWallet(password);
     syncWalletAccountsAfterUnlock();
+    await relayBridge?.refreshChannels();
     return { address: result.address, mnemonic: result.mnemonic };
   });
 
   ipcMain.handle("wallet:import", async (_, mnemonic: string, password: string) => {
     const result = await keyManager.importWallet(mnemonic, password);
     syncWalletAccountsAfterUnlock();
+    await relayBridge?.refreshChannels();
     return { address: result.address };
   });
 
@@ -197,6 +212,7 @@ function registerIpcHandlers(): void {
     await keyManager.unlock(password);
     syncWalletAccountsAfterUnlock();
     lockManager.onUnlock();
+    await relayBridge?.refreshChannels();
     mainWindow?.webContents.send("wallet:lock-state", false);
     if (keyManager.canEnableBiometric() && !keyManager.isBiometricAvailable()) {
       mainWindow?.webContents.send("wallet:biometric-prompt", password);
@@ -207,6 +223,7 @@ function registerIpcHandlers(): void {
     await keyManager.unlockBiometric();
     syncWalletAccountsAfterUnlock();
     lockManager.onUnlock();
+    await relayBridge?.refreshChannels();
     mainWindow?.webContents.send("wallet:lock-state", false);
   });
 
@@ -244,6 +261,8 @@ function registerIpcHandlers(): void {
     if (!mnemonic) throw new Error("Wallet locked");
     accountManager.switchAccount(index);
     keyManager.setActiveAccountIndex(index);
+    messageRouter?.setActiveAccount(index);
+    await messageRouter?.processQueuedMessages(index);
     balanceService.clearCache();
     const addr = keyManager.getAddress();
     mainWindow?.webContents.send("wallet:account-changed", {
@@ -257,6 +276,7 @@ function registerIpcHandlers(): void {
     if (!mnemonic) throw new Error("Wallet locked");
     accountManager.createAccount(mnemonic, nickname);
     balanceService.clearCache();
+    await relayBridge?.refreshChannels();
     return listWalletAccountsForRenderer();
   });
 
@@ -433,18 +453,56 @@ function registerIpcHandlers(): void {
 }
 
 app.whenReady().then(async () => {
-  registerIpcHandlers();
   await keyManager.initialize();
   await securityMonitor.initialize();
   signingEngine.setDataDir(dataDir);
   await signingEngine.loadAllowance();
   const wl = signingEngine.getAllowance().addressWhitelist;
   if (wl.length > 0) {
-    authorityStore.mergeLegacyAllowanceWhitelist(wl);
+    authorityStore.mergeLegacyAllowanceWhitelist(wl, 0);
     await signingEngine.setAllowance({ addressWhitelist: [] });
   }
 
-  // Start transaction sync service
+  messageRouter = new MessageRouter();
+  messageRouter.setAccountInfoResolver(async (idx) => {
+    const addr = keyManager.getAddressForAccountIndex(idx) ?? "";
+    let nickname = `Account ${idx}`;
+    try {
+      const acc = accountManager.getAccount(idx);
+      if (acc) nickname = acc.nickname;
+    } catch {
+      /* ignore */
+    }
+    return { nickname, address: addr };
+  });
+  messageRouter.on("sign-request", (payload) => {
+    console.log("[desktop] Showing tx approval modal for", (payload as { requestId?: string }).requestId);
+    mainWindow?.show();
+    mainWindow?.webContents.send("wallet:tx-request", payload);
+  });
+  messageRouter.on("contact-request", (payload) => {
+    console.log("[desktop] Contact add request", (payload as { requestId?: string }).requestId);
+    mainWindow?.show();
+    mainWindow?.webContents.send("wallet:contact-add-request", payload);
+  });
+  messageRouter.on("security-alert", (payload) => {
+    securityMonitor.registerPendingAlert(payload as { alertId: string; type: string; timestamp: number });
+    mainWindow?.webContents.send("wallet:security-alert", payload);
+    mainWindow?.show();
+  });
+
+  registerIpcHandlers();
+
+  // Sync pending txs for every known account (not only active); default was [0] without this.
+  txSyncService.setActiveAccountIndexes(() => {
+    try {
+      const accounts = accountManager.listAccounts();
+      if (accounts.length === 0) return [0];
+      return accounts.map((a) => a.index);
+    } catch {
+      return [0];
+    }
+  });
   txSyncService.startPeriodicSync(30000); // Every 30 seconds
 
   // Start RPC health monitoring
@@ -459,12 +517,14 @@ app.whenReady().then(async () => {
   relayBridge = new RelayBridge({
     dataDir,
     keyManager,
+    accountManager,
     signingEngine,
     securityMonitor,
     priceService,
     authorityStore,
     signingHistory,
     txSyncService,
+    messageRouter,
     relayUrl: config.relayUrl,
     reconnectBaseMs: config.relay.reconnectBaseMs,
     reconnectMaxMs: config.relay.reconnectMaxMs,
@@ -491,25 +551,12 @@ app.whenReady().then(async () => {
         signingNickname,
       };
     },
-    onTransactionRequest: (req) => {
-      console.log("[desktop] Showing tx approval modal for", req.requestId);
-      mainWindow?.show();
-      mainWindow?.webContents.send("wallet:tx-request", req);
-    },
-    onContactAddRequest: (req) => {
-      console.log("[desktop] Contact add request", req.requestId);
-      mainWindow?.show();
-      mainWindow?.webContents.send("wallet:contact-add-request", req);
-    },
     onConnectionStatus: (status) => {
       mainWindow?.webContents.send("wallet:connection-status", status);
     },
-    onSecurityAlert: (alert) => {
-      securityMonitor.registerPendingAlert(alert);
-      mainWindow?.webContents.send("wallet:security-alert", alert);
-      mainWindow?.show();
-    },
   });
+
+  syncMessageRouterActiveAccount();
 
   lockManager.onLock(() => {
     mainWindow?.webContents.send("wallet:lock-state", true);

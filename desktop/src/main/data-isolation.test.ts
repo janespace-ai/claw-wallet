@@ -246,7 +246,7 @@ describe('Account Data Isolation', () => {
         0,
         'Alice',
         'ethereum',
-        '0xAliceAddress',
+        '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
         { trusted: true }
       );
 
@@ -255,7 +255,7 @@ describe('Account Data Isolation', () => {
         1,
         'Bob',
         'base',
-        '0xBobAddress',
+        '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
         { trusted: false }
       );
 
@@ -263,7 +263,7 @@ describe('Account Data Isolation', () => {
       const account0Contacts = authorityStore.listContacts(0);
       expect(account0Contacts).toHaveLength(1);
       expect(account0Contacts[0].name).toBe('Alice');
-      expect(account0Contacts[0].address).toBe('0xaliceaddress');
+      expect(account0Contacts[0].address).toBe('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
       expect(account0Contacts[0].chain).toBe('ethereum');
       expect(account0Contacts[0].trusted).toBe(true);
 
@@ -271,24 +271,24 @@ describe('Account Data Isolation', () => {
       const account1Contacts = authorityStore.listContacts(1);
       expect(account1Contacts).toHaveLength(1);
       expect(account1Contacts[0].name).toBe('Bob');
-      expect(account1Contacts[0].address).toBe('0xbobaddress');
+      expect(account1Contacts[0].address).toBe('0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb');
       expect(account1Contacts[0].chain).toBe('base');
       expect(account1Contacts[0].trusted).toBe(false);
     });
 
     it('should not allow duplicate contact names across accounts', () => {
       // Same contact name can exist in different accounts
-      authorityStore.upsertContact(0, 'Charlie', 'ethereum', '0xCharlie1', {});
-      authorityStore.upsertContact(1, 'Charlie', 'base', '0xCharlie2', {});
+      authorityStore.upsertContact(0, 'Charlie', 'ethereum', '0xcccccccccccccccccccccccccccccccccccccccc', {});
+      authorityStore.upsertContact(1, 'Charlie', 'base', '0xdddddddddddddddddddddddddddddddddddddddd', {});
 
       const account0Contacts = authorityStore.listContacts(0);
       const account1Contacts = authorityStore.listContacts(1);
 
       expect(account0Contacts[0].name).toBe('Charlie');
-      expect(account0Contacts[0].address).toBe('0xcharlie1');
+      expect(account0Contacts[0].address).toBe('0xcccccccccccccccccccccccccccccccccccccccc');
 
       expect(account1Contacts[0].name).toBe('Charlie');
-      expect(account1Contacts[0].address).toBe('0xcharlie2');
+      expect(account1Contacts[0].address).toBe('0xdddddddddddddddddddddddddddddddddddddddd');
     });
 
     it('should isolate trusted recipient checks', () => {
@@ -296,7 +296,7 @@ describe('Account Data Isolation', () => {
         0,
         'TrustedForAccount0',
         'ethereum',
-        '0xTrusted0',
+        '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
         { trusted: true }
       );
 
@@ -304,17 +304,17 @@ describe('Account Data Isolation', () => {
         1,
         'NotTrustedForAccount1',
         'ethereum',
-        '0xTrusted0',
+        '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee',
         { trusted: false }
       );
 
       // Same address, different trust status per account
       expect(
-        authorityStore.isTrustedRecipientForChain(0, '0xTrusted0', 'ethereum')
+        authorityStore.isTrustedRecipientForChain(0, '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 'ethereum')
       ).toBe(true);
 
       expect(
-        authorityStore.isTrustedRecipientForChain(1, '0xTrusted0', 'ethereum')
+        authorityStore.isTrustedRecipientForChain(1, '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee', 'ethereum')
       ).toBe(false);
     });
   });

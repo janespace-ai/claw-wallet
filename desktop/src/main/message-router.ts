@@ -40,7 +40,9 @@ export enum MessagePriority {
 export class MessageRouter extends EventEmitter {
   private activeAccountIndex: number = 0;
   private messageQueue: Map<number, DecryptedMessage[]> = new Map();
-  private decryptFn: (accountIndex: number, message: EncryptedMessage) => Promise<any> | null = () => null;
+  private decryptFn: (accountIndex: number, message: EncryptedMessage) => Promise<any> = async () => null;
+  private accountInfoResolver: ((accountIndex: number) => Promise<{ nickname: string; address: string }>) | null =
+    null;
 
   constructor() {
     super();
@@ -66,6 +68,19 @@ export class MessageRouter extends EventEmitter {
    */
   setDecryptFunction(fn: (accountIndex: number, message: EncryptedMessage) => Promise<any>): void {
     this.decryptFn = fn;
+  }
+
+  /**
+   * Route a message that is already decrypted (e.g. from `RelayAccountChannel` after E2EE).
+   * Uses the same `routeByType` path as {@link route} but skips `decryptFn`.
+   */
+  async routeDecrypted(message: DecryptedMessage): Promise<void> {
+    try {
+      await this.routeByType(message);
+    } catch (error) {
+      console.error(`[MessageRouter] Error in routeDecrypted:`, error);
+      this.emit("routing-error", { accountIndex: message.fromAccount, error });
+    }
   }
 
   /**
@@ -281,33 +296,32 @@ export class MessageRouter extends EventEmitter {
   }
 
   /**
-   * Get account nickname (to be implemented by caller)
+   * Get account nickname (via optional resolver from main process)
    */
   private async getAccountNickname(accountIndex: number): Promise<string> {
-    // This will be set by the main application
+    if (this.accountInfoResolver) {
+      const info = await this.accountInfoResolver(accountIndex);
+      return info.nickname;
+    }
     return `Account ${accountIndex}`;
   }
 
   /**
-   * Get account address (to be implemented by caller)
+   * Get account address (via optional resolver from main process)
    */
   private async getAccountAddress(accountIndex: number): Promise<string> {
-    // This will be set by the main application
-    return '0x...';
+    if (this.accountInfoResolver) {
+      const info = await this.accountInfoResolver(accountIndex);
+      return info.address;
+    }
+    return "";
   }
 
   /**
    * Set account info resolver (called by main application)
    */
   setAccountInfoResolver(resolver: (accountIndex: number) => Promise<{ nickname: string; address: string }>): void {
-    this.getAccountNickname = async (index: number) => {
-      const info = await resolver(index);
-      return info.nickname;
-    };
-    this.getAccountAddress = async (index: number) => {
-      const info = await resolver(index);
-      return info.address;
-    };
+    this.accountInfoResolver = resolver;
   }
 
   /**

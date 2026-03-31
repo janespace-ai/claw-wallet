@@ -10,7 +10,7 @@ export function createWalletBalanceTool(
 ): ToolDefinition {
   return {
     name: "wallet_balance",
-    description: "Query the current balance of ETH and/or ERC-20 tokens in the wallet. Can specify a token symbol (e.g., USDC) and chain (e.g., base, ethereum).",
+    description: "Query the current balance of ETH and/or ERC-20 tokens in the wallet. Can specify a token symbol (e.g., USDC) and chain (e.g., base, ethereum). If chain is omitted, returns balances across all supported chains.",
     parameters: {
       type: "object",
       properties: {
@@ -20,7 +20,7 @@ export function createWalletBalanceTool(
         },
         chain: {
           type: "string",
-          description: "Chain to query (base, ethereum). Defaults to the configured default chain.",
+          description: "Chain to query (base, ethereum). If omitted, queries all supported chains.",
         },
       },
     },
@@ -28,25 +28,74 @@ export function createWalletBalanceTool(
       const address = getAddress();
       if (!address) return { error: "No wallet configured. Use wallet_create or wallet_import first." };
 
-      const chain = (args.chain as SupportedChain) || defaultChain;
       const token = (args.token as string) || "ETH";
+      const specifiedChain = args.chain as SupportedChain | undefined;
 
-      if (token.toUpperCase() === "ETH") {
-        const { formatted } = await chainAdapter.getBalance(address, chain);
-        return { balance: formatted, token: "ETH", chain };
+      // If chain is specified, query single chain (original behavior)
+      if (specifiedChain) {
+        if (token.toUpperCase() === "ETH") {
+          const { formatted } = await chainAdapter.getBalance(address, specifiedChain);
+          return { balance: formatted, token: "ETH", chain: specifiedChain };
+        }
+
+        let tokenAddress: Address;
+        if (token.startsWith("0x") && token.length === 42) {
+          tokenAddress = token as Address;
+        } else {
+          const known = KNOWN_TOKENS[specifiedChain]?.[token.toUpperCase()];
+          if (!known) return { error: `Unknown token "${token}" on ${specifiedChain}` };
+          tokenAddress = known;
+        }
+
+        const info = await chainAdapter.getTokenBalance(address, tokenAddress, specifiedChain);
+        return { balance: info.formatted, token: info.symbol, chain: specifiedChain };
       }
 
-      let tokenAddress: Address;
-      if (token.startsWith("0x") && token.length === 42) {
-        tokenAddress = token as Address;
-      } else {
-        const known = KNOWN_TOKENS[chain]?.[token.toUpperCase()];
-        if (!known) return { error: `Unknown token "${token}" on ${chain}` };
-        tokenAddress = known;
+      // Multi-chain query: query all supported chains
+      const supportedChains: SupportedChain[] = ["base", "ethereum"];
+      const results: Array<{ chain: string; balance: string; token: string }> = [];
+      const errors: Array<{ chain: string; error: string }> = [];
+
+      for (const chain of supportedChains) {
+        try {
+          if (token.toUpperCase() === "ETH") {
+            const { formatted } = await chainAdapter.getBalance(address, chain);
+            if (parseFloat(formatted) > 0) {
+              results.push({ chain, balance: formatted, token: "ETH" });
+            }
+          } else {
+            let tokenAddress: Address | undefined;
+            if (token.startsWith("0x") && token.length === 42) {
+              tokenAddress = token as Address;
+            } else {
+              tokenAddress = KNOWN_TOKENS[chain]?.[token.toUpperCase()];
+            }
+
+            if (tokenAddress) {
+              const info = await chainAdapter.getTokenBalance(address, tokenAddress, chain);
+              if (parseFloat(info.formatted) > 0) {
+                results.push({ chain, balance: info.formatted, token: info.symbol });
+              }
+            }
+          }
+        } catch (err) {
+          errors.push({ chain, error: (err as Error).message });
+        }
       }
 
-      const info = await chainAdapter.getTokenBalance(address, tokenAddress, chain);
-      return { balance: info.formatted, token: info.symbol, chain };
+      if (results.length === 0 && errors.length === 0) {
+        return { 
+          message: `No balance found for ${token} across any supported chains`,
+          chains: supportedChains 
+        };
+      }
+
+      return {
+        token,
+        balances: results,
+        ...(errors.length > 0 && { errors }),
+        message: `Found ${token} balances on ${results.length} chain(s)`
+      };
     },
   };
 }

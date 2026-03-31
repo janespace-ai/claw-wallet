@@ -17,10 +17,18 @@ export class TxSyncService {
   private syncInterval: NodeJS.Timeout | null = null;
   private isSyncing = false;
   private onTxFinalized?: (requestId: string, success: boolean) => void;
+  private getActiveAccountIndexes: () => number[] = () => [0]; // Default to account 0
 
   constructor(signingHistory: SigningHistory, chainAdapter: ChainAdapter) {
     this.signingHistory = signingHistory;
     this.chainAdapter = chainAdapter;
+  }
+
+  /**
+   * Set function to get active account indexes for syncing
+   */
+  setActiveAccountIndexes(fn: () => number[]): void {
+    this.getActiveAccountIndexes = fn;
   }
 
   setOnTxFinalized(handler: ((requestId: string, success: boolean) => void) | undefined): void {
@@ -30,13 +38,13 @@ export class TxSyncService {
   /**
    * Sync transaction status immediately after signing
    */
-  async syncImmediately(txHash: string, chain: string): Promise<void> {
+  async syncImmediately(txHash: string, chain: string, accountIndex: number): Promise<void> {
     try {
-      console.log(`[TxSync] Immediate sync for ${txHash} on ${chain}`);
+      console.log(`[TxSync] Immediate sync for ${txHash} on ${chain} (account ${accountIndex})`);
       const receipt = await this.chainAdapter.getTransactionReceipt(txHash, chain);
       
       if (receipt) {
-        const before = this.signingHistory.getRecordByTxHash(txHash);
+        const before = this.signingHistory.getRecordByTxHash(txHash, accountIndex);
         this.signingHistory.updateTxStatus(txHash, receipt);
         console.log(`[TxSync] Updated ${txHash}: ${receipt.status}`);
         const requestId = before?.request_id;
@@ -83,7 +91,7 @@ export class TxSyncService {
   }
 
   /**
-   * Sync all pending transactions
+   * Sync all pending transactions across all active accounts
    */
   private async syncPendingTransactions(): Promise<void> {
     if (this.isSyncing) {
@@ -94,29 +102,38 @@ export class TxSyncService {
     this.isSyncing = true;
 
     try {
-      const pending = this.signingHistory.getPendingTransactions();
-      
-      if (pending.length === 0) {
-        console.log("[TxSync] No pending transactions to sync");
-        return;
-      }
+      const accountIndexes = this.getActiveAccountIndexes();
+      let totalPending = 0;
 
-      console.log(`[TxSync] Syncing ${pending.length} pending transactions`);
+      for (const accountIndex of accountIndexes) {
+        const pending = this.signingHistory.getPendingTransactions(accountIndex);
+        totalPending += pending.length;
 
-      for (const record of pending) {
-        if (record.tx_hash) {
-          try {
-            await this.syncImmediately(record.tx_hash, record.tx_chain);
-            
-            // Rate limit: 100ms delay between requests
-            await new Promise((resolve) => setTimeout(resolve, 100));
-          } catch (err) {
-            console.error(`[TxSync] Error syncing ${record.tx_hash}:`, err);
+        if (pending.length === 0) {
+          continue;
+        }
+
+        console.log(`[TxSync] Syncing ${pending.length} pending transactions for account ${accountIndex}`);
+
+        for (const record of pending) {
+          if (record.tx_hash) {
+            try {
+              await this.syncImmediately(record.tx_hash, record.tx_chain, accountIndex);
+              
+              // Rate limit: 100ms delay between requests
+              await new Promise((resolve) => setTimeout(resolve, 100));
+            } catch (err) {
+              console.error(`[TxSync] Error syncing ${record.tx_hash}:`, err);
+            }
           }
         }
       }
 
-      console.log("[TxSync] Sync cycle complete");
+      if (totalPending === 0) {
+        console.log("[TxSync] No pending transactions to sync across all accounts");
+      } else {
+        console.log(`[TxSync] Sync cycle complete (${totalPending} total pending)`);
+      }
     } catch (err) {
       console.error("[TxSync] Sync cycle failed:", err);
     } finally {

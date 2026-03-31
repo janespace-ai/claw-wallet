@@ -79,5 +79,10 @@
     "trusted": "Trusted",
     "removeConfirm": "Remove all entries for contact \"{name}\"?",
     "nameRequired": "Please enter a display name for the trusted contact."
+  },
+  "accounts": {
+    "selectorLabel": "Active account",
+    "newAccount": "+ Account",
+    "maxReached": "Maximum 10 accounts"
   }
 }

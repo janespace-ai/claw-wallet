@@ -6,16 +6,18 @@
  */
 
 import Database from "better-sqlite3";
-import { join, dirname } from "path";
-import { existsSync, mkdirSync } from "fs";
+import { dirname } from "path";
+import { copyFileSync, existsSync, mkdirSync } from "fs";
 
 export class DatabaseService {
   private db: Database.Database;
+  private readonly dbFilePath: string;
   private static instance: DatabaseService | null = null;
 
   private constructor(dbPath: string) {
     console.log(`[DatabaseService] Initializing database at ${dbPath}`);
-    
+    this.dbFilePath = dbPath;
+
     // Ensure directory exists
     const dir = dirname(dbPath);
     if (!existsSync(dir)) {
@@ -56,12 +58,49 @@ export class DatabaseService {
     return this.db;
   }
 
+  /** SQL prepare — delegates to better-sqlite3 (used by AccountManager and similar). */
+  prepare(source: string): Database.Statement {
+    return this.db.prepare(source);
+  }
+
+  /**
+   * Close singleton and clear reference (tests only; avoids stale DB across test files).
+   */
+  static resetInstanceForTests(): void {
+    if (DatabaseService.instance) {
+      DatabaseService.instance.close();
+      DatabaseService.instance = null;
+    }
+  }
+
+  /**
+   * Copy DB file before upgrading schema (existing wallets only).
+   */
+  private backupDatabaseBeforeMigration(fromVersion: number): void {
+    const latestKnown = 5;
+    if (fromVersion <= 0 || fromVersion >= latestKnown) return;
+    try {
+      this.db.pragma("wal_checkpoint(FULL)");
+    } catch {
+      /* best-effort */
+    }
+    const ts = new Date().toISOString().replace(/[:.]/g, "-").replace("T", "_").slice(0, 19);
+    const dest = `${this.dbFilePath}.pre-migrate-from-v${fromVersion}-${ts}.bak`;
+    try {
+      copyFileSync(this.dbFilePath, dest);
+      console.log(`[DatabaseService] Pre-migration backup written: ${dest}`);
+    } catch (e) {
+      console.error("[DatabaseService] Pre-migration backup failed:", e);
+    }
+  }
+
   /**
    * Run database migrations
    */
   private migrate(): void {
     const currentVersion = this.db.pragma("user_version", { simple: true }) as number;
     console.log(`[DatabaseService] Current schema version: ${currentVersion}`);
+    this.backupDatabaseBeforeMigration(currentVersion);
 
     if (currentVersion === 0) {
       console.log("[DatabaseService] Running migration v1...");
@@ -92,6 +131,14 @@ export class DatabaseService {
       this.migrateToV4();
       this.db.pragma("user_version = 4");
       console.log("[DatabaseService] Migration v4 complete");
+    }
+
+    const versionAfterV4 = this.db.pragma("user_version", { simple: true }) as number;
+    if (versionAfterV4 < 5) {
+      console.log("[DatabaseService] Running migration v5 (add account_index for multi-account support)...");
+      this.migrateToV5();
+      this.db.pragma("user_version = 5");
+      console.log("[DatabaseService] Migration v5 complete");
     }
   }
 
@@ -277,12 +324,52 @@ export class DatabaseService {
   }
 
   /**
+   * Migration v5: Add account_index for multi-account support
+   */
+  private migrateToV5(): void {
+    // Add account_index column to signing_history
+    const signingHistoryCols = this.db.pragma("table_info(signing_history)") as Array<{ name: string }>;
+    if (!signingHistoryCols.some(c => c.name === "account_index")) {
+      this.db.exec(`ALTER TABLE signing_history ADD COLUMN account_index INTEGER DEFAULT 0`);
+      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_signing_history_account ON signing_history(account_index)`);
+      console.log("[DatabaseService] Added account_index to signing_history");
+    }
+
+    // Add account_index column to desktop_contacts
+    const contactsCols = this.db.pragma("table_info(desktop_contacts)") as Array<{ name: string }>;
+    if (!contactsCols.some(c => c.name === "account_index")) {
+      this.db.exec(`ALTER TABLE desktop_contacts ADD COLUMN account_index INTEGER DEFAULT 0`);
+      this.db.exec(`CREATE INDEX IF NOT EXISTS idx_contacts_account ON desktop_contacts(account_index)`);
+      console.log("[DatabaseService] Added account_index to desktop_contacts");
+    }
+
+    // Add account_index column to transaction_sync (table is optional / created lazily by sync)
+    const txSyncTable = this.db
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name='transaction_sync'`)
+      .get() as { name: string } | undefined;
+    if (txSyncTable) {
+      const txSyncCols = this.db.pragma("table_info(transaction_sync)") as Array<{ name: string }>;
+      if (!txSyncCols.some((c) => c.name === "account_index")) {
+        this.db.exec(`ALTER TABLE transaction_sync ADD COLUMN account_index INTEGER DEFAULT 0`);
+        this.db.exec(`CREATE INDEX IF NOT EXISTS idx_tx_sync_account ON transaction_sync(account_index)`);
+        console.log("[DatabaseService] Added account_index to transaction_sync");
+      }
+    }
+
+    console.log("[DatabaseService] Migration v5: All existing data assigned to account 0 (default account)");
+  }
+
+  /**
    * Close the database connection
    */
   close(): void {
-    if (this.db) {
-      this.db.close();
-      console.log("[DatabaseService] Database closed");
+    try {
+      if (this.db?.open) {
+        this.db.close();
+        console.log("[DatabaseService] Database closed");
+      }
+    } catch {
+      // already closed
     }
   }
 

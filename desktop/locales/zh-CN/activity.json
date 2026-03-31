@@ -7,7 +7,9 @@
     "rejected": "已拒绝",
     "success": "成功",
     "failed": "失败",
-    "pending": "待处理"
+    "pending": "待处理",
+    "network": "网络",
+    "allNetworks": "所有网络"
   },
   "noRecords": "无活动记录",
   "loadMore": "加载更多",

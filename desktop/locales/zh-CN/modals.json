@@ -18,7 +18,10 @@
     "trustNameLabel": "联系人显示名称（必填）",
     "trustNamePlaceholder": "例如：交易所提币",
     "approve": "批准",
-    "reject": "拒绝"
+    "reject": "拒绝",
+    "fromAccountLabel": "签名账户",
+    "fromAccountFallback": "账户 {index}",
+    "switchAndView": "切换并查看"
   },
   "contactAdd": {
     "title": "添加联系人",

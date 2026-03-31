@@ -11,6 +11,11 @@
   <div id="app">
     <header id="header">
       <h1 data-i18n="modals.app.title">Claw Wallet</h1>
+      <div id="account-header-group" class="account-header-group" style="display: none;" aria-label="Accounts">
+        <label for="account-selector" class="sr-only" data-i18n="common.accounts.selectorLabel">Active account</label>
+        <select id="account-selector" class="account-selector"></select>
+        <button type="button" id="btn-new-sub-account" class="btn ghost btn-account-new" data-i18n="common.accounts.newAccount">+ Account</button>
+      </div>
       <div class="language-switcher">
         <select id="language-selector" class="language-select">
           <option value="en">English</option>
@@ -103,7 +108,20 @@
           <div id="balances-section" style="margin-top: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
               <h4 data-i18n="common.home.balances">Balances</h4>
-              <button id="btn-refresh-balances" class="btn ghost" data-i18n="common.buttons.refresh" style="padding: 4px 8px; font-size: 12px;">Refresh</button>
+              <div style="display: flex; gap: 8px; align-items: center;">
+                <!-- Network Filter -->
+                <select id="network-filter" class="network-filter" title="Filter by network">
+                  <option value="all">All Networks</option>
+                  <!-- Networks populated dynamically -->
+                </select>
+                <!-- Hide Zero Balances Toggle -->
+                <label class="checkbox-label" style="margin: 0;">
+                  <input type="checkbox" id="hide-zero-balances">
+                  <span style="font-size: 12px;">Hide Zero</span>
+                </label>
+                <!-- Refresh Button -->
+                <button id="btn-refresh-balances" class="btn ghost" data-i18n="common.buttons.refresh" style="padding: 4px 8px; font-size: 12px;">Refresh</button>
+              </div>
             </div>
             <div id="balances-list"></div>
           </div>
@@ -131,6 +149,11 @@
 
       <!-- Settings tab -->
       <div id="tab-settings" class="tab-content">
+        <div class="card" id="settings-accounts-card" style="display: none;">
+          <h3 data-i18n="settings.accounts.title">Accounts</h3>
+          <p class="settings-hint" data-i18n="settings.accounts.hint">Nicknames are shown in the header account list.</p>
+          <div id="settings-account-nicknames"></div>
+        </div>
         <div class="card">
           <h3 data-i18n="settings.allowance.title">Allowance</h3>
           <div class="form-group">
@@ -190,6 +213,14 @@
             <button class="filter-btn" data-filter="rejected">❌ <span data-i18n="activity.filters.rejected">Rejected</span></button>
             <button class="filter-btn" data-filter="pending">⏳ <span data-i18n="activity.filters.pending">Pending</span></button>
             <button class="filter-btn" data-filter="failed">⛔ <span data-i18n="activity.filters.failed">Failed</span></button>
+            
+            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
+              <label style="font-size: 12px; color: var(--text-secondary);" data-i18n="activity.filters.network">Network:</label>
+              <select id="activity-network-filter" class="network-filter" style="padding: 4px 8px; font-size: 12px;">
+                <option value="all" data-i18n="activity.filters.allNetworks">All Networks</option>
+                <!-- Networks populated dynamically -->
+              </select>
+            </div>
           </div>
 
           <!-- Activity List -->
@@ -219,6 +250,10 @@
     <div id="modal-tx" class="modal" style="display:none">
       <div class="modal-content">
         <h3 data-i18n="modals.tx.title">Transaction Approval</h3>
+        <div id="tx-from-account-row" class="tx-from-account-badge" style="display: none;">
+          <span class="tx-from-label" data-i18n="modals.tx.fromAccountLabel">Signing account</span>
+          <span id="tx-from-account-text" class="tx-from-account-text"></span>
+        </div>
         <div id="tx-details"></div>
         <label id="tx-trust-wrap" class="checkbox-label" style="display:none; flex-direction: column; align-items: stretch; gap: 8px; margin: 12px 0;">
           <span style="display:flex; align-items:center; gap:8px;">
@@ -230,9 +265,10 @@
             <input type="text" id="input-trust-contact-name" data-i18n-placeholder="modals.tx.trustNamePlaceholder" placeholder="e.g. Exchange withdrawal" style="width:100%; margin-top:6px; padding:8px;">
           </label>
         </label>
-        <div class="modal-actions">
-          <button id="btn-approve-tx" class="btn primary" data-i18n="modals.tx.approve">Approve</button>
-          <button id="btn-reject-tx" class="btn danger" data-i18n="modals.tx.reject">Reject</button>
+        <div class="modal-actions modal-actions-tx">
+          <button type="button" id="btn-tx-switch-view" class="btn secondary" style="display: none;" data-i18n="modals.tx.switchAndView">Switch &amp; View</button>
+          <button type="button" id="btn-approve-tx" class="btn primary" data-i18n="modals.tx.approve">Approve</button>
+          <button type="button" id="btn-reject-tx" class="btn danger" data-i18n="modals.tx.reject">Reject</button>
         </div>
       </div>
     </div>
@@ -246,6 +282,19 @@
           <button type="button" id="btn-contact-add-normal" class="btn secondary" data-i18n="modals.contactAdd.normal">Add as regular contact</button>
           <button type="button" id="btn-contact-add-trusted" class="btn primary" data-i18n="modals.contactAdd.trusted">Add as trusted contact</button>
           <button type="button" id="btn-contact-add-reject" class="btn danger" data-i18n="modals.contactAdd.reject">Reject</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- New sub-account (Electron has no window.prompt in renderer) -->
+    <div id="modal-new-account" class="modal" style="display:none">
+      <div class="modal-content">
+        <h3 data-i18n="settings.accounts.newAccountModalTitle">Add account</h3>
+        <p class="settings-hint" data-i18n="settings.accounts.newNicknamePrompt">Optional nickname for the new account.</p>
+        <input type="text" id="input-new-account-nick" data-i18n-placeholder="settings.accounts.newNicknamePrompt" placeholder="Nickname (optional)" autocomplete="off">
+        <div class="modal-actions">
+          <button type="button" id="btn-new-account-confirm" class="btn primary" data-i18n="common.buttons.create">Create</button>
+          <button type="button" id="btn-new-account-cancel" class="btn secondary" data-i18n="common.buttons.cancel">Cancel</button>
         </div>
       </div>
     </div>

@@ -52,7 +52,7 @@ export class WalletAuthorityStore {
   }
 
   /** Legacy allowance.json → one row per address on `base` */
-  mergeLegacyAllowanceWhitelist(addresses: string[]): void {
+  mergeLegacyAllowanceWhitelist(addresses: string[], accountIndex: number): void {
     const now = Date.now();
     for (const raw of addresses) {
       if (!raw || typeof raw !== "string") continue;
@@ -62,47 +62,49 @@ export class WalletAuthorityStore {
       const name = `Allowance ${short}`;
       this.db
         .prepare(
-          `INSERT INTO desktop_contacts (name, chain, address, trusted, created_at, updated_at)
-           VALUES (?, 'base', ?, 1, ?, ?)
+          `INSERT INTO desktop_contacts (name, chain, address, trusted, account_index, created_at, updated_at)
+           VALUES (?, 'base', ?, 1, ?, ?, ?)
            ON CONFLICT(name COLLATE NOCASE) DO UPDATE SET
              chain = excluded.chain,
              address = excluded.address,
              trusted = 1,
+             account_index = excluded.account_index,
              updated_at = excluded.updated_at`,
         )
-        .run(name, a, now, now);
+        .run(name, a, accountIndex, now, now);
     }
   }
 
-  getTrustedRecipientKeys(legacyWhitelist: string[]): Set<string> {
+  getTrustedRecipientKeys(accountIndex: number, legacyWhitelist: string[]): Set<string> {
     const keys = new Set<string>();
     for (const raw of legacyWhitelist) {
       const a = normAddr(raw);
       if (ADDR_RE.test(a)) keys.add(`*:${a}`);
     }
     const rows = this.db
-      .prepare(`SELECT chain, address FROM desktop_contacts WHERE trusted = 1`)
-      .all() as { chain: string; address: string }[];
+      .prepare(`SELECT chain, address FROM desktop_contacts WHERE account_index = ? AND trusted = 1`)
+      .all(accountIndex) as { chain: string; address: string }[];
     for (const r of rows) {
       keys.add(`${normChain(r.chain)}:${normAddr(r.address)}`);
     }
     return keys;
   }
 
-  isTrustedRecipientForChain(address: string, chain: string): boolean {
+  isTrustedRecipientForChain(accountIndex: number, address: string, chain: string): boolean {
     const a = normAddr(address);
     const c = normChain(chain);
     if (!ADDR_RE.test(a)) return false;
     const row = this.db
       .prepare(
-        `SELECT 1 FROM desktop_contacts WHERE trusted = 1 AND address = ? AND chain = ? COLLATE NOCASE`,
+        `SELECT 1 FROM desktop_contacts WHERE account_index = ? AND trusted = 1 AND address = ? AND chain = ? COLLATE NOCASE`,
       )
-      .get(a, c);
+      .get(accountIndex, a, c);
     return Boolean(row);
   }
 
   /** Match counterparty for approval / labels (at most one row per address+chain). */
   lookupContactByAddressChain(
+    accountIndex: number,
     address: string,
     chain: string,
   ): { name: string; trusted: boolean } | null {
@@ -111,19 +113,24 @@ export class WalletAuthorityStore {
     if (!ADDR_RE.test(a)) return null;
     const row = this.db
       .prepare(
-        `SELECT name, trusted FROM desktop_contacts WHERE address = ? AND chain = ? COLLATE NOCASE`,
+        `SELECT name, trusted FROM desktop_contacts WHERE account_index = ? AND address = ? AND chain = ? COLLATE NOCASE`,
       )
-      .get(a, c) as { name: string; trusted: number } | undefined;
+      .get(accountIndex, a, c) as { name: string; trusted: number } | undefined;
     if (!row) return null;
     return { name: row.name, trusted: row.trusted === 1 };
   }
 
-  listContacts(): DesktopContactRow[] {
+  listContacts(accountIndex: number): DesktopContactRow[] {
+    // Defensive check
+    if (accountIndex === undefined || accountIndex === null) {
+      throw new Error("[WalletAuthorityStore] account_index is required for listContacts");
+    }
+
     const rows = this.db
       .prepare(
-        `SELECT name, chain, address, trusted FROM desktop_contacts ORDER BY name ASC, chain ASC`,
+        `SELECT name, chain, address, trusted FROM desktop_contacts WHERE account_index = ? ORDER BY name ASC, chain ASC`,
       )
-      .all() as { name: string; chain: string; address: string; trusted: number }[];
+      .all(accountIndex) as { name: string; chain: string; address: string; trusted: number }[];
     return rows.map((r) => ({
       name: r.name,
       chain: r.chain,
@@ -133,11 +140,20 @@ export class WalletAuthorityStore {
   }
 
   upsertContact(
+    accountIndex: number,
     name: string,
     chain: string,
     address: string,
     opts?: { trusted?: boolean },
   ): DesktopContactRow {
+    // Defensive check
+    if (accountIndex === undefined || accountIndex === null) {
+      throw new Error("[WalletAuthorityStore] account_index is required for upsertContact");
+    }
+    if (accountIndex < 0 || accountIndex > 9) {
+      throw new Error(`[WalletAuthorityStore] Invalid account_index: ${accountIndex} (must be 0-9)`);
+    }
+
     const n = name.trim();
     const c = normChain(chain);
     const a = normAddr(address);
@@ -147,14 +163,14 @@ export class WalletAuthorityStore {
     const now = Date.now();
 
     const byName = this.db
-      .prepare(`SELECT id, name, chain, address, trusted FROM desktop_contacts WHERE name = ? COLLATE NOCASE`)
-      .get(n) as { id: number; name: string; chain: string; address: string; trusted: number } | undefined;
+      .prepare(`SELECT id, name, chain, address, trusted FROM desktop_contacts WHERE account_index = ? AND name = ? COLLATE NOCASE`)
+      .get(accountIndex, n) as { id: number; name: string; chain: string; address: string; trusted: number } | undefined;
 
     const byRecipient = this.db
       .prepare(
-        `SELECT id, name FROM desktop_contacts WHERE address = ? AND chain = ? COLLATE NOCASE`,
+        `SELECT id, name FROM desktop_contacts WHERE account_index = ? AND address = ? AND chain = ? COLLATE NOCASE`,
       )
-      .get(a, c) as { id: number; name: string } | undefined;
+      .get(accountIndex, a, c) as { id: number; name: string } | undefined;
 
     if (byName && byRecipient) {
       if (byName.id !== byRecipient.id) {
@@ -190,24 +206,24 @@ export class WalletAuthorityStore {
 
     this.db
       .prepare(
-        `INSERT INTO desktop_contacts (name, chain, address, trusted, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO desktop_contacts (name, chain, address, trusted, account_index, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(n, c, a, trustedVal, now, now);
+      .run(n, c, a, trustedVal, accountIndex, now, now);
     return { name: n, chain: c, address: a, trusted: trustedVal === 1 };
   }
 
-  removeContactsByName(name: string): number {
+  removeContactsByName(accountIndex: number, name: string): number {
     const n = name.trim();
-    return this.db.prepare("DELETE FROM desktop_contacts WHERE name = ? COLLATE NOCASE").run(n).changes;
+    return this.db.prepare("DELETE FROM desktop_contacts WHERE account_index = ? AND name = ? COLLATE NOCASE").run(accountIndex, n).changes;
   }
 
-  resolveContact(name: string, chain: string): ResolveContactResult {
+  resolveContact(accountIndex: number, name: string, chain: string): ResolveContactResult {
     const n = name.trim();
     const c = normChain(chain);
     const row = this.db
-      .prepare(`SELECT chain, address, trusted FROM desktop_contacts WHERE name = ? COLLATE NOCASE`)
-      .get(n) as { chain: string; address: string; trusted: number } | undefined;
+      .prepare(`SELECT chain, address, trusted FROM desktop_contacts WHERE account_index = ? AND name = ? COLLATE NOCASE`)
+      .get(accountIndex, n) as { chain: string; address: string; trusted: number } | undefined;
     if (!row) return { ok: false, reason: "not_found" };
     if (normChain(row.chain) !== c) {
       return {

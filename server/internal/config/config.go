@@ -49,6 +49,8 @@ type RateLimitConfig struct {
 	MaxIPsPerPair int `json:"maxIPsPerPair"`
 	// Maximum concurrent WebSocket clients per pair ID (default: 2)
 	MaxClientsPerPair int `json:"maxClientsPerPair"`
+	// Maximum concurrent connections per IP address (default: 10)
+	MaxConnectionsPerIP int `json:"maxConnectionsPerIP"`
 	// Interval to purge expired rate-limit buckets, e.g. "5m" (default: "5m")
 	CleanupInterval string `json:"cleanupInterval"`
 }
@@ -79,11 +81,12 @@ func Default() Config {
 			SendBufferSize: 64,
 		},
 		RateLimit: RateLimitConfig{
-			MessageRate:       100,
-			ConnectionRate:    10,
-			MaxIPsPerPair:     2,
-			MaxClientsPerPair: 2,
-			CleanupInterval:   "5m",
+			MessageRate:         100,
+			ConnectionRate:      10,
+			MaxIPsPerPair:       2,
+			MaxClientsPerPair:   2,
+			MaxConnectionsPerIP: 10,
+			CleanupInterval:     "5m",
 		},
 		Pairing: PairingConfig{
 			CodeLength:      8,

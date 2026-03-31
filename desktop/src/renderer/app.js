@@ -51,6 +51,7 @@ let currentMode = "setup";
 let currentTxRequest = null;
 let currentContactAddRequest = null;
 let currentAlert = null;
+let currentAccountIndex = 0; // Active account index
 
 async function init() {
   await initializeI18n();
@@ -79,21 +80,33 @@ function showScreen(name) {
 }
 
 function enterMainScreen(status) {
+  currentAccountIndex = typeof status.activeAccountIndex === "number" ? status.activeAccountIndex : 0;
   showScreen("main");
   document.getElementById("main-address").textContent = status.address;
   if (status.sameMachineWarning) {
     document.getElementById("same-machine-warning").style.display = "block";
   }
   loadPairedDevices();
+  void refreshPairingCodeFromMain().catch((e) => console.error(e));
   loadSecurityEvents();
   loadSigningHistory();
   syncSettingsFromStatus(status);
-  loadWalletBalances(status.address);
+  void syncHomeNetworkFilterFromConfig().finally(() => loadWalletBalances(status.address));
+  initializeNetworkFilter();
+  refreshAccountHeader().catch((e) => console.error(e));
+  renderSettingsAccountsCard().catch((e) => console.error(e));
 }
+
+let currentBalances = [];
+let currentPrices = {};
+let currentAddress = '';
+/** Cleared on account switch and when applying a new pairing countdown */
+let pairingCountdownTimer = null;
 
 async function loadWalletBalances(address) {
   if (!address) return;
 
+  currentAddress = address;
   const balancesList = document.getElementById("balances-list");
   const portfolioValueDisplay = document.getElementById("portfolio-value");
 
@@ -109,8 +122,11 @@ async function loadWalletBalances(address) {
       return;
     }
 
+    currentBalances = balances;
+
     const tokens = [...new Set(balances.map(b => b.symbol))];
     const prices = await wapi().getTokenPrices(tokens);
+    currentPrices = prices;
 
     renderBalances(balances, prices);
     const totalValue = calculateTotalValue(balances, prices);
@@ -122,33 +138,195 @@ async function loadWalletBalances(address) {
   }
 }
 
+function initializeNetworkFilter() {
+  const networkFilter = document.getElementById('network-filter');
+  const hideZeroBalances = document.getElementById('hide-zero-balances');
+
+  if (networkFilter) {
+    networkFilter.addEventListener('change', () => {
+      if (currentBalances.length > 0) {
+        renderBalances(currentBalances, currentPrices);
+      }
+    });
+  }
+
+  if (hideZeroBalances) {
+    hideZeroBalances.addEventListener('change', () => {
+      if (currentBalances.length > 0) {
+        renderBalances(currentBalances, currentPrices);
+      }
+    });
+  }
+}
+
+function aggregateBalancesByToken(balances) {
+  const aggregated = new Map();
+
+  for (const balance of balances) {
+    const existing = aggregated.get(balance.symbol);
+    
+    if (existing) {
+      existing.networks.push({
+        chainId: balance.chainId,
+        chainName: balance.chainName,
+        amount: balance.amount,
+        rawAmount: balance.rawAmount
+      });
+    } else {
+      aggregated.set(balance.symbol, {
+        symbol: balance.symbol,
+        decimals: balance.decimals,
+        networks: [{
+          chainId: balance.chainId,
+          chainName: balance.chainName,
+          amount: balance.amount,
+          rawAmount: balance.rawAmount
+        }]
+      });
+    }
+  }
+
+  return Array.from(aggregated.values());
+}
+
+function calculateAggregatedTotal(networks) {
+  let totalAmount = 0;
+  for (const network of networks) {
+    totalAmount += parseFloat(network.amount) || 0;
+  }
+  return totalAmount;
+}
+
+function getNetworkIcon(chainName) {
+  const icons = {
+    'Ethereum': '🟦',
+    'Base': '🔵',
+    'Optimism': '🔴',
+    'Arbitrum': '🟣',
+    'Polygon': '🟣',
+    'zkSync Era': '⚡',
+    'Linea': '🟢',
+    'Scroll': '📜'
+  };
+  return icons[chainName] || '⚪';
+}
+
+function getNetworkClass(chainName) {
+  return chainName.toLowerCase().replace(/\s+/g, '-');
+}
+
+function appendNetworkOptionIfMissing(networkFilter, networkName) {
+  if (!networkFilter || !networkName) return;
+  if (networkName === "all") return;
+  const exists = Array.from(networkFilter.options).some((o) => o.value === networkName);
+  if (exists) return;
+  const option = document.createElement("option");
+  option.value = networkName;
+  option.textContent = networkName;
+  networkFilter.appendChild(option);
+}
+
+/** Fill home network filter from network-config.json (not only from balance rows). */
+async function syncHomeNetworkFilterFromConfig() {
+  const networkFilter = document.getElementById("network-filter");
+  if (!networkFilter) return;
+  while (networkFilter.options.length > 1) {
+    networkFilter.remove(1);
+  }
+  try {
+    const nets = await wapi().listConfiguredNetworks();
+    for (const n of nets) {
+      appendNetworkOptionIfMissing(networkFilter, n.name);
+    }
+  } catch (e) {
+    console.error("syncHomeNetworkFilterFromConfig:", e);
+  }
+}
+
 function renderBalances(balances, prices) {
   const balancesList = document.getElementById("balances-list");
+  const networkFilter = document.getElementById('network-filter');
+  const hideZeroBalances = document.getElementById('hide-zero-balances');
   
   if (!balances || balances.length === 0) {
     balancesList.innerHTML = `<p style="color: #888;">${tKey("common.home.noBalances")}</p>`;
     return;
   }
 
-  balancesList.innerHTML = balances
-    .map(balance => {
-      const amount = parseFloat(balance.amount);
-      if (amount === 0) return '';
+  // Ensure any chain present in balances appears in the filter (e.g. after new token/network)
+  if (networkFilter && balances.length > 0) {
+    const networks = [...new Set(balances.map((b) => b.chainName))];
+    networks.forEach((network) => appendNetworkOptionIfMissing(networkFilter, network));
+  }
 
-      const price = prices[balance.symbol] || null;
+  // Apply network filter
+  let filteredBalances = balances;
+  if (networkFilter && networkFilter.value !== 'all') {
+    filteredBalances = balances.filter(b => b.chainName === networkFilter.value);
+  }
+
+  // Apply hide zero balances filter
+  const shouldHideZero = hideZeroBalances && hideZeroBalances.checked;
+  if (shouldHideZero) {
+    filteredBalances = filteredBalances.filter(b => parseFloat(b.amount) > 0);
+  }
+
+  if (filteredBalances.length === 0) {
+    balancesList.innerHTML = `<p style="color: #888;">${tKey("common.home.noBalances")}</p>`;
+    return;
+  }
+
+  // Aggregate by token
+  const aggregated = aggregateBalancesByToken(filteredBalances);
+
+  balancesList.innerHTML = aggregated
+    .map(token => {
+      const totalAmount = calculateAggregatedTotal(token.networks);
+      
+      if (shouldHideZero && totalAmount === 0) {
+        return '';
+      }
+
+      const price = prices[token.symbol] || null;
       const hasPrice = price != null;
-      const usdStr = hasPrice ? (amount * price).toFixed(2) : null;
-      const unitPrice = hasPrice ? `$${price.toFixed(2)}/${balance.symbol}` : "";
+      const totalUsd = hasPrice ? (totalAmount * price).toFixed(2) : null;
+
+      // Single network or multiple?
+      const isMultiNetwork = token.networks.length > 1;
+
+      const networkBreakdown = token.networks.map(network => {
+        const amount = parseFloat(network.amount);
+        const networkUsd = hasPrice ? (amount * price).toFixed(2) : null;
+        const icon = getNetworkIcon(network.chainName);
+        
+        return `
+          <div class="network-balance">
+            <div class="network-name">
+              <span class="network-icon">${icon}</span>
+              <span>${escapeHtml(network.chainName)}</span>
+            </div>
+            <div class="balance-amount">
+              <div class="balance-amount-crypto">${amount.toFixed(6)} ${escapeHtml(token.symbol)}</div>
+              ${hasPrice && networkUsd ? `<div class="balance-amount-usd">$${networkUsd}</div>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
 
       return `
-        <div class="balance-card">
-          <div class="balance-header">
-            <span class="balance-token">${escapeHtml(balance.symbol)}</span>
-            <span class="balance-chain">${escapeHtml(balance.chain)}</span>
+        <div class="balance-item ${isMultiNetwork ? 'multi-network' : ''}" data-symbol="${escapeHtml(token.symbol)}" onclick="toggleBalanceExpand(this)">
+          <div class="balance-row">
+            <div class="balance-token">
+              <span style="font-weight: 600;">${escapeHtml(token.symbol)}</span>
+              ${!isMultiNetwork ? `<span class="network-badge ${getNetworkClass(token.networks[0].chainName)}">${getNetworkIcon(token.networks[0].chainName)} ${escapeHtml(token.networks[0].chainName)}</span>` : ''}
+              ${isMultiNetwork ? `<span class="expand-toggle">▶</span>` : ''}
+            </div>
+            <div class="balance-amount">
+              <div class="balance-amount-crypto">${totalAmount.toFixed(6)}</div>
+              ${hasPrice && totalUsd ? `<div class="balance-amount-usd">$${totalUsd}</div>` : ''}
+            </div>
           </div>
-          <div class="balance-amount">${amount.toFixed(6)}</div>
-          <div class="balance-usd">${hasPrice && usdStr ? `$${usdStr}` : tKey("common.home.priceUnavailable")}</div>
-          ${unitPrice ? `<div class="balance-unit-price">${unitPrice}</div>` : ""}
+          ${isMultiNetwork ? `<div class="balance-breakdown">${networkBreakdown}</div>` : ''}
         </div>
       `;
     })
@@ -186,6 +364,144 @@ function escapeHtml(s) {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+function truncateEthAddress(addr) {
+  const a = String(addr || "").trim();
+  if (a.length < 12) return a;
+  return `${a.slice(0, 6)}…${a.slice(-4)}`;
+}
+
+async function refreshAccountHeader() {
+  const wrap = document.getElementById("account-header-group");
+  const sel = document.getElementById("account-selector");
+  const btnNew = document.getElementById("btn-new-sub-account");
+  if (!wrap || !sel || !btnNew) return;
+  try {
+    const accounts = await wapi().listWalletAccounts();
+    wrap.style.display = "flex";
+    sel.innerHTML = "";
+    for (const a of accounts) {
+      const opt = document.createElement("option");
+      opt.value = String(a.index);
+      const mark = a.isActive ? "✓ " : "";
+      opt.textContent = `${mark}${a.nickname} (${truncateEthAddress(a.address)})`;
+      if (a.isActive) opt.selected = true;
+      sel.appendChild(opt);
+    }
+    btnNew.disabled = accounts.length >= 10;
+    btnNew.title = accounts.length >= 10 ? tKey("common.accounts.maxReached") : "";
+  } catch (e) {
+    console.error("refreshAccountHeader:", e);
+    wrap.style.display = "none";
+  }
+}
+
+async function renderSettingsAccountsCard() {
+  const card = document.getElementById("settings-accounts-card");
+  const list = document.getElementById("settings-account-nicknames");
+  if (!card || !list) return;
+  try {
+    const accounts = await wapi().listWalletAccounts();
+    card.style.display = "block";
+    list.innerHTML = accounts
+      .map(
+        (a) => `
+      <div class="settings-account-row" data-index="${a.index}">
+        <span class="settings-account-addr">${escapeHtml(truncateEthAddress(a.address))}</span>
+        <input type="text" class="input-nick" data-index="${a.index}" value="${escapeHtml(a.nickname)}" />
+        <button type="button" class="btn ghost btn-sm btn-save-nick" data-index="${a.index}">${escapeHtml(tKey("common.buttons.save"))}</button>
+      </div>`,
+      )
+      .join("");
+    list.querySelectorAll(".btn-save-nick").forEach((btn) => {
+      btn.onclick = async () => {
+        const idx = parseInt(btn.getAttribute("data-index"), 10);
+        const row = btn.closest(".settings-account-row");
+        const inp = row && row.querySelector(".input-nick");
+        if (!inp) return;
+        try {
+          await wapi().updateWalletAccountNickname(idx, inp.value);
+          await refreshAccountHeader();
+          await renderSettingsAccountsCard();
+        } catch (err) {
+          alert(err.message || String(err));
+        }
+      };
+    });
+  } catch (e) {
+    console.error("renderSettingsAccountsCard:", e);
+    card.style.display = "none";
+  }
+}
+
+function showTxApprovalModal(req) {
+  currentTxRequest = req;
+  const details = document.getElementById("tx-details");
+  const cc = req.counterpartyContact;
+  const bookLine =
+    cc && cc.name
+      ? `<p><strong>${escapeHtml(tKey("modals.tx.addressBook"))}:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
+      : "";
+  const transferText =
+    req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
+      ? escapeHtml(req.transferDisplay)
+      : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+  const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
+  const canValuate = req.priceAvailable === true;
+  const usdtLine = canValuate
+    ? `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></p>`
+    : `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(tKey("modals.tx.noUsdt"))}</span></p>`;
+  
+  // Network badge with icon and styling
+  const networkIcon = getNetworkIcon(req.chain);
+  const networkClass = getNetworkClass(req.chain);
+  const networkBadge = `<span class="network-badge ${networkClass}">${networkIcon} ${escapeHtml(req.chain)}</span>`;
+  
+  details.innerHTML = `
+      <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
+      ${bookLine}
+      <p><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
+      <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
+      ${usdtLine}
+      <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>
+      <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
+      <p><strong>${escapeHtml(tKey("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
+    `;
+  const trustWrap = document.getElementById("tx-trust-wrap");
+  const trustChk = document.getElementById("chk-trust-after-success");
+  const nameWrap = document.getElementById("tx-trust-name-wrap");
+  const nameInput = document.getElementById("input-trust-contact-name");
+  const showTrust = req.allowSaveTrustedContact === true;
+  trustWrap.style.display = showTrust ? "flex" : "none";
+  trustChk.checked = false;
+  if (nameInput) nameInput.value = "";
+  if (nameWrap) nameWrap.style.display = "none";
+
+  const fromRow = document.getElementById("tx-from-account-row");
+  const fromText = document.getElementById("tx-from-account-text");
+  const btnSwitch = document.getElementById("btn-tx-switch-view");
+  const isCross = req.isActiveAccount === false;
+  if (isCross && req.fromAccountIndex != null && req.fromAccountIndex !== undefined) {
+    fromRow.style.display = "flex";
+    const nick =
+      req.fromAccountNickname ||
+      tKey("modals.tx.fromAccountFallback", { index: String(req.fromAccountIndex) });
+    fromText.textContent = `${nick} · ${truncateEthAddress(req.fromAccountAddress || "")}`;
+    btnSwitch.style.display = "inline-block";
+  } else {
+    fromRow.style.display = "none";
+    btnSwitch.style.display = "none";
+  }
+
+  document.getElementById("modal-tx").style.display = "flex";
+}
+
+function toggleBalanceExpand(element) {
+  if (!element.classList.contains('multi-network')) {
+    return;
+  }
+  element.classList.toggle('expanded');
 }
 
 async function updateBiometricButton() {
@@ -341,7 +657,7 @@ function setupEventListeners() {
       if (tab.dataset.tab === "home") {
         const status = await wapi().getStatus();
         if (status.address) {
-          loadWalletBalances(status.address);
+          void syncHomeNetworkFilterFromConfig().finally(() => loadWalletBalances(status.address));
         }
       } else if (tab.dataset.tab === "security") {
         loadSecurityEvents();
@@ -350,6 +666,11 @@ function setupEventListeners() {
         loadActivityRecords(currentActivityFilter, true);
       } else if (tab.dataset.tab === "contacts") {
         loadDesktopContacts();
+      } else if (tab.dataset.tab === "pairing") {
+        loadPairedDevices();
+        void refreshPairingCodeFromMain().catch((e) => console.error(e));
+      } else if (tab.dataset.tab === "settings") {
+        renderSettingsAccountsCard().catch((e) => console.error(e));
       }
     };
   });
@@ -514,6 +835,73 @@ function setupEventListeners() {
     }
   };
 
+  document.getElementById("btn-tx-switch-view").onclick = async () => {
+    if (!currentTxRequest || currentTxRequest.fromAccountIndex == null) return;
+    try {
+      await wapi().switchWalletAccount(currentTxRequest.fromAccountIndex);
+      currentTxRequest = { ...currentTxRequest, isActiveAccount: true };
+      showTxApprovalModal(currentTxRequest);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const accountSel = document.getElementById("account-selector");
+  if (accountSel) {
+    accountSel.addEventListener("change", async () => {
+      const idx = parseInt(accountSel.value, 10);
+      if (Number.isNaN(idx)) return;
+      try {
+        const st = await wapi().getStatus();
+        if (idx === (st.activeAccountIndex ?? 0)) return;
+        await wapi().switchWalletAccount(idx);
+      } catch (e) {
+        console.error(e);
+        await refreshAccountHeader();
+      }
+    });
+  }
+
+  async function submitNewSubAccount(nicknameTrimmed) {
+    try {
+      await wapi().createWalletSubAccount(nicknameTrimmed || undefined);
+      const st = await wapi().getStatus();
+      const addrEl = document.getElementById("main-address");
+      if (addrEl && st.address) addrEl.textContent = st.address;
+      await refreshAccountHeader();
+      await renderSettingsAccountsCard();
+      if (st.address) loadWalletBalances(st.address);
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  }
+
+  document.getElementById("btn-new-sub-account").onclick = async () => {
+    const e2eNick = wapi().e2eSubAccountNickname;
+    if (e2eNick) {
+      await submitNewSubAccount(e2eNick.trim());
+      return;
+    }
+    const modal = document.getElementById("modal-new-account");
+    const inp = document.getElementById("input-new-account-nick");
+    if (inp) inp.value = "";
+    if (modal) modal.style.display = "flex";
+    inp?.focus();
+  };
+
+  document.getElementById("btn-new-account-cancel").onclick = () => {
+    const modal = document.getElementById("modal-new-account");
+    if (modal) modal.style.display = "none";
+  };
+
+  document.getElementById("btn-new-account-confirm").onclick = async () => {
+    const modal = document.getElementById("modal-new-account");
+    const inp = document.getElementById("input-new-account-nick");
+    const name = inp ? inp.value : "";
+    if (modal) modal.style.display = "none";
+    await submitNewSubAccount(name.trim());
+  };
+
   // Security alert modal
   document.getElementById("btn-alert-freeze").onclick = () => respondAlert("freeze");
   document.getElementById("btn-alert-allow").onclick = () => respondAlert("allow_once");
@@ -527,6 +915,9 @@ function setupEventListeners() {
       loadActivityRecords(btn.dataset.filter, true);
     };
   });
+
+  // Activity network filter
+  initializeActivityNetworkFilter();
 
   // Activity load more
   document.getElementById("btn-load-more-activity").onclick = () => {
@@ -544,42 +935,7 @@ async function respondAlert(action) {
 
 function setupRealtimeEvents() {
   wapi().onTransactionRequest((req) => {
-    currentTxRequest = req;
-    const details = document.getElementById("tx-details");
-    const cc = req.counterpartyContact;
-    const bookLine =
-      cc && cc.name
-        ? `<p><strong>${escapeHtml(tKey("modals.tx.addressBook"))}:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
-        : "";
-    const transferText =
-      req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
-        ? escapeHtml(req.transferDisplay)
-        : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
-    const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
-    const canValuate = req.priceAvailable === true;
-    const usdtLine = canValuate
-      ? `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></p>`
-      : `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(tKey("modals.tx.noUsdt"))}</span></p>`;
-    details.innerHTML = `
-      <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
-      ${bookLine}
-      <p><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
-      <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
-      ${usdtLine}
-      <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${escapeHtml(req.chain)}</p>
-      <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
-      <p><strong>${escapeHtml(tKey("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
-    `;
-    const trustWrap = document.getElementById("tx-trust-wrap");
-    const trustChk = document.getElementById("chk-trust-after-success");
-    const nameWrap = document.getElementById("tx-trust-name-wrap");
-    const nameInput = document.getElementById("input-trust-contact-name");
-    const showTrust = req.allowSaveTrustedContact === true;
-    trustWrap.style.display = showTrust ? "flex" : "none";
-    trustChk.checked = false;
-    if (nameInput) nameInput.value = "";
-    if (nameWrap) nameWrap.style.display = "none";
-    document.getElementById("modal-tx").style.display = "flex";
+    showTxApprovalModal(req);
   });
 
   wapi().onContactAddRequest((req) => {
@@ -614,9 +970,41 @@ function setupRealtimeEvents() {
 
   wapi().onLockStateChange((locked) => {
     if (locked) {
+      const ag = document.getElementById("account-header-group");
+      if (ag) ag.style.display = "none";
       showScreen("unlock");
       updateBiometricButton();
     }
+  });
+
+  wapi().onWalletAccountChanged(async ({ address, accountIndex }) => {
+    if (typeof accountIndex === "number") {
+      currentAccountIndex = accountIndex;
+    }
+    const el = document.getElementById("main-address");
+    if (el) el.textContent = address ?? "";
+
+    await refreshAccountHeader().catch((e) => console.error(e));
+    await renderSettingsAccountsCard().catch((e) => console.error(e));
+
+    void syncHomeNetworkFilterFromConfig().finally(() => {
+      if (address) loadWalletBalances(address);
+    });
+
+    try {
+      const status = await wapi().getStatus();
+      await syncSettingsFromStatus(status);
+    } catch (_) {
+      /* ignore */
+    }
+
+    // Re-load lists that are scoped by account (UI was stale after header switch)
+    loadPairedDevices().catch((e) => console.error(e));
+    void refreshPairingCodeFromMain().catch((e) => console.error(e));
+    loadSecurityEvents().catch((e) => console.error(e));
+    loadSigningHistory().catch((e) => console.error(e));
+    loadActivityRecords(currentActivityFilter, true).catch((e) => console.error(e));
+    loadDesktopContacts().catch((e) => console.error(e));
   });
 
   wapi().onBiometricPrompt(async (password) => {
@@ -632,8 +1020,48 @@ function setupRealtimeEvents() {
   });
 }
 
+function resetPairingCodeUI() {
+  if (pairingCountdownTimer != null) {
+    clearInterval(pairingCountdownTimer);
+    pairingCountdownTimer = null;
+  }
+  const displayEl = document.getElementById("pair-code-display");
+  const codeEl = document.getElementById("pair-code");
+  const countdownEl = document.getElementById("pair-countdown");
+  if (displayEl) displayEl.style.display = "none";
+  if (codeEl) codeEl.textContent = "";
+  if (countdownEl) countdownEl.textContent = "";
+}
+
+async function refreshPairingCodeFromMain() {
+  try {
+    const pending = await wapi().getPendingPairing();
+    if (!pending?.code) {
+      resetPairingCodeUI();
+      return;
+    }
+    let expiresAt = pending.expiresAt;
+    if (expiresAt != null && expiresAt <= Date.now()) {
+      resetPairingCodeUI();
+      return;
+    }
+    if (expiresAt == null) {
+      expiresAt = Date.now() + 10 * 60 * 1000;
+    }
+    const codeEl = document.getElementById("pair-code");
+    const displayEl = document.getElementById("pair-code-display");
+    if (codeEl) codeEl.textContent = pending.code;
+    if (displayEl) displayEl.style.display = "block";
+    startCountdown(expiresAt);
+  } catch (e) {
+    console.error(e);
+    resetPairingCodeUI();
+  }
+}
+
 async function loadPairedDevices() {
-  const devices = await wapi().getPairedDevices();
+  const all = await wapi().getPairedDevices();
+  const devices = all.filter((d) => d.accountIndex === currentAccountIndex);
   const list = document.getElementById("paired-devices-list");
   if (devices.length === 0) {
     list.innerHTML = `<p style="color: var(--text-secondary)">${tKey('pairing.noDevices')}</p>`;
@@ -643,7 +1071,7 @@ async function loadPairedDevices() {
     <div class="device-item">
       <div class="info">
         <div>${d.deviceId}</div>
-        <div class="ip">${tKey("pairing.rowMeta", {
+        <div class="ip">${typeof d.accountIndex === "number" ? `Account ${d.accountIndex} · ` : ""}${tKey("pairing.rowMeta", {
           ip: d.lastIP,
           date: new Date(d.pairedAt).toLocaleDateString(),
         })}</div>
@@ -661,7 +1089,7 @@ window.revokeDevice = async (deviceId) => {
 async function loadDesktopContacts() {
   const list = document.getElementById("contacts-list");
   try {
-    const rows = await wapi().listDesktopContacts();
+    const rows = await wapi().listDesktopContacts(currentAccountIndex);
     if (!rows || rows.length === 0) {
       list.innerHTML = `<p style="color: var(--text-secondary)">${tKey("contactsPage.empty")}</p>`;
       return;
@@ -684,7 +1112,7 @@ async function loadDesktopContacts() {
       btn.onclick = async () => {
         if (!confirm(tKey('common.contacts.removeConfirm', { name: c.name }))) return;
         try {
-          await wapi().removeDesktopContact(c.name);
+          await wapi().removeDesktopContact(c.name, currentAccountIndex);
           await loadDesktopContacts();
         } catch (err) {
           alert(err.message || String(err));
@@ -715,7 +1143,7 @@ async function loadSecurityEvents() {
 }
 
 async function loadSigningHistory() {
-  const records = await wapi().getSigningHistory();
+  const records = await wapi().getSigningHistory(currentAccountIndex);
   const list = document.getElementById("signing-history-list");
   
   if (!records || records.length === 0) {
@@ -725,7 +1153,7 @@ async function loadSigningHistory() {
 
   let lookup;
   try {
-    lookup = buildContactLookup(await wapi().listDesktopContacts());
+    lookup = buildContactLookup(await wapi().listDesktopContacts(currentAccountIndex));
   } catch {
     lookup = new Map();
   }
@@ -772,6 +1200,10 @@ async function loadSigningHistory() {
 }
 
 function startCountdown(expiresAt) {
+  if (pairingCountdownTimer != null) {
+    clearInterval(pairingCountdownTimer);
+    pairingCountdownTimer = null;
+  }
   const el = document.getElementById("pair-countdown");
   const update = () => {
     const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
@@ -783,12 +1215,19 @@ function startCountdown(expiresAt) {
     if (remaining <= 0) {
       el.textContent = tKey("pairing.codeExpired");
       document.getElementById("pair-code-display").style.display = "none";
+      if (pairingCountdownTimer != null) {
+        clearInterval(pairingCountdownTimer);
+        pairingCountdownTimer = null;
+      }
     }
   };
   update();
-  const timer = setInterval(() => {
+  pairingCountdownTimer = setInterval(() => {
     update();
-    if (expiresAt <= Date.now()) clearInterval(timer);
+    if (expiresAt <= Date.now()) {
+      clearInterval(pairingCountdownTimer);
+      pairingCountdownTimer = null;
+    }
   }, 1000);
 }
 
@@ -797,6 +1236,7 @@ function startCountdown(expiresAt) {
 // ==========================================
 
 let currentActivityFilter = "all";
+let currentNetworkFilter = "all";
 let activityOffset = 0;
 const ACTIVITY_PAGE_SIZE = 50;
 
@@ -815,21 +1255,32 @@ async function loadActivityRecords(filter = "all", reset = true) {
   try {
     let lookup;
     try {
-      lookup = buildContactLookup(await wapi().listDesktopContacts());
+      lookup = buildContactLookup(await wapi().listDesktopContacts(currentAccountIndex));
     } catch {
       lookup = new Map();
     }
 
     let records;
     if (filter === "all") {
-      records = await wapi().getActivityRecords(ACTIVITY_PAGE_SIZE, activityOffset);
+      records = await wapi().getActivityRecords(currentAccountIndex, ACTIVITY_PAGE_SIZE, activityOffset);
     } else if (["auto", "manual", "rejected"].includes(filter)) {
-      records = await wapi().getActivityByType(filter);
+      records = await wapi().getActivityByType(currentAccountIndex, filter);
     } else if (["pending", "success", "failed"].includes(filter)) {
-      records = await wapi().getActivityByStatus(filter);
+      records = await wapi().getActivityByStatus(currentAccountIndex, filter);
     }
 
     if (!records || records.length === 0) {
+      list.innerHTML = `<p style="color: #888; text-align: center; padding: 20px;">${tKey('activity.noRecords')}</p>`;
+      document.getElementById("activity-load-more").style.display = "none";
+      return;
+    }
+
+    // Apply network filter
+    if (currentNetworkFilter !== "all") {
+      records = records.filter(record => record.tx_chain?.toLowerCase() === currentNetworkFilter.toLowerCase());
+    }
+
+    if (records.length === 0) {
       list.innerHTML = `<p style="color: #888; text-align: center; padding: 20px;">${tKey('activity.noRecords')}</p>`;
       document.getElementById("activity-load-more").style.display = "none";
       return;
@@ -845,7 +1296,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
     });
 
     // Show/hide load more button
-    if (filter === "all" && records.length === ACTIVITY_PAGE_SIZE) {
+    if (filter === "all" && records.length === ACTIVITY_PAGE_SIZE && currentNetworkFilter === "all") {
       document.getElementById("activity-load-more").style.display = "block";
     } else {
       document.getElementById("activity-load-more").style.display = "none";
@@ -856,6 +1307,42 @@ async function loadActivityRecords(filter = "all", reset = true) {
     console.error("Failed to load activity:", err);
     list.innerHTML = `<p style="color: red;">${escapeHtml(tKey("errors.activity.loadFailed"))}</p>`;
   }
+}
+
+function initializeActivityNetworkFilter() {
+  const networkFilter = document.getElementById("activity-network-filter");
+  if (!networkFilter) return;
+
+  // Populate network options
+  const networks = [
+    { value: 'ethereum', label: 'Ethereum' },
+    { value: 'base', label: 'Base' },
+    { value: 'optimism', label: 'Optimism' },
+    { value: 'arbitrum', label: 'Arbitrum' },
+    { value: 'polygon', label: 'Polygon' },
+    { value: 'zksync', label: 'zkSync Era' },
+    { value: 'linea', label: 'Linea' },
+    { value: 'scroll', label: 'Scroll' }
+  ];
+
+  // Clear existing options (except "All Networks")
+  while (networkFilter.options.length > 1) {
+    networkFilter.remove(1);
+  }
+
+  // Add network options
+  networks.forEach(net => {
+    const option = document.createElement('option');
+    option.value = net.value;
+    option.textContent = `${getNetworkIcon(net.value)} ${net.label}`;
+    networkFilter.appendChild(option);
+  });
+
+  // Handle network filter change
+  networkFilter.addEventListener('change', (e) => {
+    currentNetworkFilter = e.target.value;
+    loadActivityRecords(currentActivityFilter, true);
+  });
 }
 
 function renderActivityRecord(record, contactLookup) {
@@ -877,7 +1364,20 @@ function renderActivityRecord(record, contactLookup) {
     : "";
 
   const typeLabel = escapeHtml(tKey(`activity.types.${record.type}`));
-  const onChain = escapeHtml(tKey("activity.details.onChain", { chain: record.tx_chain }));
+  
+  // Network badge with icon
+  const networkIcon = getNetworkIcon(record.tx_chain);
+  const networkClass = getNetworkClass(record.tx_chain);
+  const networkBadge = `<span class="network-badge ${networkClass}">${networkIcon} ${escapeHtml(record.tx_chain)}</span>`;
+  
+  // Block explorer link
+  const explorerUrl = getBlockExplorerUrl(record.tx_chain, record.tx_hash);
+  const txHashDisplay = explorerUrl && record.tx_hash
+    ? `<a href="${explorerUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none;">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</a>`
+    : record.tx_hash 
+      ? `<span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span>`
+      : '';
+  
   const estLine =
     signedPolicyUsd > 0
       ? `$${signedPolicyUsd.toFixed(2)}`
@@ -891,15 +1391,32 @@ function renderActivityRecord(record, contactLookup) {
     </div>
     <div class="activity-details">
       <div class="activity-amount"><strong>${amount} ${escapeHtml(record.tx_token)}</strong></div>
-      <div class="activity-chain">${onChain}</div>
+      <div class="activity-chain">${networkBadge}</div>
       ${record.tx_to ? `<div>${escapeHtml(tKey("activity.details.to"))}: ${toPrefix}<span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
       <div>${escapeHtml(tKey("activity.details.estimated"))}: ${estLine} <span style="color: #888; font-size: 10px;">${escapeHtml(tKey("activity.details.atSigning"))}</span></div>
-      ${record.tx_hash ? `<div>${escapeHtml(tKey("activity.details.txHash"))}: <span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span></div>` : ''}
+      ${record.tx_hash ? `<div>${escapeHtml(tKey("activity.details.txHash"))}: ${txHashDisplay}</div>` : ''}
       ${record.block_number ? `<div>${escapeHtml(tKey("activity.details.block"))}: ${record.block_number}</div>` : ''}
     </div>
   `;
 
   return div;
+}
+
+function getBlockExplorerUrl(chain, txHash) {
+  if (!txHash) return null;
+  
+  const explorers = {
+    'ethereum': `https://etherscan.io/tx/${txHash}`,
+    'base': `https://basescan.org/tx/${txHash}`,
+    'optimism': `https://optimistic.etherscan.io/tx/${txHash}`,
+    'arbitrum': `https://arbiscan.io/tx/${txHash}`,
+    'polygon': `https://polygonscan.com/tx/${txHash}`,
+    'zksync': `https://explorer.zksync.io/tx/${txHash}`,
+    'linea': `https://lineascan.build/tx/${txHash}`,
+    'scroll': `https://scrollscan.com/tx/${txHash}`,
+  };
+  
+  return explorers[chain?.toLowerCase()] || null;
 }
 
 function getStatusIcon(record) {
@@ -979,7 +1496,10 @@ async function refreshDynamicI18n() {
     const activeTab = document.querySelector(".tab.active");
     const tab = activeTab?.dataset.tab;
     try {
-      if (tab === "pairing") await loadPairedDevices();
+      if (tab === "pairing") {
+        await loadPairedDevices();
+        await refreshPairingCodeFromMain().catch((e) => console.error(e));
+      }
       else if (tab === "security") {
         await loadSecurityEvents();
         await loadSigningHistory();

@@ -27,14 +27,15 @@ type Client struct {
 }
 
 type Hub struct {
-	mu           sync.RWMutex
-	pairs        map[string][]*Client
-	msgRate      map[string]*rateBucket
-	pairIPs      map[string]map[string]int
-	pairConnRate map[string]*rateBucket
-	pendingHTTP  map[string]chan []byte
-	relayRate    map[string]*rateBucket
-	cfg          config.Config
+	mu              sync.RWMutex
+	pairs           map[string][]*Client
+	msgRate         map[string]*rateBucket
+	pairIPs         map[string]map[string]int
+	pairConnRate    map[string]*rateBucket
+	pendingHTTP     map[string]chan []byte
+	relayRate       map[string]*rateBucket
+	connLimiter     *ConnectionLimiter // IP-based connection limiter
+	cfg             config.Config
 }
 
 type rateBucket struct {
@@ -43,6 +44,11 @@ type rateBucket struct {
 }
 
 func New(cfg config.Config) *Hub {
+	maxConnPerIP := 10 // Default limit of 10 connections per IP
+	if cfg.RateLimit.MaxConnectionsPerIP > 0 {
+		maxConnPerIP = cfg.RateLimit.MaxConnectionsPerIP
+	}
+
 	h := &Hub{
 		pairs:        make(map[string][]*Client),
 		msgRate:      make(map[string]*rateBucket),
@@ -50,6 +56,7 @@ func New(cfg config.Config) *Hub {
 		pairConnRate: make(map[string]*rateBucket),
 		pendingHTTP:  make(map[string]chan []byte),
 		relayRate:    make(map[string]*rateBucket),
+		connLimiter:  NewConnectionLimiter(maxConnPerIP),
 		cfg:          cfg,
 	}
 	go h.cleanupRateBuckets()
@@ -65,18 +72,28 @@ func (h *Hub) HandleWS(w http.ResponseWriter, r *http.Request) {
 
 	clientIP := iputil.ExtractIP(r)
 
+	// Check IP-based connection limit
+	if !h.connLimiter.AllowConnection(clientIP) {
+		log.Printf("[Hub] IP %s connection rejected: too many connections from this IP", clientIP)
+		http.Error(w, "Too many connections from this IP", http.StatusTooManyRequests)
+		return
+	}
+
 	if !h.checkPairConnRate(pairID) {
+		h.connLimiter.ReleaseConnection(clientIP) // Release the IP slot since upgrade failed
 		http.Error(w, "connection rate limit exceeded", http.StatusTooManyRequests)
 		return
 	}
 
 	if !h.checkPairIPLimit(pairID, clientIP) {
+		h.connLimiter.ReleaseConnection(clientIP) // Release the IP slot since upgrade failed
 		http.Error(w, "pair IP limit exceeded", http.StatusForbidden)
 		return
 	}
 
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		h.connLimiter.ReleaseConnection(clientIP) // Release the IP slot since upgrade failed
 		log.Printf("upgrade error: %v", err)
 		return
 	}
@@ -136,6 +153,9 @@ func (h *Hub) unregister(c *Client) {
 		h.removeIPTracking(c.PairID, c.IP)
 	}
 	close(c.Send)
+
+	// Release the IP connection slot
+	h.connLimiter.ReleaseConnection(c.IP)
 
 	pairIdShort := c.PairID
 	if len(pairIdShort) > 8 {
@@ -215,6 +235,11 @@ func (h *Hub) cleanupRateBuckets() {
 			}
 		}
 		h.mu.Unlock()
+
+		// Log connection limiter metrics
+		totalConns := h.connLimiter.GetTotalConnections()
+		ipCounts := h.connLimiter.GetAllConnectionCounts()
+		log.Printf("[ConnectionLimiter] Total connections: %d across %d unique IPs", totalConns, len(ipCounts))
 	}
 }
 

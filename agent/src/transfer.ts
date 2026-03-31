@@ -64,8 +64,9 @@ export class TransferService {
 
     if (balance < value + gasEstimate.totalCostWei) {
       const available = Number(balance) / 1e18;
-      const error = `Insufficient ETH balance. Available: ${available.toFixed(6)} ETH, ` +
-        `needed: ${params.amount} ETH + ~${gasEstimate.totalCostFormatted} ETH gas`;
+      const error = `Insufficient ETH balance on ${params.chain}. Available: ${available.toFixed(6)} ETH, ` +
+        `needed: ${params.amount} ETH + ~${gasEstimate.totalCostFormatted} ETH gas. ` +
+        `Tip: Check balances on other chains with wallet_balance (no chain parameter) and consider bridging funds.`;
       logger.error("TransferService", error);
       throw new Error(error);
     }
@@ -156,7 +157,8 @@ export class TransferService {
 
     if (tokenInfo.raw < amount) {
       throw new Error(
-        `Insufficient ${tokenInfo.symbol} balance. Available: ${tokenInfo.formatted}, needed: ${params.amount}`
+        `Insufficient ${tokenInfo.symbol} balance on ${params.chain}. Available: ${tokenInfo.formatted}, needed: ${params.amount}. ` +
+        `Tip: Check balances on other chains with wallet_balance and consider bridging funds.`
       );
     }
 

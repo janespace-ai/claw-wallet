@@ -7,7 +7,9 @@
     "rejected": "Rejected",
     "success": "Success",
     "failed": "Failed",
-    "pending": "Pending"
+    "pending": "Pending",
+    "network": "Network",
+    "allNetworks": "All Networks"
   },
   "noRecords": "No activity records",
   "loadMore": "Load More",

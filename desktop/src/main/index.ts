@@ -14,6 +14,10 @@ import { SigningHistory } from "./signing-history.js";
 import { WalletAuthorityStore } from "./wallet-authority-store.js";
 import { ChainAdapter } from "./chain-adapter.js";
 import { TxSyncService } from "./tx-sync-service.js";
+import { NetworkConfigService } from "./network-config-service.js";
+import { RPCProviderManager } from "./rpc-provider-manager.js";
+import { AccountManager } from "./account-manager.js";
+import { MessageRouter } from "./message-router.js";
 import { config } from "./config.js";
 
 /**
@@ -63,6 +67,10 @@ let tray: InstanceType<typeof Tray> | null = null;
 const dataDir = join(app.getPath("userData"), "wallet-data");
 const dbPath = join(dataDir, "wallet.db");
 const dbService = DatabaseService.getInstance(dbPath);
+const accountManager = new AccountManager(dbService);
+const networkConfigService = new NetworkConfigService();
+networkConfigService.load();
+const rpcProviderManager = new RPCProviderManager(networkConfigService);
 const keyManager = new KeyManager(dataDir, { scryptN: config.keyring.scryptN });
 const signingHistory = new SigningHistory(dbService);
 const authorityStore = new WalletAuthorityStore(dbService);
@@ -82,8 +90,51 @@ const lockManager = new LockManager(keyManager, {
   strictIdleTimeoutMs: config.lock.strictIdleTimeoutMs,
 });
 const priceService = new PriceService();
-const balanceService = new BalanceService(config.chains);
+const balanceService = new BalanceService(networkConfigService, rpcProviderManager);
 let relayBridge: RelayBridge | null = null;
+/** Unified routing for Relay-driven UI events (all `RelayAccountChannel`s). */
+let messageRouter: MessageRouter | null = null;
+
+function syncMessageRouterActiveAccount(): void {
+  if (!messageRouter) return;
+  try {
+    messageRouter.setActiveAccount(accountManager.getActiveAccountIndex());
+  } catch {
+    messageRouter.setActiveAccount(0);
+  }
+}
+
+function syncWalletAccountsAfterUnlock(): void {
+  const mnemonic = keyManager.getMnemonicIfUnlocked();
+  if (!mnemonic) return;
+  try {
+    accountManager.ensureDefaultAccount(mnemonic);
+    const idx = accountManager.resolveStartupAccountIndex();
+    accountManager.setActiveAccountIndexSilent(idx);
+    keyManager.setActiveAccountIndex(idx);
+    syncMessageRouterActiveAccount();
+  } catch (e) {
+    console.error("[Desktop] syncWalletAccountsAfterUnlock:", e);
+  }
+}
+
+function listWalletAccountsForRenderer(): Array<{
+  index: number;
+  nickname: string;
+  address: string;
+  isActive: boolean;
+}> {
+  const mnemonic = keyManager.getMnemonicIfUnlocked();
+  if (!mnemonic) throw new Error("Wallet locked");
+  accountManager.ensureDefaultAccount(mnemonic);
+  const active = accountManager.getActiveAccountIndex();
+  return accountManager.listAccounts().map((acc) => ({
+    index: acc.index,
+    nickname: acc.nickname,
+    address: accountManager.getAddress(mnemonic, acc.index),
+    isActive: acc.index === active,
+  }));
+}
 
 function createWindow(): void {
   const base = app.getAppPath();
@@ -145,17 +196,23 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("wallet:create", async (_, password: string) => {
     const result = await keyManager.createWallet(password);
+    syncWalletAccountsAfterUnlock();
+    await relayBridge?.refreshChannels();
     return { address: result.address, mnemonic: result.mnemonic };
   });
 
   ipcMain.handle("wallet:import", async (_, mnemonic: string, password: string) => {
     const result = await keyManager.importWallet(mnemonic, password);
+    syncWalletAccountsAfterUnlock();
+    await relayBridge?.refreshChannels();
     return { address: result.address };
   });
 
   ipcMain.handle("wallet:unlock", async (_, password: string) => {
     await keyManager.unlock(password);
+    syncWalletAccountsAfterUnlock();
     lockManager.onUnlock();
+    await relayBridge?.refreshChannels();
     mainWindow?.webContents.send("wallet:lock-state", false);
     if (keyManager.canEnableBiometric() && !keyManager.isBiometricAvailable()) {
       mainWindow?.webContents.send("wallet:biometric-prompt", password);
@@ -164,7 +221,9 @@ function registerIpcHandlers(): void {
 
   ipcMain.handle("wallet:unlock-biometric", async () => {
     await keyManager.unlockBiometric();
+    syncWalletAccountsAfterUnlock();
     lockManager.onUnlock();
+    await relayBridge?.refreshChannels();
     mainWindow?.webContents.send("wallet:lock-state", false);
   });
 
@@ -174,19 +233,74 @@ function registerIpcHandlers(): void {
   });
 
   ipcMain.handle("wallet:status", async () => {
+    let activeAccountIndex = 0;
+    if (keyManager.isUnlocked()) {
+      try {
+        activeAccountIndex = accountManager.getActiveAccountIndex();
+      } catch {
+        activeAccountIndex = 0;
+      }
+    }
     return {
       hasWallet: keyManager.hasWallet(),
       isUnlocked: keyManager.isUnlocked(),
       address: keyManager.getAddress(),
+      activeAccountIndex,
       connectedAgents: relayBridge?.connectedDeviceCount() ?? 0,
       lockMode: lockManager.getMode(),
       sameMachineWarning: securityMonitor.hasSameMachineWarning(),
     };
   });
 
+  ipcMain.handle("wallet:list-accounts", async () => {
+    return listWalletAccountsForRenderer();
+  });
+
+  ipcMain.handle("wallet:list-configured-networks", async () => {
+    const ids = networkConfigService.getSupportedChainIds();
+    return ids.map((chainId) => {
+      const n = networkConfigService.getNetwork(chainId);
+      return { chainId, name: n?.name ?? `Chain ${chainId}` };
+    });
+  });
+
+  ipcMain.handle("wallet:switch-account", async (_, index: number) => {
+    const mnemonic = keyManager.getMnemonicIfUnlocked();
+    if (!mnemonic) throw new Error("Wallet locked");
+    accountManager.switchAccount(index);
+    keyManager.setActiveAccountIndex(index);
+    messageRouter?.setActiveAccount(index);
+    await messageRouter?.processQueuedMessages(index);
+    balanceService.clearCache();
+    const addr = keyManager.getAddress();
+    mainWindow?.webContents.send("wallet:account-changed", {
+      address: addr,
+      accountIndex: index,
+    });
+  });
+
+  ipcMain.handle("wallet:create-sub-account", async (_, nickname?: string) => {
+    const mnemonic = keyManager.getMnemonicIfUnlocked();
+    if (!mnemonic) throw new Error("Wallet locked");
+    accountManager.createAccount(mnemonic, nickname);
+    balanceService.clearCache();
+    await relayBridge?.refreshChannels();
+    return listWalletAccountsForRenderer();
+  });
+
+  ipcMain.handle("wallet:update-account-nickname", async (_, index: number, nickname: string) => {
+    accountManager.updateNickname(index, nickname.trim());
+    return listWalletAccountsForRenderer();
+  });
+
   ipcMain.handle("wallet:pair-code", async () => {
     if (!relayBridge) throw new Error("Relay not initialized");
     return relayBridge.generatePairCode();
+  });
+
+  ipcMain.handle("wallet:pending-pairing", async () => {
+    if (!relayBridge) return { code: null, expiresAt: null };
+    return relayBridge.getPendingPairingForActiveAccount();
   });
 
   ipcMain.handle("wallet:revoke-pairing", async (_, deviceId: string) => {
@@ -297,45 +411,116 @@ function registerIpcHandlers(): void {
     return balanceService.getWalletBalances(address, config.signing.tokenWhitelist);
   });
 
-  ipcMain.handle("wallet:get-signing-history", async () => {
-    return signingHistory.getRecords();
+  ipcMain.handle(
+    "wallet:add-custom-token",
+    async (
+      _,
+      input: { chainId: number; contractAddress: string; symbol: string; name?: string; decimals?: number },
+    ) => {
+      const token = networkConfigService.addCustomToken(input);
+      balanceService.clearCache();
+      return token;
+    },
+  );
+
+  ipcMain.handle("wallet:list-custom-tokens", async () => {
+    return networkConfigService.listCustomTokens();
   });
 
-  ipcMain.handle("wallet:get-activity-records", async (_, limit?: number, offset?: number) => {
-    return signingHistory.getRecords(limit, offset);
+  ipcMain.handle("wallet:remove-custom-token", async (_, symbol: string, chainId: number) => {
+    networkConfigService.removeCustomToken(symbol, chainId);
+    balanceService.clearCache();
   });
 
-  ipcMain.handle("wallet:get-activity-by-type", async (_, type: "auto" | "manual" | "rejected") => {
-    return signingHistory.getRecordsByType(type);
+  ipcMain.handle("wallet:get-signing-history", async (_, accountIndex?: number) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return signingHistory.getRecords(index);
   });
 
-  ipcMain.handle("wallet:get-activity-by-status", async (_, status: "pending" | "success" | "failed") => {
-    return signingHistory.getRecordsByStatus(status);
+  ipcMain.handle("wallet:get-activity-records", async (_, accountIndex?: number, limit?: number, offset?: number) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return signingHistory.getRecords(index, limit, offset);
   });
 
-  ipcMain.handle("wallet:list-contacts", async () => authorityStore.listContacts());
+  ipcMain.handle("wallet:get-activity-by-type", async (_, accountIndex: number | undefined, type: "auto" | "manual" | "rejected") => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return signingHistory.getRecordsByType(index, type);
+  });
 
-  ipcMain.handle("wallet:remove-contact", async (_, name: string) => {
-    if (!name?.trim() || authorityStore.removeContactsByName(name) === 0) {
+  ipcMain.handle("wallet:get-activity-by-status", async (_, accountIndex: number | undefined, status: "pending" | "success" | "failed") => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return signingHistory.getRecordsByStatus(index, status);
+  });
+
+  ipcMain.handle("wallet:list-contacts", async (_, accountIndex?: number) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    return authorityStore.listContacts(index);
+  });
+
+  ipcMain.handle("wallet:remove-contact", async (_, accountIndex: number | undefined, name: string) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    if (!name?.trim() || authorityStore.removeContactsByName(index, name) === 0) {
       throw new Error("Contact not found");
     }
   });
 }
 
 app.whenReady().then(async () => {
-  registerIpcHandlers();
   await keyManager.initialize();
   await securityMonitor.initialize();
   signingEngine.setDataDir(dataDir);
   await signingEngine.loadAllowance();
   const wl = signingEngine.getAllowance().addressWhitelist;
   if (wl.length > 0) {
-    authorityStore.mergeLegacyAllowanceWhitelist(wl);
+    authorityStore.mergeLegacyAllowanceWhitelist(wl, 0);
     await signingEngine.setAllowance({ addressWhitelist: [] });
   }
 
-  // Start transaction sync service
+  messageRouter = new MessageRouter();
+  messageRouter.setAccountInfoResolver(async (idx) => {
+    const addr = keyManager.getAddressForAccountIndex(idx) ?? "";
+    let nickname = `Account ${idx}`;
+    try {
+      const acc = accountManager.getAccount(idx);
+      if (acc) nickname = acc.nickname;
+    } catch {
+      /* ignore */
+    }
+    return { nickname, address: addr };
+  });
+  messageRouter.on("sign-request", (payload) => {
+    console.log("[desktop] Showing tx approval modal for", (payload as { requestId?: string }).requestId);
+    mainWindow?.show();
+    mainWindow?.webContents.send("wallet:tx-request", payload);
+  });
+  messageRouter.on("contact-request", (payload) => {
+    console.log("[desktop] Contact add request", (payload as { requestId?: string }).requestId);
+    mainWindow?.show();
+    mainWindow?.webContents.send("wallet:contact-add-request", payload);
+  });
+  messageRouter.on("security-alert", (payload) => {
+    securityMonitor.registerPendingAlert(payload as { alertId: string; type: string; timestamp: number });
+    mainWindow?.webContents.send("wallet:security-alert", payload);
+    mainWindow?.show();
+  });
+
+  registerIpcHandlers();
+
+  // Sync pending txs for every known account (not only active); default was [0] without this.
+  txSyncService.setActiveAccountIndexes(() => {
+    try {
+      const accounts = accountManager.listAccounts();
+      if (accounts.length === 0) return [0];
+      return accounts.map((a) => a.index);
+    } catch {
+      return [0];
+    }
+  });
   txSyncService.startPeriodicSync(30000); // Every 30 seconds
+
+  // Start RPC health monitoring
+  rpcProviderManager.startHealthChecks();
+  console.log('[Desktop] RPC health monitoring started');
 
   createWindow();
   if (!process.env.E2E_SKIP_TRAY) {
@@ -345,35 +530,46 @@ app.whenReady().then(async () => {
   relayBridge = new RelayBridge({
     dataDir,
     keyManager,
+    accountManager,
     signingEngine,
     securityMonitor,
     priceService,
     authorityStore,
     signingHistory,
     txSyncService,
+    messageRouter,
     relayUrl: config.relayUrl,
     reconnectBaseMs: config.relay.reconnectBaseMs,
     reconnectMaxMs: config.relay.reconnectMaxMs,
     ipChangePolicy: config.ipChangePolicy,
-    onTransactionRequest: (req) => {
-      console.log("[desktop] Showing tx approval modal for", req.requestId);
-      mainWindow?.show();
-      mainWindow?.webContents.send("wallet:tx-request", req);
-    },
-    onContactAddRequest: (req) => {
-      console.log("[desktop] Contact add request", req.requestId);
-      mainWindow?.show();
-      mainWindow?.webContents.send("wallet:contact-add-request", req);
+    getMultiAccountTxContext: () => {
+      const mnemonic = keyManager.getMnemonicIfUnlocked();
+      const activeAccountIndex = accountManager.getActiveAccountIndex();
+      const signingAccountIndex = activeAccountIndex;
+      const activeAddress = keyManager.getAddress() ?? "";
+      let signingNickname = `Account ${signingAccountIndex}`;
+      if (mnemonic) {
+        try {
+          const acc = accountManager.getAccount(signingAccountIndex);
+          if (acc) signingNickname = acc.nickname;
+        } catch {
+          /* ignore */
+        }
+      }
+      return {
+        activeAccountIndex,
+        signingAccountIndex,
+        signingAddress: activeAddress,
+        activeAddress,
+        signingNickname,
+      };
     },
     onConnectionStatus: (status) => {
       mainWindow?.webContents.send("wallet:connection-status", status);
     },
-    onSecurityAlert: (alert) => {
-      securityMonitor.registerPendingAlert(alert);
-      mainWindow?.webContents.send("wallet:security-alert", alert);
-      mainWindow?.show();
-    },
   });
+
+  syncMessageRouterActiveAccount();
 
   lockManager.onLock(() => {
     mainWindow?.webContents.send("wallet:lock-state", true);
@@ -393,6 +589,7 @@ app.on("window-all-closed", () => {
 });
 
 app.on("before-quit", async () => {
+  rpcProviderManager.stopHealthChecks();
   txSyncService.stopPeriodicSync();
   relayBridge?.shutdown();
   lockManager.lock();

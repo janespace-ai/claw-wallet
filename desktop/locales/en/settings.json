@@ -1,4 +1,10 @@
 {
+  "accounts": {
+    "title": "Accounts",
+    "hint": "Nicknames appear in the header account list.",
+    "newNicknamePrompt": "Optional nickname for the new account (leave empty for default):",
+    "newAccountModalTitle": "Add account"
+  },
   "allowance": {
     "title": "Allowance",
     "dailyLimit": "Daily Limit (USD)",

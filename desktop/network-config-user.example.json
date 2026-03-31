@@ -1,0 +1,13 @@
+{
+  "networks": {
+    "1": {
+      "rpcs": [
+        {
+          "url": "http://localhost:8545",
+          "priority": 1,
+          "custom": true
+        }
+      ]
+    }
+  }
+}

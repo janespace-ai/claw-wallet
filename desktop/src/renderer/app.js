@@ -80,16 +80,18 @@ function showScreen(name) {
 }
 
 function enterMainScreen(status) {
+  currentAccountIndex = typeof status.activeAccountIndex === "number" ? status.activeAccountIndex : 0;
   showScreen("main");
   document.getElementById("main-address").textContent = status.address;
   if (status.sameMachineWarning) {
     document.getElementById("same-machine-warning").style.display = "block";
   }
   loadPairedDevices();
+  void refreshPairingCodeFromMain().catch((e) => console.error(e));
   loadSecurityEvents();
   loadSigningHistory();
   syncSettingsFromStatus(status);
-  loadWalletBalances(status.address);
+  void syncHomeNetworkFilterFromConfig().finally(() => loadWalletBalances(status.address));
   initializeNetworkFilter();
   refreshAccountHeader().catch((e) => console.error(e));
   renderSettingsAccountsCard().catch((e) => console.error(e));
@@ -98,6 +100,8 @@ function enterMainScreen(status) {
 let currentBalances = [];
 let currentPrices = {};
 let currentAddress = '';
+/** Cleared on account switch and when applying a new pairing countdown */
+let pairingCountdownTimer = null;
 
 async function loadWalletBalances(address) {
   if (!address) return;
@@ -211,6 +215,34 @@ function getNetworkClass(chainName) {
   return chainName.toLowerCase().replace(/\s+/g, '-');
 }
 
+function appendNetworkOptionIfMissing(networkFilter, networkName) {
+  if (!networkFilter || !networkName) return;
+  if (networkName === "all") return;
+  const exists = Array.from(networkFilter.options).some((o) => o.value === networkName);
+  if (exists) return;
+  const option = document.createElement("option");
+  option.value = networkName;
+  option.textContent = networkName;
+  networkFilter.appendChild(option);
+}
+
+/** Fill home network filter from network-config.json (not only from balance rows). */
+async function syncHomeNetworkFilterFromConfig() {
+  const networkFilter = document.getElementById("network-filter");
+  if (!networkFilter) return;
+  while (networkFilter.options.length > 1) {
+    networkFilter.remove(1);
+  }
+  try {
+    const nets = await wapi().listConfiguredNetworks();
+    for (const n of nets) {
+      appendNetworkOptionIfMissing(networkFilter, n.name);
+    }
+  } catch (e) {
+    console.error("syncHomeNetworkFilterFromConfig:", e);
+  }
+}
+
 function renderBalances(balances, prices) {
   const balancesList = document.getElementById("balances-list");
   const networkFilter = document.getElementById('network-filter');
@@ -221,15 +253,10 @@ function renderBalances(balances, prices) {
     return;
   }
 
-  // Update network filter options
-  if (networkFilter && networkFilter.options.length === 1) {
-    const networks = [...new Set(balances.map(b => b.chainName))];
-    networks.forEach(network => {
-      const option = document.createElement('option');
-      option.value = network;
-      option.textContent = network;
-      networkFilter.appendChild(option);
-    });
+  // Ensure any chain present in balances appears in the filter (e.g. after new token/network)
+  if (networkFilter && balances.length > 0) {
+    const networks = [...new Set(balances.map((b) => b.chainName))];
+    networks.forEach((network) => appendNetworkOptionIfMissing(networkFilter, network));
   }
 
   // Apply network filter
@@ -630,7 +657,7 @@ function setupEventListeners() {
       if (tab.dataset.tab === "home") {
         const status = await wapi().getStatus();
         if (status.address) {
-          loadWalletBalances(status.address);
+          void syncHomeNetworkFilterFromConfig().finally(() => loadWalletBalances(status.address));
         }
       } else if (tab.dataset.tab === "security") {
         loadSecurityEvents();
@@ -639,6 +666,9 @@ function setupEventListeners() {
         loadActivityRecords(currentActivityFilter, true);
       } else if (tab.dataset.tab === "contacts") {
         loadDesktopContacts();
+      } else if (tab.dataset.tab === "pairing") {
+        loadPairedDevices();
+        void refreshPairingCodeFromMain().catch((e) => console.error(e));
       } else if (tab.dataset.tab === "settings") {
         renderSettingsAccountsCard().catch((e) => console.error(e));
       }
@@ -832,12 +862,9 @@ function setupEventListeners() {
     });
   }
 
-  document.getElementById("btn-new-sub-account").onclick = async () => {
-    const hint = tKey("settings.accounts.newNicknamePrompt");
-    const name = window.prompt(hint, "");
-    if (name === null) return;
+  async function submitNewSubAccount(nicknameTrimmed) {
     try {
-      await wapi().createWalletSubAccount(name.trim() || undefined);
+      await wapi().createWalletSubAccount(nicknameTrimmed || undefined);
       const st = await wapi().getStatus();
       const addrEl = document.getElementById("main-address");
       if (addrEl && st.address) addrEl.textContent = st.address;
@@ -847,6 +874,32 @@ function setupEventListeners() {
     } catch (e) {
       alert(e.message || String(e));
     }
+  }
+
+  document.getElementById("btn-new-sub-account").onclick = async () => {
+    const e2eNick = wapi().e2eSubAccountNickname;
+    if (e2eNick) {
+      await submitNewSubAccount(e2eNick.trim());
+      return;
+    }
+    const modal = document.getElementById("modal-new-account");
+    const inp = document.getElementById("input-new-account-nick");
+    if (inp) inp.value = "";
+    if (modal) modal.style.display = "flex";
+    inp?.focus();
+  };
+
+  document.getElementById("btn-new-account-cancel").onclick = () => {
+    const modal = document.getElementById("modal-new-account");
+    if (modal) modal.style.display = "none";
+  };
+
+  document.getElementById("btn-new-account-confirm").onclick = async () => {
+    const modal = document.getElementById("modal-new-account");
+    const inp = document.getElementById("input-new-account-nick");
+    const name = inp ? inp.value : "";
+    if (modal) modal.style.display = "none";
+    await submitNewSubAccount(name.trim());
   };
 
   // Security alert modal
@@ -924,12 +977,34 @@ function setupRealtimeEvents() {
     }
   });
 
-  wapi().onWalletAccountChanged(({ address }) => {
+  wapi().onWalletAccountChanged(async ({ address, accountIndex }) => {
+    if (typeof accountIndex === "number") {
+      currentAccountIndex = accountIndex;
+    }
     const el = document.getElementById("main-address");
     if (el) el.textContent = address ?? "";
-    if (address) loadWalletBalances(address);
-    refreshAccountHeader().catch((e) => console.error(e));
-    renderSettingsAccountsCard().catch((e) => console.error(e));
+
+    await refreshAccountHeader().catch((e) => console.error(e));
+    await renderSettingsAccountsCard().catch((e) => console.error(e));
+
+    void syncHomeNetworkFilterFromConfig().finally(() => {
+      if (address) loadWalletBalances(address);
+    });
+
+    try {
+      const status = await wapi().getStatus();
+      await syncSettingsFromStatus(status);
+    } catch (_) {
+      /* ignore */
+    }
+
+    // Re-load lists that are scoped by account (UI was stale after header switch)
+    loadPairedDevices().catch((e) => console.error(e));
+    void refreshPairingCodeFromMain().catch((e) => console.error(e));
+    loadSecurityEvents().catch((e) => console.error(e));
+    loadSigningHistory().catch((e) => console.error(e));
+    loadActivityRecords(currentActivityFilter, true).catch((e) => console.error(e));
+    loadDesktopContacts().catch((e) => console.error(e));
   });
 
   wapi().onBiometricPrompt(async (password) => {
@@ -945,8 +1020,48 @@ function setupRealtimeEvents() {
   });
 }
 
+function resetPairingCodeUI() {
+  if (pairingCountdownTimer != null) {
+    clearInterval(pairingCountdownTimer);
+    pairingCountdownTimer = null;
+  }
+  const displayEl = document.getElementById("pair-code-display");
+  const codeEl = document.getElementById("pair-code");
+  const countdownEl = document.getElementById("pair-countdown");
+  if (displayEl) displayEl.style.display = "none";
+  if (codeEl) codeEl.textContent = "";
+  if (countdownEl) countdownEl.textContent = "";
+}
+
+async function refreshPairingCodeFromMain() {
+  try {
+    const pending = await wapi().getPendingPairing();
+    if (!pending?.code) {
+      resetPairingCodeUI();
+      return;
+    }
+    let expiresAt = pending.expiresAt;
+    if (expiresAt != null && expiresAt <= Date.now()) {
+      resetPairingCodeUI();
+      return;
+    }
+    if (expiresAt == null) {
+      expiresAt = Date.now() + 10 * 60 * 1000;
+    }
+    const codeEl = document.getElementById("pair-code");
+    const displayEl = document.getElementById("pair-code-display");
+    if (codeEl) codeEl.textContent = pending.code;
+    if (displayEl) displayEl.style.display = "block";
+    startCountdown(expiresAt);
+  } catch (e) {
+    console.error(e);
+    resetPairingCodeUI();
+  }
+}
+
 async function loadPairedDevices() {
-  const devices = await wapi().getPairedDevices();
+  const all = await wapi().getPairedDevices();
+  const devices = all.filter((d) => d.accountIndex === currentAccountIndex);
   const list = document.getElementById("paired-devices-list");
   if (devices.length === 0) {
     list.innerHTML = `<p style="color: var(--text-secondary)">${tKey('pairing.noDevices')}</p>`;
@@ -974,7 +1089,7 @@ window.revokeDevice = async (deviceId) => {
 async function loadDesktopContacts() {
   const list = document.getElementById("contacts-list");
   try {
-    const rows = await wapi().listDesktopContacts();
+    const rows = await wapi().listDesktopContacts(currentAccountIndex);
     if (!rows || rows.length === 0) {
       list.innerHTML = `<p style="color: var(--text-secondary)">${tKey("contactsPage.empty")}</p>`;
       return;
@@ -997,7 +1112,7 @@ async function loadDesktopContacts() {
       btn.onclick = async () => {
         if (!confirm(tKey('common.contacts.removeConfirm', { name: c.name }))) return;
         try {
-          await wapi().removeDesktopContact(c.name);
+          await wapi().removeDesktopContact(c.name, currentAccountIndex);
           await loadDesktopContacts();
         } catch (err) {
           alert(err.message || String(err));
@@ -1085,6 +1200,10 @@ async function loadSigningHistory() {
 }
 
 function startCountdown(expiresAt) {
+  if (pairingCountdownTimer != null) {
+    clearInterval(pairingCountdownTimer);
+    pairingCountdownTimer = null;
+  }
   const el = document.getElementById("pair-countdown");
   const update = () => {
     const remaining = Math.max(0, Math.floor((expiresAt - Date.now()) / 1000));
@@ -1096,12 +1215,19 @@ function startCountdown(expiresAt) {
     if (remaining <= 0) {
       el.textContent = tKey("pairing.codeExpired");
       document.getElementById("pair-code-display").style.display = "none";
+      if (pairingCountdownTimer != null) {
+        clearInterval(pairingCountdownTimer);
+        pairingCountdownTimer = null;
+      }
     }
   };
   update();
-  const timer = setInterval(() => {
+  pairingCountdownTimer = setInterval(() => {
     update();
-    if (expiresAt <= Date.now()) clearInterval(timer);
+    if (expiresAt <= Date.now()) {
+      clearInterval(pairingCountdownTimer);
+      pairingCountdownTimer = null;
+    }
   }, 1000);
 }
 
@@ -1370,7 +1496,10 @@ async function refreshDynamicI18n() {
     const activeTab = document.querySelector(".tab.active");
     const tab = activeTab?.dataset.tab;
     try {
-      if (tab === "pairing") await loadPairedDevices();
+      if (tab === "pairing") {
+        await loadPairedDevices();
+        await refreshPairingCodeFromMain().catch((e) => console.error(e));
+      }
       else if (tab === "security") {
         await loadSecurityEvents();
         await loadSigningHistory();

@@ -54,6 +54,7 @@ interface AccountPairingState {
   walletAddress: string;
   devices: PairedDevice[];
   pendingPairCode: string | null;
+  pendingPairExpiresAt?: number | null;
 }
 
 interface StoredPairingsV2 {
@@ -114,6 +115,7 @@ export class RelayBridge {
         walletAddress: "",
         devices: [],
         pendingPairCode: null,
+        pendingPairExpiresAt: null,
       };
     }
     return this.pairings.accounts[key];
@@ -136,6 +138,7 @@ export class RelayBridge {
             walletAddress: addr,
             devices: Array.isArray(v1.devices) ? v1.devices : [],
             pendingPairCode: null,
+            pendingPairExpiresAt: null,
           },
         },
       };
@@ -154,11 +157,13 @@ export class RelayBridge {
     accountIndex: number;
     devices: PairedDevice[];
     pendingPairCode: string | null;
+    pendingPairExpiresAt: number | null;
     walletAddress: string;
   }): Promise<void> {
     const st = this.getOrCreateAccountState(payload.accountIndex);
     st.devices = payload.devices;
     st.pendingPairCode = payload.pendingPairCode;
+    st.pendingPairExpiresAt = payload.pendingPairExpiresAt;
     if (payload.walletAddress) {
       st.walletAddress = payload.walletAddress;
     }
@@ -264,7 +269,13 @@ export class RelayBridge {
         st.walletAddress = unlockedAddr;
       }
       const ch = await this.ensureChannel(idx);
-      await ch.hydrateFromStorage(st.devices, st.pendingPairCode, walletAddress, shouldConnect);
+      await ch.hydrateFromStorage(
+        st.devices,
+        st.pendingPairCode,
+        st.pendingPairExpiresAt ?? null,
+        walletAddress,
+        shouldConnect,
+      );
     }
     this.emitAggregatedConnectionStatus();
   }
@@ -280,6 +291,21 @@ export class RelayBridge {
     await this.syncChannels(true);
     const ch = await this.ensureChannel(idx);
     return ch.generatePairCode();
+  }
+
+  /** Current account’s in-memory / persisted pending pair code (for UI after account switch). */
+  async getPendingPairingForActiveAccount(): Promise<{ code: string | null; expiresAt: number | null }> {
+    await this.initPromise;
+    const idx = this.options.getMultiAccountTxContext?.()?.activeAccountIndex ?? 0;
+    const ch = this.channels.get(idx);
+    if (ch) {
+      return ch.getPendingPairingDisplay();
+    }
+    const st = this.pairings.accounts[String(idx)];
+    return {
+      code: st?.pendingPairCode ?? null,
+      expiresAt: st?.pendingPairExpiresAt ?? null,
+    };
   }
 
   isConnected(): boolean {

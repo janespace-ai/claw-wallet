@@ -286,6 +286,19 @@
       </div>
     </div>
 
+    <!-- New sub-account (Electron has no window.prompt in renderer) -->
+    <div id="modal-new-account" class="modal" style="display:none">
+      <div class="modal-content">
+        <h3 data-i18n="settings.accounts.newAccountModalTitle">Add account</h3>
+        <p class="settings-hint" data-i18n="settings.accounts.newNicknamePrompt">Optional nickname for the new account.</p>
+        <input type="text" id="input-new-account-nick" data-i18n-placeholder="settings.accounts.newNicknamePrompt" placeholder="Nickname (optional)" autocomplete="off">
+        <div class="modal-actions">
+          <button type="button" id="btn-new-account-confirm" class="btn primary" data-i18n="common.buttons.create">Create</button>
+          <button type="button" id="btn-new-account-cancel" class="btn secondary" data-i18n="common.buttons.cancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
     <!-- Export mnemonic (password-gated) -->
     <div id="modal-export" class="modal" style="display:none">
       <div class="modal-content modal-export-wide">

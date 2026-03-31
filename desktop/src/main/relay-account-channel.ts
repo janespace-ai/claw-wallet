@@ -59,6 +59,8 @@ export interface RelayAccountChannelOptions {
     accountIndex: number;
     devices: PairedDevice[];
     pendingPairCode: string | null;
+    /** Epoch ms when pending pair code expires; null if unknown / none */
+    pendingPairExpiresAt: number | null;
     walletAddress: string;
   }) => Promise<void>;
 }
@@ -192,6 +194,7 @@ export class RelayAccountChannel {
   private destroyed = false;
   private relayUrl: string;
   private pendingPairCode: string | null = null;
+  private pendingPairExpiresAt: number | null = null;
   private frozenSessions = new Map<string, { until: number; reason: string }>();
   private ipChangePolicy: "block" | "warn" | "allow";
   private reconnectBaseMs: number;
@@ -220,11 +223,13 @@ export class RelayAccountChannel {
   async hydrateFromStorage(
     devices: PairedDevice[],
     pendingPairCode: string | null,
+    pendingPairExpiresAt: number | null,
     walletAddress: string,
     shouldConnect: boolean,
   ): Promise<void> {
     this.devices = devices.map((d) => ({ ...d }));
     this.pendingPairCode = pendingPairCode;
+    this.pendingPairExpiresAt = pendingPairExpiresAt;
     this.walletAddressCache = walletAddress;
     this.restoreSessions();
     if (shouldConnect && (this.devices.length > 0 || this.pendingPairCode)) {
@@ -285,6 +290,8 @@ export class RelayAccountChannel {
     this.pendingPairCode = data.shortCode;
     console.log(`[relay-bridge] generatePairCode: code=${data.shortCode} expires in ${data.expiresIn}s`);
     const expiresAt = Date.now() + data.expiresIn * 1000;
+    this.pendingPairExpiresAt = expiresAt;
+    void this.persistState();
 
     if (this.ws) {
       console.log(`[relay-bridge] generatePairCode: existing connection found, triggering reconnect`);
@@ -566,9 +573,10 @@ export class RelayAccountChannel {
     // which produces a mismatched pairId after Agent key rotation.
     this.devices = [device];
 
-    await this.persistState();
     console.log(`[relay-bridge] completePairing: clearing pendingPairCode (was: ${this.pendingPairCode})`);
     this.pendingPairCode = null;
+    this.pendingPairExpiresAt = null;
+    await this.persistState();
     
     // Delay reconnection to ensure pairing response is sent first
     console.log(`[relay-bridge] completePairing: scheduling reconnect in 200ms to allow response to be sent`);
@@ -1047,6 +1055,10 @@ export class RelayAccountChannel {
     }
   }
 
+  getPendingPairingDisplay(): { code: string | null; expiresAt: number | null } {
+    return { code: this.pendingPairCode, expiresAt: this.pendingPairExpiresAt };
+  }
+
   getPairedDevices(): PairedDevice[] {
     return this.devices.map(d => ({ ...d }));
   }
@@ -1102,6 +1114,7 @@ export class RelayAccountChannel {
       accountIndex: this.options.accountIndex,
       devices: this.devices.map((d) => ({ ...d })),
       pendingPairCode: this.pendingPairCode,
+      pendingPairExpiresAt: this.pendingPairExpiresAt,
       walletAddress: this.getWalletAddress(),
     });
   }

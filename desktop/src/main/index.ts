@@ -256,6 +256,14 @@ function registerIpcHandlers(): void {
     return listWalletAccountsForRenderer();
   });
 
+  ipcMain.handle("wallet:list-configured-networks", async () => {
+    const ids = networkConfigService.getSupportedChainIds();
+    return ids.map((chainId) => {
+      const n = networkConfigService.getNetwork(chainId);
+      return { chainId, name: n?.name ?? `Chain ${chainId}` };
+    });
+  });
+
   ipcMain.handle("wallet:switch-account", async (_, index: number) => {
     const mnemonic = keyManager.getMnemonicIfUnlocked();
     if (!mnemonic) throw new Error("Wallet locked");
@@ -288,6 +296,11 @@ function registerIpcHandlers(): void {
   ipcMain.handle("wallet:pair-code", async () => {
     if (!relayBridge) throw new Error("Relay not initialized");
     return relayBridge.generatePairCode();
+  });
+
+  ipcMain.handle("wallet:pending-pairing", async () => {
+    if (!relayBridge) return { code: null, expiresAt: null };
+    return relayBridge.getPendingPairingForActiveAccount();
   });
 
   ipcMain.handle("wallet:revoke-pairing", async (_, deviceId: string) => {

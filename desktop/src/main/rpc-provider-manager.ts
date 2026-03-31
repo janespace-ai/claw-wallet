@@ -86,7 +86,8 @@ export class RPCProviderManager {
     const start = Date.now();
     
     try {
-      const provider = new ethers.JsonRpcProvider(url);
+      // staticNetwork: avoid ethers "detect network" retry loop + log spam when RPC is down / filtered
+      const provider = new ethers.JsonRpcProvider(url, chainId, { staticNetwork: true });
       await Promise.race([
         provider.getBlockNumber(),
         new Promise((_, reject) => 
@@ -155,7 +156,7 @@ export class RPCProviderManager {
         ? (cached as unknown as { _getConnection: () => { url: string } })._getConnection().url
         : null;
     if (cachedUrl !== selectedRPC.url) {
-      const provider = new ethers.JsonRpcProvider(selectedRPC.url);
+      const provider = new ethers.JsonRpcProvider(selectedRPC.url, chainId, { staticNetwork: true });
       this.providers.set(cacheKey, provider);
     }
 

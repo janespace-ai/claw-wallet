@@ -659,6 +659,34 @@ p  { font-size: 14px; color: var(--text-secondary); }
   color: var(--text-primary);
 }
 
+/* Theme segmented control */
+.theme-segmented {
+  display: flex;
+  background: var(--surface2);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+}
+.theme-seg-btn {
+  flex: 1;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.theme-seg-btn.active {
+  background: var(--surface);
+  color: var(--text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
 /* iOS-style toggle */
 .ios-toggle {
   position: relative;

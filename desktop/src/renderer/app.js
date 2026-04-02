@@ -80,6 +80,11 @@ function showScreen(name) {
 }
 
 function enterMainScreen(status) {
+  // Clear unlock password immediately after successful authentication
+  const pwd = document.getElementById("input-unlock-password");
+  const err = document.getElementById("unlock-error");
+  if (pwd) pwd.value = "";
+  if (err) err.textContent = "";
   currentAccountIndex = typeof status.activeAccountIndex === "number" ? status.activeAccountIndex : 0;
   showScreen("main");
   document.getElementById("main-address").textContent = status.address;
@@ -1033,9 +1038,9 @@ function setupEventListeners() {
     document.getElementById("btn-export-mnemonic").click();
   });
 
-  // Theme toggle
-  document.getElementById("toggle-dark-theme")?.addEventListener("change", (e) => {
-    setTheme(e.target.checked ? "dark" : "light");
+  // Theme segmented control
+  document.querySelectorAll(".theme-seg-btn").forEach(btn => {
+    btn.addEventListener("click", () => setTheme(btn.dataset.themeVal));
   });
 
   // TX rejection via confirm button (separate from close ×)
@@ -1745,19 +1750,42 @@ function initializeLanguageSwitcher() {
 // THEME SYSTEM
 // ============================================================
 
+let _systemThemeListener = null;
+
 function initTheme() {
-  const saved = localStorage.getItem('claw-theme') || 'light';
+  const saved = localStorage.getItem('claw-theme') || 'system';
   applyTheme(saved);
 }
 
+function resolveTheme(theme) {
+  if (theme === 'system') {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return theme;
+}
+
 function applyTheme(theme) {
-  if (theme === 'dark') {
+  const resolved = resolveTheme(theme);
+  if (resolved === 'dark') {
     document.documentElement.setAttribute('data-theme', 'dark');
   } else {
     document.documentElement.removeAttribute('data-theme');
   }
-  const toggle = document.getElementById('toggle-dark-theme');
-  if (toggle) toggle.checked = (theme === 'dark');
+
+  // Update segmented control active state
+  document.querySelectorAll('.theme-seg-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.themeVal === theme);
+  });
+
+  // Listen for system theme changes only when "system" is selected
+  if (_systemThemeListener) {
+    window.matchMedia('(prefers-color-scheme: dark)').removeEventListener('change', _systemThemeListener);
+    _systemThemeListener = null;
+  }
+  if (theme === 'system') {
+    _systemThemeListener = () => applyTheme('system');
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', _systemThemeListener);
+  }
 }
 
 function setTheme(theme) {

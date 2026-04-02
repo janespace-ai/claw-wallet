@@ -349,20 +349,21 @@
         </div>
 
         <!-- APPEARANCE section -->
-        <div class="settings-section-header">APPEARANCE</div>
+        <div class="settings-section-header" data-i18n="settings.appearance.theme">APPEARANCE</div>
         <div class="settings-group">
           <div class="settings-row" style="cursor:default;">
-            <span class="settings-row-label">Theme</span>
-            <label class="ios-toggle">
-              <input type="checkbox" id="toggle-dark-theme">
-              <span class="ios-toggle-track"></span>
-            </label>
+            <span class="settings-row-label" data-i18n="settings.appearance.theme">Theme</span>
+            <div class="theme-segmented" id="theme-segmented">
+              <button class="theme-seg-btn" data-theme-val="system" data-i18n="settings.appearance.system">System</button>
+              <button class="theme-seg-btn" data-theme-val="light"  data-i18n="settings.appearance.light">Light</button>
+              <button class="theme-seg-btn" data-theme-val="dark"   data-i18n="settings.appearance.dark">Dark</button>
+            </div>
           </div>
         </div>
 
         <!-- Lock wallet -->
         <div style="padding:20px;">
-          <button id="btn-lock-wallet" class="btn-outline" data-i18n="settings.actions.lockWallet">Lock Wallet</button>
+          <button id="btn-lock-wallet" class="btn-danger-outline" data-i18n="settings.actions.lockWallet">Lock Wallet</button>
         </div>
 
         <!-- Hidden export trigger (kept for app.js compatibility) -->

@@ -23,6 +23,12 @@
   "biometric": {
     "enableUnlock": "Enable biometric unlock"
   },
+  "appearance": {
+    "theme": "Theme",
+    "system": "System",
+    "light": "Light",
+    "dark": "Dark"
+  },
   "actions": {
     "title": "Actions",
     "lockWallet": "Lock Wallet"

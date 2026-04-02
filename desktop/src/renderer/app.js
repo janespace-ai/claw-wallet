@@ -713,7 +713,10 @@ function setupEventListeners() {
       const status = await wapi().getStatus();
       enterMainScreen(status);
     } catch (err) {
-      errEl.textContent = err.message;
+      const msg = err.message || "";
+      errEl.textContent = /invalid password|incorrect password|wrong password|密码/i.test(msg)
+        ? tKey("errors.password.incorrect")
+        : tKey("errors.wallet.unlockFailed");
     }
   };
 
@@ -723,7 +726,11 @@ function setupEventListeners() {
       const status = await wapi().getStatus();
       enterMainScreen(status);
     } catch (err) {
-      document.getElementById("unlock-error").textContent = err.message;
+      const msg = err.message || "";
+      document.getElementById("unlock-error").textContent =
+        /invalid password|incorrect password|wrong password|密码/i.test(msg)
+          ? tKey("errors.password.incorrect")
+          : tKey("errors.wallet.unlockFailed");
     }
   };
 

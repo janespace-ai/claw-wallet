@@ -42,7 +42,11 @@ test.describe("多账户与多网络", () => {
       await expect(window.locator("#account-selector option")).toHaveCount(2, { timeout: 15_000 });
       await window.screenshot({ path: path.join(screenshotDir, "21-account-two-options.png"), fullPage: true });
 
-      await window.locator("#account-selector").selectOption("1");
+      // #account-selector is hidden in the redesigned UI — trigger via evaluate
+      await window.locator("#account-selector").evaluate((sel: HTMLSelectElement) => {
+        sel.value = "1";
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      });
       await expect
         .poll(async () => (await window!.locator("#main-address").textContent())?.trim(), { timeout: 15_000 })
         .not.toBe(addr0);
@@ -54,7 +58,10 @@ test.describe("多账户与多网络", () => {
 
       await expect(window.locator("#account-selector")).toHaveValue("1");
 
-      await window.locator("#account-selector").selectOption("0");
+      await window.locator("#account-selector").evaluate((sel: HTMLSelectElement) => {
+        sel.value = "0";
+        sel.dispatchEvent(new Event("change", { bubbles: true }));
+      });
       await expect
         .poll(async () => (await window!.locator("#main-address").textContent())?.trim(), { timeout: 15_000 })
         .toBe(addr0);
@@ -62,12 +69,12 @@ test.describe("多账户与多网络", () => {
       await expect(window.locator("#account-selector")).toHaveValue("0");
       await window.screenshot({ path: path.join(screenshotDir, "23-account-back-to-0.png"), fullPage: true });
 
-      await window.click('.tab[data-tab="settings"]');
+      await window.click('.tab-item[data-tab="settings"]');
       await expect(window.locator("#tab-settings.tab-content.active")).toBeVisible();
       await expect(window.locator(".settings-account-row")).toHaveCount(2);
       await window.screenshot({ path: path.join(screenshotDir, "24-settings-two-accounts.png"), fullPage: true });
 
-      await window.click('.tab[data-tab="home"]');
+      await window.click('.tab-item[data-tab="home"]');
       await expect(window.locator("#tab-home.tab-content.active")).toBeVisible();
     } finally {
       try {
@@ -93,7 +100,7 @@ test.describe("多账户与多网络", () => {
       await waitForAppReady(window);
       await completeOnboarding(window, password);
 
-      await window.click('.tab[data-tab="activity"]');
+      await window.click('.tab-item[data-tab="activity"]');
       await expect(window.locator("#tab-activity.tab-content.active")).toBeVisible();
 
       const actFilter = window.locator("#activity-network-filter");
@@ -115,7 +122,7 @@ test.describe("多账户与多网络", () => {
       await actFilter.selectOption("all");
       await expect(actFilter).toHaveValue("all");
 
-      await window.click('.tab[data-tab="home"]');
+      await window.click('.tab-item[data-tab="home"]');
       await expect(window.locator("#tab-home.tab-content.active")).toBeVisible();
 
       await window.click("#btn-refresh-balances");
@@ -137,11 +144,17 @@ test.describe("多账户与多网络", () => {
 
       if (homeNetworkOptions >= 3) {
         const homeFilter = window.locator("#network-filter");
-        await homeFilter.selectOption({ label: "Ethereum" });
+        // #network-filter is a hidden select in the redesigned UI — trigger via evaluate
+        await homeFilter.evaluate((sel: HTMLSelectElement) => {
+          const opt = Array.from(sel.options).find(o => o.label === "Ethereum" || o.value === "Ethereum");
+          if (opt) { sel.value = opt.value; sel.dispatchEvent(new Event("change", { bubbles: true })); }
+        });
         await new Promise((r) => setTimeout(r, 500));
         await window.screenshot({ path: path.join(screenshotDir, "33-home-network-ethereum.png"), fullPage: true });
 
-        await homeFilter.selectOption("all");
+        await homeFilter.evaluate((sel: HTMLSelectElement) => {
+          sel.value = "all"; sel.dispatchEvent(new Event("change", { bubbles: true }));
+        });
         await expect(homeFilter).toHaveValue("all");
         await window.screenshot({ path: path.join(screenshotDir, "34-home-network-all.png"), fullPage: true });
       } else {
@@ -173,10 +186,10 @@ test.describe("多账户与多网络", () => {
       await waitForAppReady(window);
       await completeOnboarding(window, password);
 
-      await window.click('.tab[data-tab="activity"]');
+      await window.click('.tab-item[data-tab="activity"]');
       await expect(window.locator("#tab-activity.tab-content.active")).toBeVisible();
 
-      const filters = window.locator(".activity-filters");
+      const filters = window.locator(".filter-chips");
       await expect(filters).toBeVisible();
       await expect(filters).toHaveScreenshot("baseline-activity-filters.png", {
         maxDiffPixels: 4_000,

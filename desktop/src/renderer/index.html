@@ -5,329 +5,556 @@
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'; script-src 'self'">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Claw Wallet</title>
+  <link rel="icon" type="image/png" href="favicon.png">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <div id="app">
-    <header id="header">
-      <h1 data-i18n="modals.app.title">Claw Wallet</h1>
-      <div id="account-header-group" class="account-header-group" style="display: none;" aria-label="Accounts">
-        <label for="account-selector" class="sr-only" data-i18n="common.accounts.selectorLabel">Active account</label>
-        <select id="account-selector" class="account-selector"></select>
-        <button type="button" id="btn-new-sub-account" class="btn ghost btn-account-new" data-i18n="common.accounts.newAccount">+ Account</button>
+<div id="app">
+
+  <!-- ════════════════════════════════════════════════
+       SCREEN 01 — WELCOME
+       ════════════════════════════════════════════════ -->
+  <div id="screen-setup" class="screen active">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo-box">
+        <img src="image_paw_single_white.png" alt="">
       </div>
-      <div class="language-switcher">
-        <select id="language-selector" class="language-select">
-          <option value="en">English</option>
-          <option value="zh-CN">简体中文</option>
-        </select>
-      </div>
-      <div id="connection-indicator" class="disconnected">
-        <span class="dot"></span>
-        <span id="connection-text">Disconnected</span>
+      <span class="app-name" data-i18n="modals.app.title">Claw Wallet</span>
+      <div id="connection-indicator" class="connection-dot disconnected">
+        <span id="connection-text" data-i18n="common.connection.disconnected">Disconnected</span>
       </div>
     </header>
 
-    <!-- Screens -->
-    <div id="screen-setup" class="screen active">
-      <div class="card">
-        <h2 data-i18n="setup.welcome.title">Welcome to Claw Wallet</h2>
-        <p data-i18n="setup.welcome.description">Create a new wallet or import an existing one.</p>
-        <button id="btn-create" class="btn primary" data-i18n="setup.buttons.createNew">Create New Wallet</button>
-        <button id="btn-import" class="btn secondary" data-i18n="setup.buttons.import">Import Wallet</button>
+    <!-- Body -->
+    <div class="screen-body">
+      <div class="hero-logo-box">
+        <img src="image_paw_double_white.png" alt="Claw Wallet">
+      </div>
+      <h2 class="hero-title" data-i18n="setup.welcome.title">Welcome to Claw Wallet</h2>
+      <p class="hero-subtitle" data-i18n="setup.welcome.description">Your self-custodial AI-native crypto wallet. Create a new wallet or import an existing one.</p>
+      <div class="btn-group">
+        <button id="btn-create" class="btn-primary" data-i18n="setup.buttons.createNew">Create New Wallet</button>
+        <button id="btn-import" class="btn-outline" data-i18n="setup.buttons.import">Import Existing Wallet</button>
       </div>
     </div>
+  </div>
 
-    <div id="screen-password" class="screen">
-      <div class="card">
-        <h2 id="password-title" data-i18n="setup.password.title">Set Password</h2>
-        <p id="password-desc" data-i18n="setup.password.description">Choose a strong password to encrypt your wallet.</p>
-        <input type="password" id="input-password" data-i18n-placeholder="setup.password.placeholder" placeholder="Password (min 8 chars)" autocomplete="off">
-        <input type="password" id="input-password-confirm" data-i18n-placeholder="setup.password.confirmPlaceholder" placeholder="Confirm password" autocomplete="off">
-        <div id="mnemonic-input-area" style="display:none">
-          <textarea id="input-mnemonic" rows="3" data-i18n-placeholder="setup.password.mnemonicPlaceholder" placeholder="Enter 12-word mnemonic phrase"></textarea>
+  <!-- ════════════════════════════════════════════════
+       SCREEN: PASSWORD SETUP
+       ════════════════════════════════════════════════ -->
+  <div id="screen-password" class="screen">
+    <header class="app-header">
+      <div class="logo-box">
+        <img src="image_paw_single_white.png" alt="">
+      </div>
+      <span class="app-name" data-i18n="modals.app.title">Claw Wallet</span>
+    </header>
+    <div class="screen-body">
+      <h2 id="password-title" data-i18n="setup.password.title">Set Password</h2>
+      <p id="password-desc" data-i18n="setup.password.description">Choose a strong password to encrypt your wallet.</p>
+      <input type="password" id="input-password" class="input-field"
+             data-i18n-placeholder="setup.password.placeholder"
+             placeholder="Password (min 8 chars)" autocomplete="off">
+      <input type="password" id="input-password-confirm" class="input-field"
+             data-i18n-placeholder="setup.password.confirmPlaceholder"
+             placeholder="Confirm password" autocomplete="off">
+      <div id="mnemonic-input-area" style="display:none">
+        <textarea id="input-mnemonic" class="input-field" rows="3"
+                  data-i18n-placeholder="setup.password.mnemonicPlaceholder"
+                  placeholder="Enter 12-word mnemonic phrase"
+                  style="height:auto;padding:14px;resize:none;"></textarea>
+      </div>
+      <div id="password-error" class="error" style="color:var(--danger);font-size:13px;"></div>
+      <button id="btn-password-submit" class="btn-primary" data-i18n="setup.buttons.continue">Continue</button>
+      <button id="btn-password-back" class="btn-ghost" data-i18n="setup.buttons.back">Back</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       SCREEN: MNEMONIC BACKUP
+       ════════════════════════════════════════════════ -->
+  <div id="screen-mnemonic" class="screen">
+    <header class="app-header">
+      <div class="logo-box">
+        <img src="image_paw_single_white.png" alt="">
+      </div>
+      <span class="app-name" data-i18n="modals.app.title">Claw Wallet</span>
+    </header>
+    <div class="screen-body">
+      <h2 data-i18n="setup.mnemonic.title">Backup Your Mnemonic</h2>
+      <p style="color:var(--warning);font-size:13px;" data-i18n="setup.mnemonic.warning">
+        Write down these 12 words and keep them safe. This is the only way to recover your wallet.
+      </p>
+      <div id="mnemonic-display" class="mnemonic-grid"></div>
+      <label style="display:flex;align-items:center;gap:10px;font-size:14px;color:var(--text-primary);cursor:pointer;">
+        <input type="checkbox" id="mnemonic-confirmed">
+        <span data-i18n="setup.mnemonic.confirmLabel">I have written down my mnemonic</span>
+      </label>
+      <button id="btn-mnemonic-done" class="btn-primary" data-i18n="setup.buttons.done" disabled>Done</button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       SCREEN 02 — UNLOCK
+       ════════════════════════════════════════════════ -->
+  <div id="screen-unlock" class="screen">
+    <header class="app-header">
+      <div class="logo-box">
+        <img src="image_paw_single_white.png" alt="">
+      </div>
+      <span class="app-name" data-i18n="modals.app.title">Claw Wallet</span>
+      <div class="connection-dot disconnected">
+        <span data-i18n="common.connection.disconnected">Disconnected</span>
+      </div>
+    </header>
+    <div class="screen-body">
+      <div class="unlock-avatar" id="unlock-avatar">🔒</div>
+      <p class="unlock-name" id="unlock-account-name"></p>
+      <p class="unlock-address" id="unlock-address"></p>
+      <div class="unlock-input-wrap">
+        <input type="password" id="input-unlock-password" class="input-field"
+               data-i18n-placeholder="setup.unlock.passwordPlaceholder"
+               placeholder="Enter your password" autocomplete="off">
+        <div id="unlock-error" class="error" style="color:var(--danger);font-size:13px;margin-top:8px;"></div>
+      </div>
+      <div class="unlock-buttons">
+        <button id="btn-unlock" class="btn-primary" data-i18n="setup.buttons.unlock">Unlock</button>
+        <button id="btn-biometric" class="btn-ghost" data-i18n="setup.unlock.biometricButton" style="display:none">Use Touch ID</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════
+       SCREEN-MAIN (tabs: Home / Activity / Pairing / Settings)
+       ════════════════════════════════════════════════ -->
+  <div id="screen-main" class="screen">
+
+    <!-- Same-machine warning banner -->
+    <div id="same-machine-warning" class="alert-banner"
+         data-i18n="common.messages.sameMachineWarning" style="display:none;
+         background:var(--warning);color:white;padding:8px 16px;font-size:12px;text-align:center;flex-shrink:0;">
+      ⚠ Agent and Wallet are on the same machine — security is significantly reduced!
+    </div>
+
+    <!-- ── TAB: HOME ────────────────────────────────── -->
+    <div id="tab-home" class="tab-content active">
+      <!-- Home header: account picker -->
+      <header class="app-header">
+        <div class="account-header" id="account-header-group">
+          <div class="account-avatar-pill" id="account-avatar-pill">A</div>
+          <span class="account-header-name" id="account-header-name">Account</span>
+          <select id="account-selector" class="account-selector" style="display:none"></select>
+          <button type="button" id="btn-new-sub-account" class="account-header-edit" title="Add account">＋</button>
         </div>
-        <button id="btn-password-submit" class="btn primary" data-i18n="setup.buttons.continue">Continue</button>
-        <button id="btn-password-back" class="btn ghost" data-i18n="setup.buttons.back">Back</button>
-        <div id="password-error" class="error"></div>
+        <div id="connection-indicator-home" class="connection-dot disconnected">
+          <span data-i18n="common.connection.disconnected">Disconnected</span>
+        </div>
+      </header>
+
+      <div class="tab-scrollable">
+        <!-- Portfolio section -->
+        <div class="portfolio-section">
+          <div class="portfolio-label" data-i18n="common.home.portfolioValue">Total Portfolio Value</div>
+          <div class="portfolio-value" id="portfolio-value">—</div>
+          <div class="portfolio-change positive" id="portfolio-change" style="display:none"></div>
+        </div>
+
+        <!-- Network chips -->
+        <div class="chips-row" id="network-chips-row">
+          <button class="chip active" data-network="all">All</button>
+          <button class="chip" data-network="ethereum">Ethereum</button>
+          <button class="chip" data-network="base">Base</button>
+          <button class="chip" data-network="arbitrum">Arbitrum</button>
+        </div>
+
+        <!-- Hidden network filter select (kept for app.js compatibility) -->
+        <select id="network-filter" style="display:none">
+          <option value="all">All Networks</option>
+        </select>
+
+        <!-- Balances section -->
+        <div class="section-header">
+          <span class="section-header-label" data-i18n="common.home.balances">Balances</span>
+          <button id="btn-refresh-balances" class="section-header-action" data-i18n="common.buttons.refresh">Refresh</button>
+        </div>
+
+        <div id="balances-list"></div>
+
+        <!-- Hide zero toggle -->
+        <div class="toggle-row">
+          <span class="toggle-row-label" data-i18n="common.home.hideZero">Hide zero balances</span>
+          <label class="ios-toggle">
+            <input type="checkbox" id="hide-zero-balances">
+            <span class="ios-toggle-track"></span>
+          </label>
+        </div>
+
+        <!-- Pending tx area -->
+        <div id="pending-tx-list"></div>
+
+        <!-- Main address (hidden, used by app.js) -->
+        <p id="main-address" style="display:none"></p>
       </div>
     </div>
 
-    <div id="screen-mnemonic" class="screen">
-      <div class="card">
-        <h2 data-i18n="setup.mnemonic.title">Backup Your Mnemonic</h2>
-        <p class="warning" data-i18n="setup.mnemonic.warning">Write down these 12 words and keep them safe. This is the only way to recover your wallet.</p>
-        <div id="mnemonic-display" class="mnemonic-grid"></div>
-        <label class="checkbox-label">
-          <input type="checkbox" id="mnemonic-confirmed"> <span data-i18n="setup.mnemonic.confirmLabel">I have written down my mnemonic</span>
-        </label>
-        <button id="btn-mnemonic-done" class="btn primary" data-i18n="setup.buttons.done" disabled>Done</button>
-      </div>
-    </div>
+    <!-- ── TAB: ACTIVITY ────────────────────────────── -->
+    <div id="tab-activity" class="tab-content">
+      <header class="app-header">
+        <span class="header-title" data-i18n="common.tabs.activity">Activity</span>
+        <select id="activity-network-filter" class="header-dropdown">
+          <option value="all" data-i18n="activity.filters.allNetworks">All Networks</option>
+        </select>
+      </header>
 
-    <div id="screen-unlock" class="screen">
-      <div class="card">
-        <h2 data-i18n="setup.unlock.title">Unlock Wallet</h2>
-        <p id="unlock-address" class="address"></p>
-        <input type="password" id="input-unlock-password" data-i18n-placeholder="setup.unlock.passwordPlaceholder" placeholder="Enter your password" autocomplete="off">
-        <button id="btn-unlock" class="btn primary" data-i18n="setup.buttons.unlock">Unlock</button>
-        <button id="btn-biometric" class="btn secondary" data-i18n="setup.unlock.biometricButton" style="display:none">Use Biometrics</button>
-        <div id="unlock-error" class="error"></div>
-      </div>
-    </div>
-
-    <div id="screen-main" class="screen">
-      <div id="same-machine-warning" class="alert-banner" data-i18n="common.messages.sameMachineWarning" style="display:none">
-        ⚠ Agent and Wallet are on the same machine — security is significantly reduced!
+      <!-- Filter chips -->
+      <div class="filter-chips">
+        <button class="chip active" data-filter="all" data-i18n="activity.filters.all">All</button>
+        <button class="chip" data-filter="auto" data-i18n="activity.filters.auto">Auto</button>
+        <button class="chip" data-filter="manual" data-i18n="activity.filters.manual">Manual</button>
+        <button class="chip" data-filter="rejected" data-i18n="activity.filters.rejected">Rejected</button>
       </div>
 
-      <nav class="tab-bar">
-        <button class="tab active" data-tab="home" data-i18n="common.tabs.home">Home</button>
-        <button class="tab" data-tab="pairing" data-i18n="common.tabs.pairing">Pairing</button>
-        <button class="tab" data-tab="settings" data-i18n="common.tabs.settings">Settings</button>
-        <button class="tab" data-tab="security" data-i18n="common.tabs.security">Security</button>
-        <button class="tab" data-tab="activity" data-i18n="common.tabs.activity">Activity</button>
-        <button class="tab" data-tab="contacts" data-i18n="common.tabs.contacts">Contacts</button>
-      </nav>
-
-      <!-- Home tab -->
-      <div id="tab-home" class="tab-content active">
-        <div class="card">
-          <h3 data-i18n="common.labels.wallet">Wallet</h3>
-          <p id="main-address" class="address"></p>
-          
-          <!-- Total Portfolio Value -->
-          <div id="portfolio-value-section" style="margin-top: 20px;">
-            <h4 style="margin-bottom: 10px;" data-i18n="common.home.portfolioValue">Total Portfolio Value</h4>
-            <div id="portfolio-value-display" class="portfolio-value">
-              <span id="portfolio-value" data-i18n="common.messages.loading">Loading...</span>
-            </div>
-          </div>
-
-          <!-- Token Balances -->
-          <div id="balances-section" style="margin-top: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-              <h4 data-i18n="common.home.balances">Balances</h4>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <!-- Network Filter -->
-                <select id="network-filter" class="network-filter" title="Filter by network">
-                  <option value="all">All Networks</option>
-                  <!-- Networks populated dynamically -->
-                </select>
-                <!-- Hide Zero Balances Toggle -->
-                <label class="checkbox-label" style="margin: 0;">
-                  <input type="checkbox" id="hide-zero-balances">
-                  <span style="font-size: 12px;">Hide Zero</span>
-                </label>
-                <!-- Refresh Button -->
-                <button id="btn-refresh-balances" class="btn ghost" data-i18n="common.buttons.refresh" style="padding: 4px 8px; font-size: 12px;">Refresh</button>
-              </div>
-            </div>
-            <div id="balances-list"></div>
-          </div>
-
-          <div id="pending-tx-list"></div>
+      <div class="tab-scrollable">
+        <div id="activity-list"></div>
+        <div id="activity-load-more" style="display:none;padding:16px;text-align:center;">
+          <button id="btn-load-more-activity" class="btn-outline" style="width:auto;padding:0 24px;" data-i18n="common.buttons.loadMore">Load More</button>
         </div>
       </div>
+    </div>
 
-      <!-- Pairing tab -->
-      <div id="tab-pairing" class="tab-content">
-        <div class="card">
-          <h3 data-i18n="pairing.title">Pair with Agent</h3>
-          <p data-i18n="pairing.description">Generate a code and paste it into your Agent.</p>
-          <button id="btn-generate-code" class="btn primary" data-i18n="pairing.generateCode">Generate Pairing Code</button>
-          <div id="pair-code-display" style="display:none">
-            <div id="pair-code" class="pair-code"></div>
-            <div id="pair-countdown" class="countdown"></div>
-          </div>
+    <!-- ── TAB: PAIRING ─────────────────────────────── -->
+    <div id="tab-pairing" class="tab-content">
+      <header class="app-header">
+        <span class="header-title" data-i18n="common.tabs.pairing">Pairing</span>
+        <div class="connection-dot disconnected" id="connection-indicator-pairing">
+          <span data-i18n="common.connection.disconnected">Disconnected</span>
         </div>
-        <div class="card">
-          <h3 data-i18n="pairing.pairedDevices">Paired Devices</h3>
+      </header>
+
+      <div class="tab-scrollable">
+        <!-- Hero -->
+        <div class="pairing-hero">
+          <div class="pairing-hero-icon">🔗</div>
+          <h3 class="pairing-hero-title" data-i18n="pairing.title">Pair with Agent</h3>
+          <p class="pairing-hero-desc" data-i18n="pairing.description">Generate a code and paste it into your Agent to establish a secure connection.</p>
+        </div>
+
+        <!-- Code card -->
+        <div class="code-card" id="pair-code-display" style="display:none">
+          <div class="code-display" id="pair-code"></div>
+          <div class="code-countdown" id="pair-countdown"></div>
+        </div>
+
+        <!-- Generate button -->
+        <div class="pairing-btn-wrap" style="padding:16px 20px;">
+          <button id="btn-generate-code" class="btn-primary" data-i18n="pairing.generateCode">Generate New Code</button>
+        </div>
+
+        <!-- Connected agents -->
+        <div class="agents-section">
+          <div class="agents-section-header">CONNECTED AGENTS</div>
           <div id="paired-devices-list"></div>
         </div>
       </div>
+    </div>
 
-      <!-- Settings tab -->
-      <div id="tab-settings" class="tab-content">
-        <div class="card" id="settings-accounts-card" style="display: none;">
-          <h3 data-i18n="settings.accounts.title">Accounts</h3>
-          <p class="settings-hint" data-i18n="settings.accounts.hint">Nicknames are shown in the header account list.</p>
+    <!-- ── TAB: SETTINGS ────────────────────────────── -->
+    <div id="tab-settings" class="tab-content">
+      <header class="app-header">
+        <span class="header-title" data-i18n="common.tabs.settings">Settings</span>
+      </header>
+
+      <div class="tab-scrollable">
+
+        <!-- ACCOUNTS section -->
+        <div class="settings-section-header" data-i18n="settings.accounts.title">ACCOUNTS</div>
+        <div class="settings-group" id="settings-accounts-card">
           <div id="settings-account-nicknames"></div>
+          <button type="button" id="btn-new-sub-account-settings" class="add-row" data-i18n="settings.accounts.addAccount">
+            ＋ Add Account
+          </button>
         </div>
-        <div class="card">
-          <h3 data-i18n="settings.allowance.title">Allowance</h3>
-          <div class="form-group">
-            <label data-i18n="settings.allowance.dailyLimit">Daily Limit (USD)</label>
-            <input type="number" id="input-daily-limit" value="100">
+
+        <!-- SPENDING LIMITS section -->
+        <div class="settings-section-header">SPENDING LIMITS</div>
+        <div class="settings-group">
+          <div class="settings-row">
+            <span class="settings-row-label" data-i18n="settings.allowance.dailyLimit">Daily Limit (USD)</span>
+            <span class="settings-row-value">
+              <input type="number" id="input-daily-limit" value="100"
+                     style="width:80px;background:none;border:none;text-align:right;font-size:14px;color:var(--accent);font-family:inherit;outline:none;">
+            </span>
           </div>
-          <div class="form-group">
-            <label data-i18n="settings.allowance.perTxLimit">Per-Transaction Limit (USD)</label>
-            <input type="number" id="input-per-tx-limit" value="50">
+          <div class="settings-row">
+            <span class="settings-row-label" data-i18n="settings.allowance.perTxLimit">Per-Transaction Limit (USD)</span>
+            <span class="settings-row-value">
+              <input type="number" id="input-per-tx-limit" value="50"
+                     style="width:80px;background:none;border:none;text-align:right;font-size:14px;color:var(--accent);font-family:inherit;outline:none;">
+            </span>
           </div>
-          <button id="btn-save-allowance" class="btn primary" data-i18n="common.buttons.save">Save</button>
+          <div class="settings-row" style="cursor:default;">
+            <button id="btn-save-allowance" class="btn-primary" style="height:38px;font-size:13px;" data-i18n="common.buttons.save">Save Limits</button>
+          </div>
         </div>
-        <div class="card">
-          <h3 data-i18n="settings.lockMode.title">Lock Mode</h3>
-          <select id="select-lock-mode">
-            <option value="convenience" selected data-i18n="settings.lockMode.optionConvenience">Convenience (auto-sign within budget)</option>
-            <option value="strict" data-i18n="settings.lockMode.optionStrict">Strict (lock on idle)</option>
-          </select>
+
+        <!-- SECURITY section -->
+        <div class="settings-section-header">SECURITY</div>
+        <div class="settings-group">
+          <div class="settings-row">
+            <span class="settings-row-label" data-i18n="settings.lockMode.title">Lock Mode</span>
+            <select id="select-lock-mode" class="settings-select">
+              <option value="convenience" data-i18n="settings.lockMode.optionConvenience">Convenience</option>
+              <option value="strict" data-i18n="settings.lockMode.optionStrict">Strict</option>
+            </select>
+            <span class="settings-row-chevron">›</span>
+          </div>
+          <div class="settings-row" id="biometric-card" style="display:none;">
+            <span class="settings-row-label" id="biometric-label" data-i18n="settings.biometric.label">Touch ID / Biometrics</span>
+            <label class="ios-toggle">
+              <input type="checkbox" id="toggle-biometric">
+              <span class="ios-toggle-track"></span>
+            </label>
+          </div>
+          <div class="settings-row" id="btn-open-security-events">
+            <span class="settings-row-label" data-i18n="security.events.title">Security Events</span>
+            <span class="settings-badge" id="security-events-badge" style="display:none;"></span>
+            <span class="settings-row-chevron">›</span>
+          </div>
+          <div class="settings-row" id="btn-open-signing-history">
+            <span class="settings-row-label" data-i18n="security.history.title">Signing History</span>
+            <span class="settings-row-chevron">›</span>
+          </div>
         </div>
-        <div class="card" id="biometric-card" style="display:none">
-          <h3><span id="biometric-label">Biometrics</span></h3>
-          <label class="checkbox-label">
-            <input type="checkbox" id="toggle-biometric"> <span data-i18n="settings.biometric.enableUnlock">Enable biometric unlock</span>
-          </label>
+
+        <!-- WALLET section -->
+        <div class="settings-section-header">WALLET</div>
+        <div class="settings-group">
+          <div class="settings-row" id="btn-open-contacts">
+            <span class="settings-row-label" data-i18n="contactsPage.title">Contacts &amp; Address Book</span>
+            <span class="settings-row-chevron">›</span>
+          </div>
+          <div class="settings-row" style="cursor:default;">
+            <span class="settings-row-label">Language</span>
+            <select id="language-selector" class="settings-select">
+              <option value="en">English</option>
+              <option value="zh-CN">简体中文</option>
+            </select>
+            <span class="settings-row-chevron">›</span>
+          </div>
+          <div class="settings-row" id="btn-export-mnemonic-row">
+            <span class="settings-row-label" data-i18n="settings.export.button">Export Mnemonic</span>
+            <span class="settings-row-chevron">›</span>
+          </div>
         </div>
-        <div class="card">
-          <h3 data-i18n="settings.actions.title">Actions</h3>
-          <button id="btn-lock-wallet" class="btn secondary" data-i18n="settings.actions.lockWallet">Lock Wallet</button>
-          <button id="btn-export-mnemonic" class="btn ghost" data-i18n="settings.export.button">Export Mnemonic</button>
+
+        <!-- APPEARANCE section -->
+        <div class="settings-section-header" data-i18n="settings.appearance.theme">APPEARANCE</div>
+        <div class="settings-group">
+          <div class="settings-row" style="cursor:default;">
+            <span class="settings-row-label" data-i18n="settings.appearance.theme">Theme</span>
+            <div class="theme-segmented" id="theme-segmented">
+              <button class="theme-seg-btn" data-theme-val="system" data-i18n="settings.appearance.system">System</button>
+              <button class="theme-seg-btn" data-theme-val="light"  data-i18n="settings.appearance.light">Light</button>
+              <button class="theme-seg-btn" data-theme-val="dark"   data-i18n="settings.appearance.dark">Dark</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Lock wallet -->
+        <div style="padding:20px;">
+          <button id="btn-lock-wallet" class="btn-danger-outline" data-i18n="settings.actions.lockWallet">Lock Wallet</button>
+        </div>
+
+        <!-- Hidden export trigger (kept for app.js compatibility) -->
+        <button id="btn-export-mnemonic" style="display:none" data-i18n="settings.export.button">Export Mnemonic</button>
+      </div>
+
+      <!-- ── SUB-PAGE: Security Events ─────────────── -->
+      <div id="subpage-security-events" class="subpage">
+        <header class="subpage-header">
+          <button class="subpage-back" id="btn-close-security-events">‹</button>
+          <span class="subpage-title" data-i18n="security.events.title">Security Events</span>
+        </header>
+        <div class="subpage-body">
+          <div id="security-events-list"></div>
         </div>
       </div>
 
-      <!-- Security tab -->
-      <div id="tab-security" class="tab-content">
-        <div class="card">
-          <h3 data-i18n="security.events.title">Security Events</h3>
-          <div id="security-events-list"></div>
-        </div>
-        
-        <div class="card">
-          <h3 data-i18n="security.history.title">Signing History</h3>
-          <p style="color: #888; font-size: 12px;" data-i18n="security.history.subtitle">All signing decisions (auto-approved, manually approved, and rejected)</p>
+      <!-- ── SUB-PAGE: Signing History ─────────────── -->
+      <div id="subpage-signing-history" class="subpage">
+        <header class="subpage-header">
+          <button class="subpage-back" id="btn-close-signing-history">‹</button>
+          <span class="subpage-title" data-i18n="security.history.title">Signing History</span>
+        </header>
+        <div class="subpage-body">
           <div id="signing-history-list"></div>
         </div>
       </div>
 
-      <!-- Activity tab -->
-      <div id="tab-activity" class="tab-content">
-        <div class="card">
-          <h3 data-i18n="activity.title">Transaction Activity</h3>
-          
-          <!-- Filter Bar -->
-          <div class="activity-filters">
-            <button class="filter-btn active" data-filter="all" data-i18n="activity.filters.all">All</button>
-            <button class="filter-btn" data-filter="auto">🤖 <span data-i18n="activity.filters.auto">Auto</span></button>
-            <button class="filter-btn" data-filter="manual">👤 <span data-i18n="activity.filters.manual">Manual</span></button>
-            <button class="filter-btn" data-filter="rejected">❌ <span data-i18n="activity.filters.rejected">Rejected</span></button>
-            <button class="filter-btn" data-filter="pending">⏳ <span data-i18n="activity.filters.pending">Pending</span></button>
-            <button class="filter-btn" data-filter="failed">⛔ <span data-i18n="activity.filters.failed">Failed</span></button>
-            
-            <div style="margin-left: auto; display: flex; align-items: center; gap: 8px;">
-              <label style="font-size: 12px; color: var(--text-secondary);" data-i18n="activity.filters.network">Network:</label>
-              <select id="activity-network-filter" class="network-filter" style="padding: 4px 8px; font-size: 12px;">
-                <option value="all" data-i18n="activity.filters.allNetworks">All Networks</option>
-                <!-- Networks populated dynamically -->
-              </select>
-            </div>
-          </div>
-
-          <!-- Activity List -->
-          <div id="activity-list"></div>
-          
-          <!-- Load More -->
-          <div id="activity-load-more" style="text-align: center; margin-top: 20px; display: none;">
-            <button id="btn-load-more-activity" class="btn secondary" data-i18n="common.buttons.loadMore">Load More</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Contacts (address book + trusted flag for silent signing within limits) -->
-      <div id="tab-contacts" class="tab-content">
-        <div class="card">
-          <h3 data-i18n="contactsPage.title">Contacts</h3>
-          <p style="color: var(--text-secondary); font-size: 13px;" data-i18n="contactsPage.description">
-            Authoritative list from this device (Agent can propose adds — you choose normal, trusted, or reject in the popup).
-            Each contact is one address on one chain; trusted contacts may auto-sign within limits.
-          </p>
+      <!-- ── SUB-PAGE: Contacts ─────────────────────── -->
+      <div id="subpage-contacts" class="subpage">
+        <header class="subpage-header">
+          <button class="subpage-back" id="btn-close-contacts">‹</button>
+          <span class="subpage-title" data-i18n="contactsPage.title">Contacts</span>
+        </header>
+        <div class="subpage-body">
           <div id="contacts-list"></div>
         </div>
       </div>
     </div>
 
-    <!-- Transaction approval modal -->
-    <div id="modal-tx" class="modal" style="display:none">
-      <div class="modal-content">
-        <h3 data-i18n="modals.tx.title">Transaction Approval</h3>
-        <div id="tx-from-account-row" class="tx-from-account-badge" style="display: none;">
-          <span class="tx-from-label" data-i18n="modals.tx.fromAccountLabel">Signing account</span>
-          <span id="tx-from-account-text" class="tx-from-account-text"></span>
-        </div>
-        <div id="tx-details"></div>
-        <label id="tx-trust-wrap" class="checkbox-label" style="display:none; flex-direction: column; align-items: stretch; gap: 8px; margin: 12px 0;">
-          <span style="display:flex; align-items:center; gap:8px;">
-            <input type="checkbox" id="chk-trust-after-success">
-            <span data-i18n="modals.tx.trustCheckbox">After the transaction succeeds, add this recipient as a trusted contact (on-chain success required).</span>
-          </span>
-          <label id="tx-trust-name-wrap" style="display:none; font-weight: normal;">
-            <span data-i18n="modals.tx.trustNameLabel">Contact display name (required)</span>
-            <input type="text" id="input-trust-contact-name" data-i18n-placeholder="modals.tx.trustNamePlaceholder" placeholder="e.g. Exchange withdrawal" style="width:100%; margin-top:6px; padding:8px;">
-          </label>
+    <!-- Legacy tab divs (hidden — kept so app.js refs don't break) -->
+    <div id="tab-security" class="tab-content" style="display:none!important;"></div>
+    <div id="tab-contacts" class="tab-content" style="display:none!important;"></div>
+
+    <!-- ── BOTTOM TAB BAR ───────────────────────────── -->
+    <nav class="tab-bar-bottom">
+      <div class="tab-bar-pill">
+        <button class="tab-item active" data-tab="home">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span class="tab-label" data-i18n="common.tabs.home">Home</span>
+        </button>
+        <button class="tab-item" data-tab="activity">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span class="tab-label" data-i18n="common.tabs.activity">Activity</span>
+        </button>
+        <button class="tab-item" data-tab="pairing">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span class="tab-label" data-i18n="common.tabs.pairing">Pairing</span>
+        </button>
+        <button class="tab-item" data-tab="settings">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="tab-label" data-i18n="common.tabs.settings">Settings</span>
+        </button>
+      </div>
+    </nav>
+
+  </div><!-- /screen-main -->
+
+  <!-- ════════════════════════════════════════════════
+       TX APPROVAL — BOTTOM SHEET
+       ════════════════════════════════════════════════ -->
+  <div id="modal-tx" class="modal-overlay">
+    <div class="bottom-sheet">
+      <div class="sheet-drag-handle"></div>
+
+      <div id="tx-agent-chip" class="sheet-agent-chip" style="display:none;"></div>
+
+      <div class="sheet-title-row">
+        <h3 class="sheet-title" data-i18n="modals.tx.title">Transaction Request</h3>
+        <button type="button" id="btn-reject-tx" class="sheet-close">×</button>
+      </div>
+
+      <div id="tx-from-account-row" class="tx-from-account-badge" style="display:none;">
+        <span class="sheet-agent-chip">
+          <span class="tx-from-label" data-i18n="modals.tx.fromAccountLabel">Signing account: </span>
+          <span id="tx-from-account-text"></span>
+        </span>
+      </div>
+
+      <div id="tx-details"></div>
+
+      <label id="tx-trust-wrap" style="display:none;flex-direction:column;gap:8px;font-size:14px;color:var(--text-primary);">
+        <span style="display:flex;align-items:center;gap:8px;">
+          <input type="checkbox" id="chk-trust-after-success">
+          <span data-i18n="modals.tx.trustCheckbox">After success, add recipient as trusted contact</span>
+        </span>
+        <label id="tx-trust-name-wrap" style="display:none;">
+          <span data-i18n="modals.tx.trustNameLabel">Contact display name</span>
+          <input type="text" id="input-trust-contact-name" class="input-field"
+                 data-i18n-placeholder="modals.tx.trustNamePlaceholder"
+                 placeholder="e.g. Exchange withdrawal" style="margin-top:6px;">
         </label>
-        <div class="modal-actions modal-actions-tx">
-          <button type="button" id="btn-tx-switch-view" class="btn secondary" style="display: none;" data-i18n="modals.tx.switchAndView">Switch &amp; View</button>
-          <button type="button" id="btn-approve-tx" class="btn primary" data-i18n="modals.tx.approve">Approve</button>
-          <button type="button" id="btn-reject-tx" class="btn danger" data-i18n="modals.tx.reject">Reject</button>
-        </div>
-      </div>
-    </div>
+      </label>
 
-    <!-- Agent contact add: normal / trusted / reject -->
-    <div id="modal-contact-add" class="modal" style="display:none">
-      <div class="modal-content">
-        <h3 data-i18n="modals.contactAdd.title">Add contact</h3>
-        <p id="contact-add-summary" style="font-size: 14px; color: var(--text-secondary);"></p>
-        <div class="modal-actions" style="flex-direction: column; gap: 8px;">
-          <button type="button" id="btn-contact-add-normal" class="btn secondary" data-i18n="modals.contactAdd.normal">Add as regular contact</button>
-          <button type="button" id="btn-contact-add-trusted" class="btn primary" data-i18n="modals.contactAdd.trusted">Add as trusted contact</button>
-          <button type="button" id="btn-contact-add-reject" class="btn danger" data-i18n="modals.contactAdd.reject">Reject</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- New sub-account (Electron has no window.prompt in renderer) -->
-    <div id="modal-new-account" class="modal" style="display:none">
-      <div class="modal-content">
-        <h3 data-i18n="settings.accounts.newAccountModalTitle">Add account</h3>
-        <p class="settings-hint" data-i18n="settings.accounts.newNicknamePrompt">Optional nickname for the new account.</p>
-        <input type="text" id="input-new-account-nick" data-i18n-placeholder="settings.accounts.newNicknamePrompt" placeholder="Nickname (optional)" autocomplete="off">
-        <div class="modal-actions">
-          <button type="button" id="btn-new-account-confirm" class="btn primary" data-i18n="common.buttons.create">Create</button>
-          <button type="button" id="btn-new-account-cancel" class="btn secondary" data-i18n="common.buttons.cancel">Cancel</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Export mnemonic (password-gated) -->
-    <div id="modal-export" class="modal" style="display:none">
-      <div class="modal-content modal-export-wide">
-        <h3 data-i18n="modals.export.title">Export mnemonic</h3>
-        <p class="warning" data-i18n="modals.export.warning">Anyone with these words can control your wallet. Use in a private place.</p>
-        <input type="password" id="input-export-password" data-i18n-placeholder="modals.export.passwordPlaceholder" placeholder="Wallet password" autocomplete="off">
-        <div id="export-error" class="error"></div>
-        <div id="export-mnemonic-display" class="mnemonic-grid" style="display:none"></div>
-        <div class="modal-actions">
-          <button type="button" id="btn-export-confirm" class="btn primary" data-i18n="modals.export.reveal">Reveal</button>
-          <button type="button" id="btn-export-cancel" class="btn secondary" data-i18n="modals.export.close">Close</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Security alert modal -->
-    <div id="modal-alert" class="modal" style="display:none">
-      <div class="modal-content">
-        <h3 class="warning" data-i18n="modals.alert.title">⚠ Security alert</h3>
-        <p id="alert-message"></p>
-        <div class="modal-actions">
-          <button id="btn-alert-freeze" class="btn danger" data-i18n="modals.alert.freeze">Freeze (30 min)</button>
-          <button id="btn-alert-allow" class="btn secondary" data-i18n="modals.alert.allowOnce">Allow once</button>
-          <button id="btn-alert-trust" class="btn ghost" data-i18n="modals.alert.trustDevice">Trust new device</button>
-        </div>
+      <div class="sheet-actions">
+        <button type="button" id="btn-tx-switch-view" class="btn-outline" style="display:none;height:44px;" data-i18n="modals.tx.switchAndView">Switch &amp; View</button>
+        <button type="button" id="btn-approve-tx" class="btn-primary" data-i18n="modals.tx.approve">Approve</button>
+        <button type="button" id="btn-reject-tx-confirm" class="btn-danger-outline" data-i18n="modals.tx.reject">Reject</button>
       </div>
     </div>
   </div>
 
-  <script type="module" src="app.js"></script>
+  <!-- ════════════════════════════════════════════════
+       MODALS
+       ════════════════════════════════════════════════ -->
+
+  <!-- Contact add: normal / trusted / reject -->
+  <div id="modal-contact-add" class="modal">
+    <div class="modal-box">
+      <h3 data-i18n="modals.contactAdd.title">Add Contact</h3>
+      <p id="contact-add-summary" style="font-size:14px;color:var(--text-secondary);"></p>
+      <div class="modal-actions" style="flex-direction:column;gap:8px;">
+        <button type="button" id="btn-contact-add-normal" class="btn-outline" style="height:44px;" data-i18n="modals.contactAdd.normal">Add as regular contact</button>
+        <button type="button" id="btn-contact-add-trusted" class="btn-primary" style="height:44px;" data-i18n="modals.contactAdd.trusted">Add as trusted contact</button>
+        <button type="button" id="btn-contact-add-reject" class="btn-danger-outline" style="height:44px;" data-i18n="modals.contactAdd.reject">Reject</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- New sub-account -->
+  <div id="modal-new-account" class="modal">
+    <div class="modal-box">
+      <h3 data-i18n="settings.accounts.newAccountModalTitle">Add Account</h3>
+      <p style="font-size:14px;color:var(--text-secondary);" data-i18n="settings.accounts.newNicknamePrompt">Optional nickname for the new account.</p>
+      <input type="text" id="input-new-account-nick" class="input-field"
+             data-i18n-placeholder="settings.accounts.newNicknamePrompt"
+             placeholder="Nickname (optional)" autocomplete="off">
+      <div class="modal-actions">
+        <button type="button" id="btn-new-account-confirm" class="btn-primary" style="height:44px;" data-i18n="common.buttons.create">Create</button>
+        <button type="button" id="btn-new-account-cancel" class="btn-outline" style="height:44px;" data-i18n="common.buttons.cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export mnemonic -->
+  <div id="modal-export" class="modal">
+    <div class="modal-box">
+      <h3 data-i18n="modals.export.title">Export Mnemonic</h3>
+      <p style="color:var(--warning);font-size:13px;" data-i18n="modals.export.warning">Anyone with these words can control your wallet. Use in a private place.</p>
+      <input type="password" id="input-export-password" class="input-field"
+             data-i18n-placeholder="modals.export.passwordPlaceholder"
+             placeholder="Wallet password" autocomplete="off">
+      <div id="export-error" class="error" style="color:var(--danger);font-size:13px;"></div>
+      <div id="export-mnemonic-display" class="mnemonic-grid" style="display:none"></div>
+      <div class="modal-actions">
+        <button type="button" id="btn-export-confirm" class="btn-primary" style="height:44px;" data-i18n="modals.export.copy">Copy mnemonic</button>
+        <button type="button" id="btn-export-cancel" class="btn-outline" style="height:44px;" data-i18n="modals.export.close">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Biometric password confirmation -->
+  <div id="modal-biometric-password" class="modal">
+    <div class="modal-box">
+      <h3 data-i18n="settings.biometric.enableUnlock">Enable Biometric Unlock</h3>
+      <p style="font-size:13px;color:var(--text-secondary);margin-bottom:4px;" data-i18n="errors.biometric.promptPassword">Enter your wallet password to enable biometric unlock.</p>
+      <input type="password" id="input-biometric-password" class="input-field"
+             data-i18n-placeholder="modals.export.passwordPlaceholder" placeholder="Wallet password" autocomplete="off">
+      <div id="biometric-password-error" style="color:var(--danger);font-size:13px;min-height:18px;"></div>
+      <div class="modal-actions">
+        <button type="button" id="btn-biometric-confirm" class="btn-primary" style="height:44px;" data-i18n="common.buttons.confirm">Confirm</button>
+        <button type="button" id="btn-biometric-cancel" class="btn-outline" style="height:44px;" data-i18n="common.buttons.cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Security alert -->
+  <div id="modal-alert" class="modal">
+    <div class="modal-box">
+      <h3 style="color:var(--warning);" data-i18n="modals.alert.title">⚠ Security Alert</h3>
+      <p id="alert-message" style="font-size:14px;color:var(--text-primary);"></p>
+      <div class="modal-actions" style="flex-direction:column;gap:8px;">
+        <button id="btn-alert-freeze" class="btn-danger-outline" style="height:44px;" data-i18n="modals.alert.freeze">Freeze (30 min)</button>
+        <button id="btn-alert-allow" class="btn-outline" style="height:44px;" data-i18n="modals.alert.allowOnce">Allow once</button>
+        <button id="btn-alert-trust" class="btn-ghost" data-i18n="modals.alert.trustDevice">Trust new device</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /app -->
+
+<script type="module" src="app.js"></script>
 </body>
 </html>

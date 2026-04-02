@@ -7,6 +7,7 @@
     "title": "Signing History",
     "subtitle": "All signing decisions (auto-approved, manually approved, and rejected)",
     "noHistory": "No signing history",
+    "noHistoryHint": "Signing records will appear here",
     "filters": {
       "all": "All",
       "auto": "Auto",

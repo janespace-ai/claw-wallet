@@ -1,6 +1,7 @@
 {
   "accounts": {
     "title": "账户",
+    "addAccount": "+ 添加账户",
     "hint": "昵称会显示在顶部账户列表中。",
     "newNicknamePrompt": "新账户昵称（可留空使用默认）：",
     "newAccountModalTitle": "添加账户"
@@ -21,6 +22,12 @@
   },
   "biometric": {
     "enableUnlock": "启用生物识别解锁"
+  },
+  "appearance": {
+    "theme": "主题",
+    "system": "跟随系统",
+    "light": "亮色",
+    "dark": "暗色"
   },
   "actions": {
     "title": "操作",

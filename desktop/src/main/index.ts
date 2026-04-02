@@ -136,6 +136,13 @@ function listWalletAccountsForRenderer(): Array<{
   }));
 }
 
+/** Safely send an IPC message to the renderer, guarding against destroyed windows. */
+function sendToRenderer(channel: string, ...args: unknown[]): void {
+  if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDestroyed()) {
+    mainWindow.webContents.send(channel, ...args);
+  }
+}
+
 function createWindow(): void {
   const base = app.getAppPath();
   mainWindow = new BrowserWindow({
@@ -150,6 +157,7 @@ function createWindow(): void {
       sandbox: true,
     },
     titleBarStyle: "hiddenInset",
+    icon: join(base, "assets", "icon.png"),
     show: false,
   });
 
@@ -213,9 +221,9 @@ function registerIpcHandlers(): void {
     syncWalletAccountsAfterUnlock();
     lockManager.onUnlock();
     await relayBridge?.refreshChannels();
-    mainWindow?.webContents.send("wallet:lock-state", false);
+    sendToRenderer("wallet:lock-state", false);
     if (keyManager.canEnableBiometric() && !keyManager.isBiometricAvailable()) {
-      mainWindow?.webContents.send("wallet:biometric-prompt", password);
+      sendToRenderer("wallet:biometric-prompt", password);
     }
   });
 
@@ -224,12 +232,12 @@ function registerIpcHandlers(): void {
     syncWalletAccountsAfterUnlock();
     lockManager.onUnlock();
     await relayBridge?.refreshChannels();
-    mainWindow?.webContents.send("wallet:lock-state", false);
+    sendToRenderer("wallet:lock-state", false);
   });
 
   ipcMain.handle("wallet:lock", async () => {
     lockManager.lock();
-    mainWindow?.webContents.send("wallet:lock-state", true);
+    sendToRenderer("wallet:lock-state", true);
   });
 
   ipcMain.handle("wallet:status", async () => {
@@ -273,7 +281,7 @@ function registerIpcHandlers(): void {
     await messageRouter?.processQueuedMessages(index);
     balanceService.clearCache();
     const addr = keyManager.getAddress();
-    mainWindow?.webContents.send("wallet:account-changed", {
+    sendToRenderer("wallet:account-changed", {
       address: addr,
       accountIndex: index,
     });
@@ -490,18 +498,18 @@ app.whenReady().then(async () => {
   });
   messageRouter.on("sign-request", (payload) => {
     console.log("[desktop] Showing tx approval modal for", (payload as { requestId?: string }).requestId);
-    mainWindow?.show();
-    mainWindow?.webContents.send("wallet:tx-request", payload);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+    sendToRenderer("wallet:tx-request", payload);
   });
   messageRouter.on("contact-request", (payload) => {
     console.log("[desktop] Contact add request", (payload as { requestId?: string }).requestId);
-    mainWindow?.show();
-    mainWindow?.webContents.send("wallet:contact-add-request", payload);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
+    sendToRenderer("wallet:contact-add-request", payload);
   });
   messageRouter.on("security-alert", (payload) => {
     securityMonitor.registerPendingAlert(payload as { alertId: string; type: string; timestamp: number });
-    mainWindow?.webContents.send("wallet:security-alert", payload);
-    mainWindow?.show();
+    sendToRenderer("wallet:security-alert", payload);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.show();
   });
 
   registerIpcHandlers();
@@ -565,14 +573,14 @@ app.whenReady().then(async () => {
       };
     },
     onConnectionStatus: (status) => {
-      mainWindow?.webContents.send("wallet:connection-status", status);
+      sendToRenderer("wallet:connection-status", status);
     },
   });
 
   syncMessageRouterActiveAccount();
 
   lockManager.onLock(() => {
-    mainWindow?.webContents.send("wallet:lock-state", true);
+    sendToRenderer("wallet:lock-state", true);
   });
 });
 
@@ -588,7 +596,7 @@ app.on("window-all-closed", () => {
   app.quit();
 });
 
-app.on("before-quit", async () => {
+app.on("before-quit", () => {
   rpcProviderManager.stopHealthChecks();
   txSyncService.stopPeriodicSync();
   relayBridge?.shutdown();

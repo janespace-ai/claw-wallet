@@ -28,7 +28,7 @@ test.describe("截图与交互", () => {
       await waitForAppReady(window);
 
       await expect(window.locator("#screen-setup.screen.active")).toBeVisible();
-      await expect(window.locator("#header h1")).toHaveText("Claw Wallet");
+      await expect(window.locator("#screen-setup .app-name")).toHaveText("Claw Wallet");
 
       await window.screenshot({ path: path.join(screenshotDir, "01-setup.png"), fullPage: true });
       await expect(window).toHaveScreenshot("baseline-01-setup.png", {
@@ -93,27 +93,32 @@ test.describe("截图与交互", () => {
       await window.click("#btn-refresh-balances");
       await new Promise((r) => setTimeout(r, 800));
 
-      await window.click('.tab[data-tab="pairing"]');
+      await window.click('.tab-item[data-tab="pairing"]');
       await expect(window.locator("#tab-pairing.tab-content.active")).toBeVisible();
       await window.screenshot({ path: path.join(screenshotDir, "04-pairing.png"), fullPage: true });
 
-      await window.click('.tab[data-tab="settings"]');
+      await window.click('.tab-item[data-tab="settings"]');
       await expect(window.locator("#tab-settings.tab-content.active")).toBeVisible();
       await window.screenshot({ path: path.join(screenshotDir, "05-settings.png"), fullPage: true });
 
-      await window.click('.tab[data-tab="security"]');
-      await expect(window.locator("#tab-security.tab-content.active")).toBeVisible();
-      await window.screenshot({ path: path.join(screenshotDir, "06-security.png"), fullPage: true });
+      // Security Events is now a sub-page within Settings
+      await window.click("#btn-open-security-events");
+      await expect(window.locator("#subpage-security-events.active")).toBeVisible();
+      await window.screenshot({ path: path.join(screenshotDir, "06-security-events.png"), fullPage: true });
+      await window.click("#btn-close-security-events");
 
-      await window.click('.tab[data-tab="activity"]');
+      await window.click('.tab-item[data-tab="activity"]');
       await expect(window.locator("#tab-activity.tab-content.active")).toBeVisible();
       await window.screenshot({ path: path.join(screenshotDir, "07-activity.png"), fullPage: true });
 
-      await window.click('.tab[data-tab="contacts"]');
-      await expect(window.locator("#tab-contacts.tab-content.active")).toBeVisible();
+      // Contacts is now a sub-page within Settings
+      await window.click('.tab-item[data-tab="settings"]');
+      await window.click("#btn-open-contacts");
+      await expect(window.locator("#subpage-contacts.active")).toBeVisible();
       await window.screenshot({ path: path.join(screenshotDir, "08-contacts.png"), fullPage: true });
+      await window.click("#btn-close-contacts");
 
-      await window.click('.tab[data-tab="home"]');
+      await window.click('.tab-item[data-tab="home"]');
       await expect(window.locator("#tab-home.tab-content.active")).toBeVisible();
     } finally {
       try {
@@ -148,8 +153,8 @@ test.describe("截图与交互", () => {
       const testPassword = "ExportTest1!";
       await completeOnboarding(window, testPassword);
 
-      await window.click('.tab[data-tab="settings"]');
-      await window.click("#btn-export-mnemonic");
+      await window.click('.tab-item[data-tab="settings"]');
+      await window.click("#btn-export-mnemonic-row");
       await expect(window.locator("#modal-export")).toBeVisible();
       await window.fill("#input-export-password", "wrong-password");
       await window.click("#btn-export-confirm");
@@ -185,7 +190,7 @@ test.describe("截图与交互", () => {
       await waitForAppReady(window);
       await completeOnboarding(window, testPassword);
 
-      await window.click('.tab[data-tab="settings"]');
+      await window.click('.tab-item[data-tab="settings"]');
       await window.click("#btn-lock-wallet");
       await expect(window.locator("#screen-unlock.screen.active")).toBeVisible({ timeout: 15_000 });
       await window.screenshot({ path: path.join(screenshotDir, "12-unlock.png"), fullPage: true });

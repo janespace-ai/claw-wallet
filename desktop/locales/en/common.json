@@ -56,8 +56,10 @@
   "home": {
     "portfolioValue": "Total Portfolio Value",
     "balances": "Balances",
+    "hideZero": "Hide zero balances",
     "noPendingTx": "No pending transactions",
     "noBalances": "No balances found",
+    "noBalancesHint": "Try refreshing or switching networks",
     "allBalancesZero": "All balances are zero",
     "priceUnavailable": "Price unavailable"
   },

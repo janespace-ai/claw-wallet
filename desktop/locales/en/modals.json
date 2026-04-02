@@ -35,6 +35,7 @@
     "warning": "Anyone with these words can control your wallet. Use in a private place.",
     "passwordPlaceholder": "Wallet password",
     "reveal": "Reveal",
+    "copy": "Copy mnemonic",
     "close": "Close"
   },
   "alert": {

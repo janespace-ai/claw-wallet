@@ -56,8 +56,10 @@
   "home": {
     "portfolioValue": "总资产价值",
     "balances": "余额",
+    "hideZero": "隐藏零余额",
     "noPendingTx": "无待处理交易",
     "noBalances": "未找到余额",
+    "noBalancesHint": "尝试刷新或切换网络",
     "allBalancesZero": "余额均为零",
     "priceUnavailable": "价格不可用"
   },

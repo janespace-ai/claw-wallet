@@ -110,15 +110,18 @@ async function loadWalletBalances(address) {
   const balancesList = document.getElementById("balances-list");
   const portfolioValueDisplay = document.getElementById("portfolio-value");
 
-  balancesList.innerHTML = `<div class="loading">${tKey('common.messages.loading')}</div>`;
-  portfolioValueDisplay.textContent = tKey('common.messages.loading');
+  balancesList.innerHTML = buildBalanceSkeleton();
+  portfolioValueDisplay.innerHTML = '<span class="sk" style="display:inline-block;width:140px;height:36px;border-radius:8px;vertical-align:middle;"></span>';
+  const portfolioChangeDisplay = document.getElementById("portfolio-change");
+  if (portfolioChangeDisplay) portfolioChangeDisplay.style.display = "none";
 
   try {
     const balances = await wapi().getWalletBalances(address);
     
     if (!balances || balances.length === 0) {
-      balancesList.innerHTML = `<p style="color: #888;">${tKey('common.home.noBalances')}</p>`;
+      balancesList.innerHTML = buildBalanceEmptyState();
       portfolioValueDisplay.textContent = "$0.00";
+      document.getElementById("empty-state-refresh-btn")?.addEventListener("click", () => loadWalletBalances(address));
       return;
     }
 
@@ -144,11 +147,35 @@ function initializeNetworkFilter() {
 
   if (networkFilter) {
     networkFilter.addEventListener('change', () => {
+      // Sync active chip to match hidden select
+      const val = networkFilter.value;
+      document.querySelectorAll('#network-chips-row .chip').forEach(chip => {
+        const net = chip.dataset.network;
+        chip.classList.toggle('active',
+          val === 'all' ? net === 'all' : net.toLowerCase() === val.toLowerCase());
+      });
       if (currentBalances.length > 0) {
         renderBalances(currentBalances, currentPrices);
       }
     });
   }
+
+  // Wire home network chips → hidden select
+  document.querySelectorAll('#network-chips-row .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      if (!networkFilter) return;
+      const net = chip.dataset.network;
+      if (net === 'all') {
+        networkFilter.value = 'all';
+      } else {
+        const match = Array.from(networkFilter.options).find(
+          o => o.value.toLowerCase() === net.toLowerCase()
+        );
+        networkFilter.value = match ? match.value : net;
+      }
+      networkFilter.dispatchEvent(new Event('change'));
+    });
+  });
 
   if (hideZeroBalances) {
     hideZeroBalances.addEventListener('change', () => {
@@ -249,7 +276,7 @@ function renderBalances(balances, prices) {
   const hideZeroBalances = document.getElementById('hide-zero-balances');
   
   if (!balances || balances.length === 0) {
-    balancesList.innerHTML = `<p style="color: #888;">${tKey("common.home.noBalances")}</p>`;
+    balancesList.innerHTML = buildBalanceEmptyState();
     return;
   }
 
@@ -272,7 +299,7 @@ function renderBalances(balances, prices) {
   }
 
   if (filteredBalances.length === 0) {
-    balancesList.innerHTML = `<p style="color: #888;">${tKey("common.home.noBalances")}</p>`;
+    balancesList.innerHTML = buildBalanceEmptyState();
     return;
   }
 
@@ -294,39 +321,23 @@ function renderBalances(balances, prices) {
       // Single network or multiple?
       const isMultiNetwork = token.networks.length > 1;
 
-      const networkBreakdown = token.networks.map(network => {
-        const amount = parseFloat(network.amount);
-        const networkUsd = hasPrice ? (amount * price).toFixed(2) : null;
-        const icon = getNetworkIcon(network.chainName);
-        
-        return `
-          <div class="network-balance">
-            <div class="network-name">
-              <span class="network-icon">${icon}</span>
-              <span>${escapeHtml(network.chainName)}</span>
-            </div>
-            <div class="balance-amount">
-              <div class="balance-amount-crypto">${amount.toFixed(6)} ${escapeHtml(token.symbol)}</div>
-              ${hasPrice && networkUsd ? `<div class="balance-amount-usd">$${networkUsd}</div>` : ''}
-            </div>
-          </div>
-        `;
-      }).join('');
+      const networkLabel = isMultiNetwork
+        ? token.networks.map(n => escapeHtml(n.chainName)).join(' · ')
+        : escapeHtml(token.networks[0].chainName);
+
+      const iconText = escapeHtml(token.symbol.slice(0, 3));
 
       return `
-        <div class="balance-item ${isMultiNetwork ? 'multi-network' : ''}" data-symbol="${escapeHtml(token.symbol)}" onclick="toggleBalanceExpand(this)">
-          <div class="balance-row">
-            <div class="balance-token">
-              <span style="font-weight: 600;">${escapeHtml(token.symbol)}</span>
-              ${!isMultiNetwork ? `<span class="network-badge ${getNetworkClass(token.networks[0].chainName)}">${getNetworkIcon(token.networks[0].chainName)} ${escapeHtml(token.networks[0].chainName)}</span>` : ''}
-              ${isMultiNetwork ? `<span class="expand-toggle">▶</span>` : ''}
-            </div>
-            <div class="balance-amount">
-              <div class="balance-amount-crypto">${totalAmount.toFixed(6)}</div>
-              ${hasPrice && totalUsd ? `<div class="balance-amount-usd">$${totalUsd}</div>` : ''}
-            </div>
+        <div class="balance-row" data-symbol="${escapeHtml(token.symbol)}">
+          <div class="balance-token-icon">${iconText}</div>
+          <div class="balance-info">
+            <div class="balance-token-name">${escapeHtml(token.symbol)}</div>
+            <div class="balance-network">${networkLabel}</div>
           </div>
-          ${isMultiNetwork ? `<div class="balance-breakdown">${networkBreakdown}</div>` : ''}
+          <div class="balance-amounts">
+            <div class="balance-amount">${totalAmount.toFixed(6)}</div>
+            ${hasPrice && totalUsd ? `<div class="balance-usd">$${totalUsd}</div>` : `<div class="balance-usd">${tKey('common.home.priceUnavailable')}</div>`}
+          </div>
         </div>
       `;
     })
@@ -334,7 +345,7 @@ function renderBalances(balances, prices) {
     .join('');
 
   if (!balancesList.innerHTML.trim()) {
-    balancesList.innerHTML = `<p style="color: #888;">${tKey("common.home.allBalancesZero")}</p>`;
+    balancesList.innerHTML = buildBalanceEmptyState();
   }
 }
 
@@ -356,6 +367,80 @@ function renderMnemonicWords(container, mnemonic) {
         `<div class="word"><span class="num">${i + 1}</span> ${escapeHtml(w)}</div>`
     )
     .join("");
+}
+
+/* ── Empty state (no balances) ────────────────────────────── */
+function buildBalanceEmptyState() {
+  const walletSvg = `<svg viewBox="0 0 24 24" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"/><path d="M20 12v4H6a2 2 0 0 0-2 2c0 1.1.9 2 2 2h14v-4"/><line x1="20" y1="12" x2="4" y2="12"/></svg>`;
+  const refreshSvg = `<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
+  return `
+    <div class="empty-state">
+      <div class="empty-state-icon">${walletSvg}</div>
+      <div class="empty-state-title">${escapeHtml(tKey('common.home.noBalances'))}</div>
+      <div class="empty-state-desc">${escapeHtml(tKey('common.home.noBalancesHint'))}</div>
+      <button class="empty-state-btn" id="empty-state-refresh-btn">
+        ${refreshSvg} ${escapeHtml(tKey('common.buttons.refresh'))}
+      </button>
+    </div>`;
+}
+
+/* ── Biometric password modal (replaces unsupported prompt()) ── */
+function promptBiometricPassword() {
+  return new Promise((resolve) => {
+    const modal = document.getElementById("modal-biometric-password");
+    const input = document.getElementById("input-biometric-password");
+    const err   = document.getElementById("biometric-password-error");
+    input.value = "";
+    if (err) err.textContent = "";
+    modal.classList.add("active");
+    input.focus();
+    window._biometricResolve = resolve;
+    window._biometricReject  = () => resolve(null);
+  });
+}
+
+/* ── Skeleton helpers ──────────────────────────────────────── */
+function buildBalanceSkeleton() {
+  const rows = [
+    { name: 48, net: 96,  amt: 72, usd: 48 },
+    { name: 56, net: 112, amt: 60, usd: 40 },
+    { name: 52, net: 80,  amt: 80, usd: 44 },
+  ];
+  return rows.map(r => `
+    <div class="skeleton-balance-row">
+      <div class="skeleton-row-left">
+        <div class="sk" style="width:40px;height:40px;border-radius:10px;flex-shrink:0;"></div>
+        <div class="skeleton-row-texts">
+          <div class="sk"     style="width:${r.name}px;height:13px;"></div>
+          <div class="sk-dim" style="width:${r.net}px;height:11px;"></div>
+        </div>
+      </div>
+      <div class="skeleton-row-right">
+        <div class="sk"     style="width:${r.amt}px;height:13px;"></div>
+        <div class="sk-dim" style="width:${r.usd}px;height:11px;"></div>
+      </div>
+    </div>`).join('');
+}
+
+function buildActivitySkeleton() {
+  const rows = [
+    { icon: 32, label: 80,  meta: 120, amt: 72, usd: 44 },
+    { icon: 32, label: 64,  meta: 96,  amt: 56, usd: 36 },
+    { icon: 32, label: 96,  meta: 80,  amt: 80, usd: 48 },
+    { icon: 32, label: 72,  meta: 110, amt: 64, usd: 40 },
+  ];
+  return rows.map(r => `
+    <div class="skeleton-activity-row">
+      <div class="sk" style="width:${r.icon}px;height:${r.icon}px;border-radius:50%;flex-shrink:0;"></div>
+      <div class="skeleton-activity-info">
+        <div class="sk"     style="width:${r.label}px;height:13px;"></div>
+        <div class="sk-dim" style="width:${r.meta}px;height:11px;"></div>
+      </div>
+      <div class="skeleton-activity-right">
+        <div class="sk"     style="width:${r.amt}px;height:13px;"></div>
+        <div class="sk-dim" style="width:${r.usd}px;height:11px;"></div>
+      </div>
+    </div>`).join('');
 }
 
 function escapeHtml(s) {
@@ -381,6 +466,7 @@ async function refreshAccountHeader() {
     const accounts = await wapi().listWalletAccounts();
     wrap.style.display = "flex";
     sel.innerHTML = "";
+    const active = accounts.find(a => a.isActive) || accounts[0];
     for (const a of accounts) {
       const opt = document.createElement("option");
       opt.value = String(a.index);
@@ -391,6 +477,11 @@ async function refreshAccountHeader() {
     }
     btnNew.disabled = accounts.length >= 10;
     btnNew.title = accounts.length >= 10 ? tKey("common.accounts.maxReached") : "";
+    // Update pill avatar + name in new header
+    const pillEl = document.getElementById("account-avatar-pill");
+    const nameEl = document.getElementById("account-header-name");
+    if (active && pillEl) pillEl.textContent = (active.nickname || "A")[0].toUpperCase();
+    if (active && nameEl) nameEl.textContent = active.nickname || truncateEthAddress(active.address);
   } catch (e) {
     console.error("refreshAccountHeader:", e);
     wrap.style.display = "none";
@@ -405,30 +496,20 @@ async function renderSettingsAccountsCard() {
     const accounts = await wapi().listWalletAccounts();
     card.style.display = "block";
     list.innerHTML = accounts
-      .map(
-        (a) => `
+      .map((a) => {
+        const label = a.nickname || `Account ${a.index}`;
+        const initials = label.slice(0, 2).toUpperCase();
+        return `
       <div class="settings-account-row" data-index="${a.index}">
-        <span class="settings-account-addr">${escapeHtml(truncateEthAddress(a.address))}</span>
-        <input type="text" class="input-nick" data-index="${a.index}" value="${escapeHtml(a.nickname)}" />
-        <button type="button" class="btn ghost btn-sm btn-save-nick" data-index="${a.index}">${escapeHtml(tKey("common.buttons.save"))}</button>
-      </div>`,
-      )
+        <div class="settings-account-avatar">${escapeHtml(initials)}</div>
+        <div class="settings-account-info">
+          <span class="settings-account-name">${escapeHtml(label)}</span>
+          <span class="settings-account-addr">${escapeHtml(truncateEthAddress(a.address))}</span>
+        </div>
+        <span class="settings-row-chevron">›</span>
+      </div>`;
+      })
       .join("");
-    list.querySelectorAll(".btn-save-nick").forEach((btn) => {
-      btn.onclick = async () => {
-        const idx = parseInt(btn.getAttribute("data-index"), 10);
-        const row = btn.closest(".settings-account-row");
-        const inp = row && row.querySelector(".input-nick");
-        if (!inp) return;
-        try {
-          await wapi().updateWalletAccountNickname(idx, inp.value);
-          await refreshAccountHeader();
-          await renderSettingsAccountsCard();
-        } catch (err) {
-          alert(err.message || String(err));
-        }
-      };
-    });
   } catch (e) {
     console.error("renderSettingsAccountsCard:", e);
     card.style.display = "none";
@@ -494,7 +575,7 @@ function showTxApprovalModal(req) {
     btnSwitch.style.display = "none";
   }
 
-  document.getElementById("modal-tx").style.display = "flex";
+  document.getElementById("modal-tx").classList.add("active");
 }
 
 function toggleBalanceExpand(element) {
@@ -536,7 +617,7 @@ async function syncSettingsFromStatus(status) {
     const canEnable = await wapi().canEnableBiometric();
     const bioCard = document.getElementById("biometric-card");
     if (canEnable) {
-      bioCard.style.display = "block";
+      bioCard.style.display = "flex";
       const bioAvailable = await wapi().getBiometricAvailable();
       document.getElementById("toggle-biometric").checked = bioAvailable;
       const label = await wapi().getBiometricLabel();
@@ -646,31 +727,30 @@ function setupEventListeners() {
     }
   };
 
-  // Tabs
-  document.querySelectorAll(".tab").forEach(tab => {
+  // Tabs (bottom pill bar — 4 tabs: home, activity, pairing, settings)
+  document.querySelectorAll(".tab-item").forEach(tab => {
     tab.onclick = async () => {
-      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".tab-item").forEach(t => t.classList.remove("active"));
       document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
       tab.classList.add("active");
-      document.getElementById(`tab-${tab.dataset.tab}`).classList.add("active");
+      const tabEl = document.getElementById(`tab-${tab.dataset.tab}`);
+      if (tabEl) tabEl.classList.add("active");
 
       if (tab.dataset.tab === "home") {
         const status = await wapi().getStatus();
         if (status.address) {
           void syncHomeNetworkFilterFromConfig().finally(() => loadWalletBalances(status.address));
         }
-      } else if (tab.dataset.tab === "security") {
-        loadSecurityEvents();
-        loadSigningHistory();
       } else if (tab.dataset.tab === "activity") {
         loadActivityRecords(currentActivityFilter, true);
-      } else if (tab.dataset.tab === "contacts") {
-        loadDesktopContacts();
       } else if (tab.dataset.tab === "pairing") {
         loadPairedDevices();
         void refreshPairingCodeFromMain().catch((e) => console.error(e));
       } else if (tab.dataset.tab === "settings") {
         renderSettingsAccountsCard().catch((e) => console.error(e));
+        loadSecurityEvents();
+        loadSigningHistory();
+        loadDesktopContacts();
       }
     };
   });
@@ -731,21 +811,37 @@ function setupEventListeners() {
   };
 
   document.getElementById("toggle-biometric").onchange = async (e) => {
-    try {
-      if (e.target.checked) {
-        const password = prompt(tKey("errors.biometric.promptPassword"));
-        if (!password) {
-          e.target.checked = false;
-          return;
-        }
-        await wapi().setBiometricEnabled(true, password);
-      } else {
-        await wapi().setBiometricEnabled(false);
+    const toggle = e.target;
+    if (!toggle.checked) {
+      try { await wapi().setBiometricEnabled(false); } catch (err) {
+        toggle.checked = true;
+        showToast(err.message || tKey("errors.biometric.changeFailed"));
       }
-    } catch (err) {
-      e.target.checked = !e.target.checked;
-      alert(err.message || tKey("errors.biometric.changeFailed"));
+      return;
     }
+    // Enabling — ask for password via custom modal (prompt() not supported in Electron)
+    toggle.checked = false; // revert until confirmed
+    const password = await promptBiometricPassword();
+    if (!password) return;
+    try {
+      await wapi().setBiometricEnabled(true, password);
+      toggle.checked = true;
+    } catch (err) {
+      showToast(err.message || tKey("errors.biometric.changeFailed"));
+    }
+  };
+
+  // Wire up biometric password modal
+  const modalBio = document.getElementById("modal-biometric-password");
+  document.getElementById("btn-biometric-cancel").onclick = () => {
+    modalBio.classList.remove("active");
+    if (window._biometricReject) { window._biometricReject(null); window._biometricReject = null; }
+  };
+  document.getElementById("btn-biometric-confirm").onclick = () => {
+    const pw = document.getElementById("input-biometric-password").value;
+    if (!pw) { document.getElementById("biometric-password-error").textContent = "Please enter your password."; return; }
+    modalBio.classList.remove("active");
+    if (window._biometricResolve) { window._biometricResolve(pw); window._biometricResolve = null; }
   };
 
   document.getElementById("btn-lock-wallet").onclick = async () => {
@@ -760,23 +856,22 @@ function setupEventListeners() {
     const disp = document.getElementById("export-mnemonic-display");
     disp.style.display = "none";
     disp.innerHTML = "";
-    modalExport.style.display = "flex";
+    modalExport.classList.add("active");
   };
 
   document.getElementById("btn-export-cancel").onclick = () => {
-    modalExport.style.display = "none";
+    modalExport.classList.remove("active");
   };
 
   document.getElementById("btn-export-confirm").onclick = async () => {
     const pwd = document.getElementById("input-export-password").value;
     const errEl = document.getElementById("export-error");
-    const disp = document.getElementById("export-mnemonic-display");
     errEl.textContent = "";
     try {
       const { mnemonic } = await wapi().exportMnemonic(pwd);
-      errEl.textContent = "";
-      renderMnemonicWords(disp, mnemonic);
-      disp.style.display = "grid";
+      await navigator.clipboard.writeText(mnemonic.join(" "));
+      modalExport.classList.remove("active");
+      showClipboardFeedback();
     } catch (err) {
       errEl.textContent = err.message || String(err);
     }
@@ -800,7 +895,7 @@ function setupEventListeners() {
         trustRecipientAfterSuccess: trust,
         ...(trust ? { trustRecipientName: trustName } : {}),
       });
-      document.getElementById("modal-tx").style.display = "none";
+      document.getElementById("modal-tx").classList.remove("active");
       currentTxRequest = null;
     }
   };
@@ -808,21 +903,21 @@ function setupEventListeners() {
   document.getElementById("btn-contact-add-normal").onclick = async () => {
     if (currentContactAddRequest) {
       await wapi().respondContactAdd(currentContactAddRequest.requestId, "normal");
-      document.getElementById("modal-contact-add").style.display = "none";
+      document.getElementById("modal-contact-add").classList.remove("active");
       currentContactAddRequest = null;
     }
   };
   document.getElementById("btn-contact-add-trusted").onclick = async () => {
     if (currentContactAddRequest) {
       await wapi().respondContactAdd(currentContactAddRequest.requestId, "trusted");
-      document.getElementById("modal-contact-add").style.display = "none";
+      document.getElementById("modal-contact-add").classList.remove("active");
       currentContactAddRequest = null;
     }
   };
   document.getElementById("btn-contact-add-reject").onclick = async () => {
     if (currentContactAddRequest) {
       await wapi().respondContactAdd(currentContactAddRequest.requestId, "reject");
-      document.getElementById("modal-contact-add").style.display = "none";
+      document.getElementById("modal-contact-add").classList.remove("active");
       currentContactAddRequest = null;
     }
   };
@@ -830,8 +925,10 @@ function setupEventListeners() {
   document.getElementById("btn-reject-tx").onclick = async () => {
     if (currentTxRequest) {
       await wapi().rejectTransaction(currentTxRequest.requestId);
-      document.getElementById("modal-tx").style.display = "none";
+      document.getElementById("modal-tx").classList.remove("active");
       currentTxRequest = null;
+    } else {
+      document.getElementById("modal-tx").classList.remove("active");
     }
   };
 
@@ -885,20 +982,20 @@ function setupEventListeners() {
     const modal = document.getElementById("modal-new-account");
     const inp = document.getElementById("input-new-account-nick");
     if (inp) inp.value = "";
-    if (modal) modal.style.display = "flex";
+    if (modal) modal.classList.add("active");
     inp?.focus();
   };
 
   document.getElementById("btn-new-account-cancel").onclick = () => {
     const modal = document.getElementById("modal-new-account");
-    if (modal) modal.style.display = "none";
+    if (modal) modal.classList.remove("active");
   };
 
   document.getElementById("btn-new-account-confirm").onclick = async () => {
     const modal = document.getElementById("modal-new-account");
     const inp = document.getElementById("input-new-account-nick");
     const name = inp ? inp.value : "";
-    if (modal) modal.style.display = "none";
+    if (modal) modal.classList.remove("active");
     await submitNewSubAccount(name.trim());
   };
 
@@ -907,10 +1004,46 @@ function setupEventListeners() {
   document.getElementById("btn-alert-allow").onclick = () => respondAlert("allow_once");
   document.getElementById("btn-alert-trust").onclick = () => respondAlert("trust");
 
-  // Activity filters
-  document.querySelectorAll(".filter-btn").forEach(btn => {
+  // Sub-page navigation
+  const subpageBtn = (openId, subpageId, closeId, loadFn) => {
+    document.getElementById(openId)?.addEventListener("click", () => {
+      if (loadFn) loadFn();
+      openSubpage(subpageId);
+    });
+    document.getElementById(closeId)?.addEventListener("click", () => closeSubpage(subpageId));
+  };
+  subpageBtn("btn-open-security-events", "subpage-security-events", "btn-close-security-events", loadSecurityEvents);
+  subpageBtn("btn-open-signing-history", "subpage-signing-history", "btn-close-signing-history", loadSigningHistory);
+  subpageBtn("btn-open-contacts", "subpage-contacts", "btn-close-contacts", loadDesktopContacts);
+
+  // Settings: add account (settings page button)
+  document.getElementById("btn-new-sub-account-settings")?.addEventListener("click", () => {
+    document.getElementById("btn-new-sub-account").click();
+  });
+
+  // Settings: export mnemonic row
+  document.getElementById("btn-export-mnemonic-row")?.addEventListener("click", () => {
+    document.getElementById("btn-export-mnemonic").click();
+  });
+
+  // Theme toggle
+  document.getElementById("toggle-dark-theme")?.addEventListener("change", (e) => {
+    setTheme(e.target.checked ? "dark" : "light");
+  });
+
+  // TX rejection via confirm button (separate from close ×)
+  document.getElementById("btn-reject-tx-confirm")?.addEventListener("click", async () => {
+    if (currentTxRequest) {
+      await wapi().rejectTransaction(currentTxRequest.requestId);
+      document.getElementById("modal-tx").classList.remove("active");
+      currentTxRequest = null;
+    }
+  });
+
+  // Activity filter chips
+  document.querySelectorAll("#tab-activity .chip[data-filter]").forEach(btn => {
     btn.onclick = () => {
-      document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll("#tab-activity .chip[data-filter]").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       loadActivityRecords(btn.dataset.filter, true);
     };
@@ -928,7 +1061,7 @@ function setupEventListeners() {
 async function respondAlert(action) {
   if (currentAlert) {
     await wapi().respondToAlert(currentAlert.alertId, action);
-    document.getElementById("modal-alert").style.display = "none";
+    document.getElementById("modal-alert").classList.remove("active");
     currentAlert = null;
   }
 }
@@ -946,25 +1079,27 @@ function setupRealtimeEvents() {
       ${escapeHtml(tKey("modals.contactAdd.chainLine", { chain: req.chain }))}<br>
       <span class="address">${escapeHtml(req.address)}</span>
     `;
-    document.getElementById("modal-contact-add").style.display = "flex";
+    document.getElementById("modal-contact-add").classList.add("active");
   });
 
   wapi().onConnectionStatus((status) => {
-    const indicator = document.getElementById("connection-indicator");
+    document.querySelectorAll(".connection-dot").forEach(dot => {
+      if (status.connected) {
+        dot.classList.remove("disconnected");
+        dot.classList.add("connected");
+      } else {
+        dot.classList.remove("connected");
+        dot.classList.add("disconnected");
+      }
+    });
     const text = document.getElementById("connection-text");
-    if (status.connected) {
-      indicator.className = "connected";
-      text.textContent = tKey('common.connection.connected');
-    } else {
-      indicator.className = "disconnected";
-      text.textContent = tKey('common.connection.disconnected');
-    }
+    if (text) text.textContent = tKey(status.connected ? 'common.connection.connected' : 'common.connection.disconnected');
   });
 
   wapi().onSecurityAlert((alert) => {
     currentAlert = alert;
     document.getElementById("alert-message").textContent = alert.message;
-    document.getElementById("modal-alert").style.display = "flex";
+    document.getElementById("modal-alert").classList.add("active");
     loadSecurityEvents();
   });
 
@@ -1064,21 +1199,25 @@ async function loadPairedDevices() {
   const devices = all.filter((d) => d.accountIndex === currentAccountIndex);
   const list = document.getElementById("paired-devices-list");
   if (devices.length === 0) {
-    list.innerHTML = `<p style="color: var(--text-secondary)">${tKey('pairing.noDevices')}</p>`;
+    list.innerHTML = `<p style="color: var(--text-secondary); padding: 16px 20px;">${tKey('pairing.noDevices')}</p>`;
     return;
   }
-  list.innerHTML = devices.map(d => `
-    <div class="device-item">
-      <div class="info">
-        <div>${d.deviceId}</div>
-        <div class="ip">${typeof d.accountIndex === "number" ? `Account ${d.accountIndex} · ` : ""}${tKey("pairing.rowMeta", {
-          ip: d.lastIP,
-          date: new Date(d.pairedAt).toLocaleDateString(),
-        })}</div>
+  list.innerHTML = devices.map(d => {
+    const accountLabel = typeof d.accountIndex === "number" ? `Account ${d.accountIndex}` : "";
+    const rowMeta = tKey("pairing.rowMeta", { ip: d.lastIP || "?", date: d.pairedAt ? new Date(d.pairedAt).toLocaleDateString() : "?" });
+    const meta = [accountLabel, rowMeta].filter(Boolean).join(" · ");
+    const nameDisplay = escapeHtml(d.deviceId.length > 18 ? d.deviceId.slice(0, 18) : d.deviceId);
+    return `
+      <div class="agent-row" onclick="revokeDevice('${escapeHtml(d.deviceId)}')">
+        <div class="agent-icon">🔗</div>
+        <div class="agent-info">
+          <div class="agent-name">${nameDisplay}</div>
+          <div class="agent-meta">${meta}</div>
+        </div>
+        <span class="agent-chevron">›</span>
       </div>
-      <button class="btn danger" style="width:auto;padding:6px 12px" onclick="revokeDevice('${d.deviceId}')">${tKey("pairing.revoke")}</button>
-    </div>
-  `).join("");
+    `;
+  }).join("");
 }
 
 window.revokeDevice = async (deviceId) => {
@@ -1091,63 +1230,87 @@ async function loadDesktopContacts() {
   try {
     const rows = await wapi().listDesktopContacts(currentAccountIndex);
     if (!rows || rows.length === 0) {
-      list.innerHTML = `<p style="color: var(--text-secondary)">${tKey("contactsPage.empty")}</p>`;
+      list.innerHTML = `<p style="padding:20px;color:var(--text-secondary)">${tKey("contactsPage.empty")}</p>`;
       return;
     }
-    list.innerHTML = "";
-    for (const c of rows) {
-      const wrap = document.createElement("div");
-      wrap.className = "device-item";
-      const info = document.createElement("div");
-      info.className = "info";
+    list.innerHTML = rows.map(c => {
+      const initials = c.name.slice(0, 2).toUpperCase();
+      const avatarClass = c.trusted ? "" : "regular";
       const badge = c.trusted
-        ? ` <span style="font-size:11px;background:#1a472a;color:#8f8;padding:2px 6px;border-radius:4px;margin-left:6px">${tKey('common.contacts.trusted')}</span>`
+        ? `<span class="contact-badge">${escapeHtml(tKey('common.contacts.trusted'))}</span>`
         : "";
-      info.innerHTML = `<div><strong>${escapeHtml(c.name)}</strong> · ${escapeHtml(c.chain)}${badge}</div>
-        <div class="ip address">${escapeHtml(c.address)}</div>`;
-      const btn = document.createElement("button");
-      btn.className = "btn danger";
-      btn.style.cssText = "width:auto;padding:6px 12px";
-      btn.textContent = tKey('common.buttons.remove');
+      const addrShort = c.address
+        ? `${escapeHtml(c.address.slice(0, 6))}…${escapeHtml(c.address.slice(-4))}`
+        : "";
+      const trashSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+      return `
+        <div class="contact-row">
+          <div class="contact-avatar ${avatarClass}">${escapeHtml(initials)}</div>
+          <div class="contact-info">
+            <div class="contact-name-row">
+              <span class="contact-name">${escapeHtml(c.name)}</span>
+              ${badge}
+            </div>
+            <span class="contact-chain">${escapeHtml(c.chain)} · ${addrShort}</span>
+          </div>
+          <button class="contact-delete-btn" data-name="${escapeHtml(c.name)}" title="${escapeHtml(tKey('common.buttons.remove'))}">${trashSvg}</button>
+        </div>`;
+    }).join("");
+
+    list.querySelectorAll(".contact-delete-btn").forEach(btn => {
       btn.onclick = async () => {
-        if (!confirm(tKey('common.contacts.removeConfirm', { name: c.name }))) return;
+        const name = btn.dataset.name;
+        if (!confirm(tKey('common.contacts.removeConfirm', { name }))) return;
         try {
-          await wapi().removeDesktopContact(c.name, currentAccountIndex);
+          await wapi().removeDesktopContact(name, currentAccountIndex);
           await loadDesktopContacts();
         } catch (err) {
           alert(err.message || String(err));
         }
       };
-      wrap.appendChild(info);
-      wrap.appendChild(btn);
-      list.appendChild(wrap);
-    }
+    });
   } catch (err) {
-    list.innerHTML = `<p style="color: red;">${escapeHtml(err.message || String(err))}</p>`;
+    list.innerHTML = `<p style="padding:20px;color:var(--danger)">${escapeHtml(err.message || String(err))}</p>`;
   }
 }
 
 async function loadSecurityEvents() {
   const events = await wapi().getSecurityEvents();
   const list = document.getElementById("security-events-list");
-  if (events.length === 0) {
-    list.innerHTML = `<p style="color: var(--text-secondary)">${tKey('security.events.noEvents')}</p>`;
+  if (!events || events.length === 0) {
+    list.innerHTML = `<p style="padding:20px;color:var(--text-secondary)">${tKey('security.events.noEvents')}</p>`;
     return;
   }
+  const dotClass = (type) => {
+    if (["fingerprint_change", "same_machine"].includes(type)) return "danger";
+    if (["ip_change"].includes(type)) return "warning";
+    if (["alert_response"].includes(type)) return "success";
+    return "info";
+  };
   list.innerHTML = events.slice(0, 50).map(e => `
-    <div class="event-item">
-      <div>${e.message}</div>
-      <div class="time">${new Date(e.timestamp).toLocaleString()}</div>
-    </div>
-  `).join("");
+    <div class="event-row">
+      <div class="event-dot ${dotClass(e.type)}"></div>
+      <div class="event-info">
+        <div class="event-msg">${escapeHtml(e.message)}</div>
+        <div class="event-time">${new Date(e.timestamp).toLocaleString()}</div>
+      </div>
+    </div>`).join("");
 }
 
 async function loadSigningHistory() {
-  const records = await wapi().getSigningHistory(currentAccountIndex);
   const list = document.getElementById("signing-history-list");
-  
+  list.innerHTML = buildSigningHistorySkeleton();
+
+  let records;
+  try {
+    records = await wapi().getSigningHistory(currentAccountIndex);
+  } catch (err) {
+    list.innerHTML = buildSigningHistoryEmpty();
+    return;
+  }
+
   if (!records || records.length === 0) {
-    list.innerHTML = `<p style="color: var(--text-secondary)">${tKey('security.history.noHistory')}</p>`;
+    list.innerHTML = buildSigningHistoryEmpty();
     return;
   }
 
@@ -1158,45 +1321,68 @@ async function loadSigningHistory() {
     lookup = new Map();
   }
 
-    const typeIcons = {
-    auto: "🤖",
-    manual: "👤",
-    rejected: "❌"
-  };
+  const typeIconChar = { auto: "A", manual: "M", rejected: "✕" };
 
   list.innerHTML = records.slice(0, 100).map(record => {
-    const icon = typeIcons[record.type] || "⚪";
-    const typeLabel = tKey(`activity.types.${record.type}`);
-    const timestamp = new Date(record.timestamp).toLocaleString();
+    const type = record.type || "auto";
+    const iconChar = typeIconChar[type] || "A";
+    const typeLabel = escapeHtml(tKey(`activity.types.${type}`));
+    const chain = escapeHtml(record.tx_chain || "");
+    const token = escapeHtml(record.tx_token || "");
     const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
     const toAddr = record.tx_to;
-    const chain = record.tx_chain;
-    const match = toAddr && chain ? lookup.get(contactRecipientKey(chain, toAddr)) : null;
-    const toLabel = match
-      ? `${escapeHtml(match.name)}${match.trusted ? trustedContactBadgeHtml() : ""} · `
-      : "";
-    const shortTo = toAddr
-      ? `${escapeHtml(toAddr.slice(0, 10))}...${escapeHtml(toAddr.slice(-8))}`
-      : escapeHtml(tKey("activity.details.noRecipient"));
-    const est = typeof record.estimated_usd === "number" ? record.estimated_usd : 0;
-    const onChain = escapeHtml(tKey("activity.details.onChain", { chain: record.tx_chain }));
-    
+    const match = toAddr && record.tx_chain ? lookup.get(contactRecipientKey(record.tx_chain, toAddr)) : null;
+    const recipientLabel = match
+      ? `${escapeHtml(match.name)}${match.trusted ? trustedContactBadgeHtml() : ""}`
+      : (toAddr ? `${escapeHtml(toAddr.slice(0, 10))}...${escapeHtml(toAddr.slice(-8))}` : escapeHtml(tKey("activity.details.noRecipient")));
+    const est = typeof record.estimated_usd === "number" ? record.estimated_usd : null;
+    const isRejected = type === "rejected";
+
     return `
-      <div class="signing-record ${record.type}">
-        <div class="signing-record-header">
-          <span class="signing-icon">${icon}</span>
-          <span class="signing-type">${escapeHtml(typeLabel)}</span>
-          <span class="signing-time">${timestamp}</span>
+      <div class="signing-row">
+        <div class="signing-type-icon ${type}">${iconChar}</div>
+        <div class="signing-info">
+          <div class="signing-label${isRejected ? " rejected" : ""}">${typeLabel}${chain ? ` · ${chain}` : ""}</div>
+          <div class="signing-meta">${escapeHtml(tKey("activity.details.to"))}: ${recipientLabel}</div>
         </div>
-        <div class="signing-details">
-          <div><strong>${amount} ${escapeHtml(record.tx_token)}</strong> ${onChain}</div>
-          <div>${escapeHtml(tKey("activity.details.to"))}: ${toLabel}<span class="address-short">${shortTo}</span></div>
-          <div>${escapeHtml(tKey("activity.details.estimated"))}: $${est.toFixed(2)} <span style="color: #888; font-size: 10px;">${escapeHtml(tKey("activity.details.atSigning"))}</span></div>
-          ${record.tx_hash ? `<div>${escapeHtml(tKey("activity.details.txHash"))}: <span class="address-short">${escapeHtml(record.tx_hash.slice(0, 10))}...</span></div>` : ''}
+        <div class="signing-amounts">
+          <div class="signing-amount${isRejected ? " rejected" : ""}">${amount} ${token}</div>
+          ${est !== null ? `<div class="signing-usd${isRejected ? " rejected" : ""}">$${est.toFixed(2)}</div>` : ""}
         </div>
-      </div>
-    `;
+      </div>`;
   }).join("");
+}
+
+function buildSigningHistorySkeleton() {
+  const row = `
+    <div class="signing-row">
+      <div class="sk" style="width:36px;height:36px;border-radius:50%;flex-shrink:0;"></div>
+      <div class="signing-info">
+        <div class="sk" style="width:110px;height:14px;border-radius:6px;margin-bottom:6px;"></div>
+        <div class="sk sk-dim" style="width:160px;height:12px;border-radius:6px;"></div>
+      </div>
+      <div class="signing-amounts" style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+        <div class="sk" style="width:70px;height:14px;border-radius:6px;"></div>
+        <div class="sk sk-dim" style="width:50px;height:12px;border-radius:6px;"></div>
+      </div>
+    </div>`;
+  return row.repeat(4);
+}
+
+function buildSigningHistoryEmpty() {
+  return `
+    <div class="empty-state">
+      <div class="empty-state-icon">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+          <line x1="9" y1="13" x2="15" y2="13"/>
+          <line x1="9" y1="17" x2="11" y2="17"/>
+        </svg>
+      </div>
+      <div class="empty-state-title">${tKey("security.history.noHistory")}</div>
+      <div class="empty-state-desc">${tKey("security.history.noHistoryHint")}</div>
+    </div>`;
 }
 
 function startCountdown(expiresAt) {
@@ -1249,7 +1435,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
   const list = document.getElementById("activity-list");
   
   if (reset) {
-    list.innerHTML = `<div class="loading">${tKey('common.messages.loading')}</div>`;
+    list.innerHTML = buildActivitySkeleton();
   }
 
   try {
@@ -1347,55 +1533,46 @@ function initializeActivityNetworkFilter() {
 
 function renderActivityRecord(record, contactLookup) {
   const div = document.createElement("div");
-  div.className = `activity-record ${record.type} ${record.tx_status || "no-tx"}`;
+  div.className = "activity-row";
 
-  const statusIcon = getStatusIcon(record);
+  const typeClass = record.type === "rejected" ? "rejected"
+    : record.type === "auto" ? "auto"
+    : "manual";
+  const typeIconChar = record.type === "auto" ? "A"
+    : record.type === "rejected" ? "✕"
+    : "M";
+
+  const typeLabel = escapeHtml(tKey(`activity.types.${record.type}`));
   const timestamp = formatRelativeTime(record.timestamp);
   const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
 
-  /** Policy USD computed on desktop at signing time (see `tx-usd-estimate` / relay-bridge). */
   const signedPolicyUsd = record.estimated_usd || 0;
-  const match =
-    record.tx_to && record.tx_chain && contactLookup
-      ? contactLookup.get(contactRecipientKey(record.tx_chain, record.tx_to))
-      : null;
-  const toPrefix = match
-    ? `${escapeHtml(match.name)}${match.trusted ? trustedContactBadgeHtml() : ""} · `
+  const match = record.tx_to && record.tx_chain && contactLookup
+    ? contactLookup.get(contactRecipientKey(record.tx_chain, record.tx_to))
+    : null;
+  const toText = match
+    ? escapeHtml(match.name)
+    : record.tx_to
+    ? `${escapeHtml(record.tx_to.slice(0, 6))}…${escapeHtml(record.tx_to.slice(-4))}`
     : "";
 
-  const typeLabel = escapeHtml(tKey(`activity.types.${record.type}`));
-  
-  // Network badge with icon
-  const networkIcon = getNetworkIcon(record.tx_chain);
-  const networkClass = getNetworkClass(record.tx_chain);
-  const networkBadge = `<span class="network-badge ${networkClass}">${networkIcon} ${escapeHtml(record.tx_chain)}</span>`;
-  
-  // Block explorer link
-  const explorerUrl = getBlockExplorerUrl(record.tx_chain, record.tx_hash);
-  const txHashDisplay = explorerUrl && record.tx_hash
-    ? `<a href="${explorerUrl}" target="_blank" rel="noopener noreferrer" style="color: var(--primary); text-decoration: none;">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</a>`
-    : record.tx_hash 
-      ? `<span class="address-mono">${escapeHtml(record.tx_hash.slice(0, 10))}...${escapeHtml(record.tx_hash.slice(-8))}</span>`
-      : '';
-  
-  const estLine =
-    signedPolicyUsd > 0
-      ? `$${signedPolicyUsd.toFixed(2)}`
-      : escapeHtml(tKey("activity.details.priceUnavailable"));
+  const typeLabelFull = toText ? `${typeLabel} → ${toText}` : typeLabel;
+  const chainName = record.tx_chain ? escapeHtml(record.tx_chain) : "";
+  const metaText = [chainName, timestamp].filter(Boolean).join(" · ");
+
+  const amountClass = record.type === "rejected" ? "rejected" : "";
+  const amountText = `${amount} ${escapeHtml(record.tx_token || "")}`.trim();
+  const usdText = signedPolicyUsd > 0 ? `$${signedPolicyUsd.toFixed(2)}` : "";
 
   div.innerHTML = `
-    <div class="activity-record-header">
-      <span class="activity-status">${statusIcon}</span>
-      <span class="activity-type">${typeLabel}</span>
-      <span class="activity-time">${timestamp}</span>
+    <div class="activity-type-icon ${typeClass}">${typeIconChar}</div>
+    <div class="activity-info">
+      <div class="activity-type-label">${typeLabelFull}</div>
+      <div class="activity-meta">${metaText}</div>
     </div>
-    <div class="activity-details">
-      <div class="activity-amount"><strong>${amount} ${escapeHtml(record.tx_token)}</strong></div>
-      <div class="activity-chain">${networkBadge}</div>
-      ${record.tx_to ? `<div>${escapeHtml(tKey("activity.details.to"))}: ${toPrefix}<span class="address-mono">${escapeHtml(record.tx_to.slice(0, 10))}...${escapeHtml(record.tx_to.slice(-8))}</span></div>` : ''}
-      <div>${escapeHtml(tKey("activity.details.estimated"))}: ${estLine} <span style="color: #888; font-size: 10px;">${escapeHtml(tKey("activity.details.atSigning"))}</span></div>
-      ${record.tx_hash ? `<div>${escapeHtml(tKey("activity.details.txHash"))}: ${txHashDisplay}</div>` : ''}
-      ${record.block_number ? `<div>${escapeHtml(tKey("activity.details.block"))}: ${record.block_number}</div>` : ''}
+    <div class="activity-amounts">
+      <div class="activity-amount ${amountClass}">${escapeHtml(amountText)}</div>
+      ${usdText ? `<div class="activity-usd">${escapeHtml(usdText)}</div>` : ""}
     </div>
   `;
 
@@ -1493,19 +1670,19 @@ async function refreshDynamicI18n() {
   await updateBiometricButton();
   const main = document.getElementById("screen-main");
   if (main?.classList.contains("active")) {
-    const activeTab = document.querySelector(".tab.active");
+    const activeTab = document.querySelector(".tab-item.active");
     const tab = activeTab?.dataset.tab;
     try {
       if (tab === "pairing") {
         await loadPairedDevices();
         await refreshPairingCodeFromMain().catch((e) => console.error(e));
-      }
-      else if (tab === "security") {
+      } else if (tab === "activity") {
+        await loadActivityRecords(currentActivityFilter, true);
+      } else if (tab === "settings") {
         await loadSecurityEvents();
         await loadSigningHistory();
-      } else if (tab === "activity") await loadActivityRecords(currentActivityFilter, true);
-      else if (tab === "contacts") await loadDesktopContacts();
-      else if (tab === "home") {
+        await loadDesktopContacts();
+      } else if (tab === "home") {
         const status = await wapi().getStatus();
         if (status.address) await loadWalletBalances(status.address);
       }
@@ -1557,4 +1734,44 @@ function initializeLanguageSwitcher() {
   });
 }
 
+// ============================================================
+// THEME SYSTEM
+// ============================================================
+
+function initTheme() {
+  const saved = localStorage.getItem('claw-theme') || 'light';
+  applyTheme(saved);
+}
+
+function applyTheme(theme) {
+  if (theme === 'dark') {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  } else {
+    document.documentElement.removeAttribute('data-theme');
+  }
+  const toggle = document.getElementById('toggle-dark-theme');
+  if (toggle) toggle.checked = (theme === 'dark');
+}
+
+function setTheme(theme) {
+  localStorage.setItem('claw-theme', theme);
+  applyTheme(theme);
+}
+
+// ============================================================
+// SUB-PAGE NAVIGATION (within Settings)
+// ============================================================
+
+function openSubpage(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+function closeSubpage(id) {
+  const el = document.getElementById(id);
+  if (el) el.classList.remove('active');
+}
+
+// Call initTheme before first render
+initTheme();
 init();

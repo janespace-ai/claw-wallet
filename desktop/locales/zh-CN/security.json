@@ -6,7 +6,8 @@
   "history": {
     "title": "签名历史",
     "subtitle": "所有签名结果（自动批准、手动批准与已拒绝）",
-    "noHistory": "无签名历史",
+    "noHistory": "暂无签名记录",
+    "noHistoryHint": "签名历史记录将在此处显示",
     "filters": {
       "all": "全部",
       "auto": "自动",

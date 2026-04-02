@@ -150,6 +150,7 @@ function createWindow(): void {
       sandbox: true,
     },
     titleBarStyle: "hiddenInset",
+    icon: join(base, "assets", "icon.png"),
     show: false,
   });
 

@@ -35,6 +35,7 @@
     "warning": "任何人获得这些单词即可控制您的钱包。请在私密环境下操作。",
     "passwordPlaceholder": "钱包密码",
     "reveal": "显示",
+    "copy": "拷贝助记词",
     "close": "关闭"
   },
   "alert": {

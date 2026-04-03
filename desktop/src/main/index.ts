@@ -146,9 +146,9 @@ function sendToRenderer(channel: string, ...args: unknown[]): void {
 function createWindow(): void {
   const base = app.getAppPath();
   mainWindow = new BrowserWindow({
-    width: 480,
-    height: 720,
-    minWidth: 400,
+    width: 400,
+    height: 700,
+    minWidth: 390,
     minHeight: 600,
     webPreferences: {
       preload: join(base, "dist", "preload", "index.js"),
@@ -574,6 +574,9 @@ app.whenReady().then(async () => {
     },
     onConnectionStatus: (status) => {
       sendToRenderer("wallet:connection-status", status);
+    },
+    onAgentStatus: (status) => {
+      sendToRenderer("wallet:agent-status", status);
     },
   });
 

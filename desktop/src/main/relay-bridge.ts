@@ -48,6 +48,12 @@ export interface RelayBridgeOptions {
   /** Unified UI routing for tx / contact / security alerts from all account channels. */
   messageRouter: MessageRouter;
   onConnectionStatus?: (status: import("./relay-account-channel.js").ConnectionStatusInfo) => void;
+  onAgentStatus?: (status: AgentStatusInfo) => void;
+}
+
+export interface AgentStatusInfo {
+  paired: boolean;
+  online: boolean;
 }
 
 interface AccountPairingState {
@@ -233,6 +239,17 @@ export class RelayBridge {
       relayUrl: this.relayUrl,
       connectedDevices: devices,
     });
+    this.emitAgentStatus();
+  }
+
+  private emitAgentStatus(): void {
+    let paired = false;
+    let online = false;
+    for (const ch of this.channels.values()) {
+      if (ch.connectedDeviceCount() > 0) paired = true;
+      if (ch.agentOnline()) online = true;
+    }
+    this.options.onAgentStatus?.({ paired, online });
   }
 
   private async ensureChannel(accountIndex: number): Promise<RelayAccountChannel> {

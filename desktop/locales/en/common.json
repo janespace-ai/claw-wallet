@@ -61,7 +61,18 @@
     "noBalances": "No balances found",
     "noBalancesHint": "Try refreshing or switching networks",
     "allBalancesZero": "All balances are zero",
-    "priceUnavailable": "Price unavailable"
+    "priceUnavailable": "Price unavailable",
+    "agent": {
+      "unpaired": "Connect Agent",
+      "offline": "Agent Offline",
+      "online": "Connected",
+      "repairConfirm": "Re-pairing will disconnect the current Agent. Continue?",
+      "pairCode": {
+        "title": "Send to your Agent",
+        "copy": "Copy",
+        "copied": "Code copied — paste it to your Agent to pair"
+      }
+    }
   },
   "app": {
     "title": "Claw Wallet"

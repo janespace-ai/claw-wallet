@@ -61,7 +61,18 @@
     "noBalances": "未找到余额",
     "noBalancesHint": "尝试刷新或切换网络",
     "allBalancesZero": "余额均为零",
-    "priceUnavailable": "价格不可用"
+    "priceUnavailable": "价格不可用",
+    "agent": {
+      "unpaired": "连接 Agent",
+      "offline": "Agent 离线",
+      "online": "已连接",
+      "repairConfirm": "重新配对会断开当前 Agent 的连接，确认继续？",
+      "pairCode": {
+        "title": "发送给你的 Agent",
+        "copy": "复制",
+        "copied": "配对码已复制，发给 Agent 完成配对"
+      }
+    }
   },
   "contacts": {
     "trusted": "可信任",

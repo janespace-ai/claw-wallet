@@ -1144,12 +1144,12 @@ p  { font-size: 14px; color: var(--text-secondary); }
 .custom-picker {
   position: fixed;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1.5px solid #9CA3AF;
   border-radius: 12px;
   overflow: hidden;
   z-index: 9000;
-  min-width: 220px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
+  min-width: 200px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.06), 0 10px 28px rgba(0, 0, 0, 0.14);
 }
 .custom-picker-option {
   display: flex;

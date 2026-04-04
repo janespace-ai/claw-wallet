@@ -325,13 +325,20 @@
         <div class="settings-section-header" data-i18n="settings.sections.wallet">WALLET</div>
         <div class="settings-group">
 
-          <div class="settings-row" style="cursor:default;">
+          <div class="settings-row" id="row-language" style="cursor:pointer">
             <span class="settings-row-label">Language</span>
-            <select id="language-selector" class="settings-select">
-              <option value="en">English</option>
-              <option value="zh-CN">简体中文</option>
-            </select>
+            <span class="settings-row-value" id="language-display"></span>
             <span class="settings-row-chevron">›</span>
+          </div>
+          <div id="language-picker" class="custom-picker" style="display:none">
+            <div class="custom-picker-option" data-value="en">
+              <svg class="custom-picker-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>English</span>
+            </div>
+            <div class="custom-picker-option" data-value="zh-CN">
+              <svg class="custom-picker-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span>简体中文</span>
+            </div>
           </div>
           <div class="settings-row" id="btn-export-mnemonic-row">
             <span class="settings-row-label" data-i18n="settings.export.button">Export Mnemonic</span>

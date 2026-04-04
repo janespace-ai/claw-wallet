@@ -1803,30 +1803,60 @@ async function initializeI18n() {
  * Initialize language switcher UI component
  */
 function initializeLanguageSwitcher() {
-  const selector = document.getElementById('language-selector');
-  if (!selector) return;
-  
-  selector.value = i18next.language;
-  
-  selector.addEventListener('change', async (e) => {
-    const newLang = e.target.value;
-    const appRoot = document.getElementById("app");
+  const LANG_LABELS = { "en": "English", "zh-CN": "简体中文" };
 
-    selector.disabled = true;
-    appRoot?.classList.add("i18n-switching");
+  function setLanguageDisplay(lang) {
+    const display = document.getElementById("language-display");
+    if (display) display.textContent = LANG_LABELS[lang] ?? lang;
+    document.querySelectorAll("#language-picker .custom-picker-option").forEach(opt => {
+      opt.classList.toggle("selected", opt.dataset.value === lang);
+    });
+  }
 
-    try {
-      await changeLanguage(newLang);
-      updateStaticTexts();
-      await refreshDynamicI18n();
-      console.log(`Language changed to: ${newLang}`);
-    } catch (err) {
-      console.error('Failed to change language:', err);
-      selector.value = i18next.language;
-    } finally {
-      selector.disabled = false;
-      appRoot?.classList.remove("i18n-switching");
-    }
+  function closeLanguagePicker() {
+    document.getElementById("language-picker").style.display = "none";
+    document.removeEventListener("click", closeLanguagePickerOutside, true);
+  }
+
+  function closeLanguagePickerOutside(e) {
+    const picker = document.getElementById("language-picker");
+    const row = document.getElementById("row-language");
+    if (!picker.contains(e.target) && !row.contains(e.target)) closeLanguagePicker();
+  }
+
+  setLanguageDisplay(i18next.language);
+
+  document.getElementById("row-language")?.addEventListener("click", () => {
+    const picker = document.getElementById("language-picker");
+    const row = document.getElementById("row-language");
+    if (picker.style.display !== "none") { closeLanguagePicker(); return; }
+    const rect = row.getBoundingClientRect();
+    const pickerW = 200;
+    picker.style.display = "block";
+    picker.style.width = pickerW + "px";
+    picker.style.left = Math.max(8, rect.right - pickerW) + "px";
+    picker.style.top = rect.bottom + 4 + "px";
+    setTimeout(() => document.addEventListener("click", closeLanguagePickerOutside, true), 0);
+  });
+
+  document.querySelectorAll("#language-picker .custom-picker-option").forEach(opt => {
+    opt.addEventListener("click", async () => {
+      const newLang = opt.dataset.value;
+      setLanguageDisplay(newLang);
+      closeLanguagePicker();
+      const appRoot = document.getElementById("app");
+      appRoot?.classList.add("i18n-switching");
+      try {
+        await changeLanguage(newLang);
+        updateStaticTexts();
+        await refreshDynamicI18n();
+      } catch (err) {
+        console.error("Failed to change language:", err);
+        setLanguageDisplay(i18next.language);
+      } finally {
+        appRoot?.classList.remove("i18n-switching");
+      }
+    });
   });
 }
 

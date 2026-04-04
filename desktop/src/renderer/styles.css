@@ -106,7 +106,10 @@ p  { font-size: 14px; color: var(--text-secondary); }
 .app-header .connection-dot,
 .app-header .account-header,
 .app-header .account-header-edit,
-.app-header .account-avatar-pill {
+.app-header .account-avatar-pill,
+.app-header .home-account-group,
+.app-header .acct-dropdown-btn,
+.app-header .acct-add-btn {
   -webkit-app-region: no-drag;
 }
 
@@ -167,39 +170,247 @@ p  { font-size: 14px; color: var(--text-secondary); }
 }
 .connection-dot.disconnected::before { background: var(--danger); }
 
-/* Account header variant (Home screen) */
-.account-header {
+/* Agent status button — Home header right side */
+.agent-status-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex: 1;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-family: inherit;
+  cursor: pointer;
+  background: transparent;
+  margin-left: auto;
+  flex-shrink: 0;
+  -webkit-app-region: no-drag;
 }
-.account-avatar-pill {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--accent-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 600;
+.agent-status-btn.unpaired {
+  border: 1.5px solid var(--accent);
   color: var(--accent);
 }
-.account-header-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text-primary);
+.agent-status-btn.offline {
+  border: 1px solid var(--danger);
+  color: var(--danger);
 }
-.account-header-edit {
+.agent-status-btn.online {
+  border: none;
+  color: var(--text-secondary);
+}
+.agent-status-btn.online::before {
+  content: '';
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+}
+
+/* Pairing code card — appears below home header on demand */
+.pair-code-card {
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pair-code-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.pair-code-value {
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--text-primary);
+  text-align: center;
+  padding: 4px 0;
+}
+.pair-code-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.pair-code-close-btn {
+  margin-left: auto;
   background: none;
   border: none;
   cursor: pointer;
   color: var(--text-secondary);
-  font-size: 16px;
-  padding: 4px;
+  font-size: 15px;
+  line-height: 1;
+  padding: 0 2px;
+  -webkit-app-region: no-drag;
+}
+
+/* Toast notification */
+.app-toast {
+  position: fixed;
+  bottom: 92px; /* above 80px tab bar + 12px gap */
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  background: #18181F;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+  color: #ffffff;
+  font-size: 12px;
+  padding: 8px 14px;
+  border-radius: 18px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.app-toast::before {
+  content: '✓';
+  margin-right: 6px;
+  color: var(--success);
+  font-weight: 700;
+}
+.app-toast.visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Account switcher — Home screen header (centered group) */
+.home-account-group {
   display: flex;
   align-items: center;
+  gap: 8px;
+}
+.acct-dropdown-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.acct-dropdown-btn:hover { background: var(--border); }
+.acct-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.acct-add-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 13px;
+  background: transparent;
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0 0 1px 0;
+}
+.acct-add-btn:hover { background: var(--accent-light); }
+
+/* Account switcher dropdown panel */
+#tab-home { position: relative; }
+.acct-dropdown-panel {
+  position: absolute;
+  top: 48px;
+  left: 0;
+  right: 0;
+  background: var(--surface);
+  border-bottom-left-radius: 16px;
+  border-bottom-right-radius: 16px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 150;
+  display: none;
+}
+.acct-dropdown-panel.open { display: block; }
+
+/* Scrim — closes dropdown on outside click */
+.acct-dropdown-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 149;
+}
+
+/* Rows inside dropdown */
+.acct-dropdown-row {
+  display: flex;
+  align-items: center;
+  height: 56px;
+  padding: 0 16px;
+  gap: 10px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  justify-content: space-between;
+}
+.acct-dropdown-row:last-child { border-bottom: none; }
+.acct-dropdown-row:hover { background: var(--surface2); }
+.acct-dropdown-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+.acct-dropdown-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--accent-light);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.acct-dropdown-avatar.active {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+.acct-dropdown-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.acct-dropdown-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.acct-dropdown-addr {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.acct-dropdown-check {
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 700;
+  flex-shrink: 0;
 }
 
 /* ============================================================
@@ -817,126 +1028,6 @@ p  { font-size: 14px; color: var(--text-secondary); }
   outline: none;
 }
 
-/* ============================================================
-   SCREEN 05 — PAIRING
-   ============================================================ */
-.pairing-hero {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 28px 32px 20px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
-
-.pairing-hero-icon {
-  width: 48px;
-  height: 48px;
-  background: var(--accent-light);
-  border-radius: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-
-.pairing-hero-title {
-  margin-top: 14px;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-primary);
-  text-align: center;
-}
-.pairing-hero-desc {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-align: center;
-  line-height: 1.5;
-}
-
-.code-card {
-  margin: 20px;
-  background: var(--surface);
-  border: 1.5px solid var(--border);
-  border-radius: 16px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-}
-
-.code-display {
-  font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
-  letter-spacing: 0.12em;
-  text-align: center;
-}
-
-.code-countdown {
-  font-size: 13px;
-  color: var(--text-secondary);
-  text-align: center;
-}
-
-.pairing-btn-wrap {
-  padding: 0 20px 16px;
-}
-
-.agents-section {
-  flex: 1;
-}
-
-.agents-section-header {
-  padding: 14px 20px 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.07em;
-}
-
-.agent-row {
-  display: flex;
-  align-items: center;
-  height: 56px;
-  padding: 0 20px;
-  gap: 12px;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-}
-.agent-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--accent-light);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  color: var(--accent);
-  flex-shrink: 0;
-}
-.agent-info { flex: 1; min-width: 0; }
-.agent-name {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-.agent-meta {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.agent-chevron {
-  font-size: 16px;
-  color: var(--text-secondary);
-}
 
 /* ============================================================
    SCREEN 06 — SETTINGS
@@ -1050,17 +1141,35 @@ p  { font-size: 14px; color: var(--text-secondary); }
 }
 
 /* Language select styled row */
-.settings-select {
-  background: none;
-  border: none;
-  font-size: 14px;
-  color: var(--text-secondary);
-  font-family: inherit;
-  cursor: pointer;
-  outline: none;
-  appearance: none;
-  -webkit-appearance: none;
+.custom-picker {
+  position: fixed;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  z-index: 9000;
+  min-width: 220px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18);
 }
+.custom-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+}
+.custom-picker-option:last-child { border-bottom: none; }
+.custom-picker-option:hover { background: var(--surface2); }
+.custom-picker-option.selected { color: var(--accent); }
+.custom-picker-check {
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: 0;
+}
+.custom-picker-option.selected .custom-picker-check { opacity: 1; }
 
 /* ============================================================
    SETTINGS SUB-PAGES (overlay within #screen-main)

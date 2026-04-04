@@ -61,6 +61,7 @@ export interface WalletAPI {
   onTransactionRequest: (callback: (req: TransactionRequest) => void) => () => void;
   onContactAddRequest: (callback: (req: ContactAddRequest) => void) => () => void;
   onConnectionStatus: (callback: (status: ConnectionStatus) => void) => () => void;
+  onAgentStatus: (callback: (status: AgentStatus) => void) => () => void;
   onSecurityAlert: (callback: (alert: SecurityAlert) => void) => () => void;
   onLockStateChange: (callback: (locked: boolean) => void) => () => void;
   onBiometricPrompt: (callback: (password: string) => void) => () => void;
@@ -151,6 +152,11 @@ export interface ConnectionStatus {
   connected: boolean;
   relayUrl: string;
   connectedDevices: number;
+}
+
+export interface AgentStatus {
+  paired: boolean;
+  online: boolean;
 }
 
 export interface SecurityAlert {
@@ -307,6 +313,11 @@ const api: WalletAPI = {
     const handler = (_: unknown, status: ConnectionStatus) => callback(status);
     ipcRenderer.on("wallet:connection-status", handler);
     return () => ipcRenderer.removeListener("wallet:connection-status", handler);
+  },
+  onAgentStatus: (callback) => {
+    const handler = (_: unknown, status: AgentStatus) => callback(status);
+    ipcRenderer.on("wallet:agent-status", handler);
+    return () => ipcRenderer.removeListener("wallet:agent-status", handler);
   },
   onSecurityAlert: (callback) => {
     const handler = (_: unknown, alert: SecurityAlert) => callback(alert);

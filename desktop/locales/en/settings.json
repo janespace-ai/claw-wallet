@@ -6,6 +6,11 @@
     "newNicknamePrompt": "Optional nickname for the new account (leave empty for default):",
     "newAccountModalTitle": "Add account"
   },
+  "sections": {
+    "spendingLimits": "SPENDING LIMITS",
+    "security": "SECURITY",
+    "wallet": "WALLET"
+  },
   "allowance": {
     "title": "Allowance",
     "dailyLimit": "Daily Limit (USD)",

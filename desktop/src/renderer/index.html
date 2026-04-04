@@ -139,18 +139,40 @@
 
     <!-- ── TAB: HOME ────────────────────────────────── -->
     <div id="tab-home" class="tab-content active">
-      <!-- Home header: account picker -->
+      <!-- Home header: account switcher + agent status -->
       <header class="app-header">
-        <div class="account-header" id="account-header-group">
-          <div class="account-avatar-pill" id="account-avatar-pill">A</div>
-          <span class="account-header-name" id="account-header-name">Account</span>
-          <select id="account-selector" class="account-selector" style="display:none"></select>
-          <button type="button" id="btn-new-sub-account" class="account-header-edit" title="Add account">＋</button>
+        <div class="home-account-group" id="account-header-group">
+          <button type="button" id="btn-account-dropdown" class="acct-dropdown-btn" title="Switch account">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/>
+            </svg>
+          </button>
+          <span class="acct-name" id="account-header-name">Account</span>
+          <button type="button" id="btn-new-sub-account" class="acct-add-btn" title="Add account">+</button>
         </div>
-        <div id="connection-indicator-home" class="connection-dot disconnected">
-          <span data-i18n="common.connection.disconnected">Disconnected</span>
-        </div>
+        <button type="button" id="btn-agent-status" class="agent-status-btn unpaired">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span id="agent-status-label" data-i18n="home.agent.unpaired">连接 Agent</span>
+        </button>
       </header>
+
+      <!-- Account switcher dropdown (overlays content below header) -->
+      <div id="account-dropdown-panel" class="acct-dropdown-panel">
+        <div id="account-dropdown-list"></div>
+      </div>
+
+      <!-- Pairing code card (shown on demand) -->
+      <div id="pair-code-card" class="pair-code-card" style="display:none">
+        <div class="pair-code-title">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          <span data-i18n="home.agent.pairCode.title">发送给你的 Agent</span>
+          <button type="button" id="btn-pair-code-close" class="pair-code-close-btn" aria-label="Close">×</button>
+        </div>
+        <div class="pair-code-value" id="pair-code-value">—</div>
+        <div class="pair-code-footer">
+          <span id="pair-code-countdown"></span>
+        </div>
+      </div>
 
       <div class="tab-scrollable">
         <!-- Portfolio section -->
@@ -223,39 +245,13 @@
       </div>
     </div>
 
-    <!-- ── TAB: PAIRING ─────────────────────────────── -->
-    <div id="tab-pairing" class="tab-content">
+    <!-- ── TAB: CONTACTS ─────────────────────────────── -->
+    <div id="tab-contacts" class="tab-content">
       <header class="app-header">
-        <span class="header-title" data-i18n="common.tabs.pairing">Pairing</span>
-        <div class="connection-dot disconnected" id="connection-indicator-pairing">
-          <span data-i18n="common.connection.disconnected">Disconnected</span>
-        </div>
+        <span class="header-title" data-i18n="common.tabs.contacts">联系人</span>
       </header>
-
       <div class="tab-scrollable">
-        <!-- Hero -->
-        <div class="pairing-hero">
-          <div class="pairing-hero-icon">🔗</div>
-          <h3 class="pairing-hero-title" data-i18n="pairing.title">Pair with Agent</h3>
-          <p class="pairing-hero-desc" data-i18n="pairing.description">Generate a code and paste it into your Agent to establish a secure connection.</p>
-        </div>
-
-        <!-- Code card -->
-        <div class="code-card" id="pair-code-display" style="display:none">
-          <div class="code-display" id="pair-code"></div>
-          <div class="code-countdown" id="pair-countdown"></div>
-        </div>
-
-        <!-- Generate button -->
-        <div class="pairing-btn-wrap" style="padding:16px 20px;">
-          <button id="btn-generate-code" class="btn-primary" data-i18n="pairing.generateCode">Generate New Code</button>
-        </div>
-
-        <!-- Connected agents -->
-        <div class="agents-section">
-          <div class="agents-section-header">CONNECTED AGENTS</div>
-          <div id="paired-devices-list"></div>
-        </div>
+        <div id="contacts-list-main"></div>
       </div>
     </div>
 
@@ -267,17 +263,8 @@
 
       <div class="tab-scrollable">
 
-        <!-- ACCOUNTS section -->
-        <div class="settings-section-header" data-i18n="settings.accounts.title">ACCOUNTS</div>
-        <div class="settings-group" id="settings-accounts-card">
-          <div id="settings-account-nicknames"></div>
-          <button type="button" id="btn-new-sub-account-settings" class="add-row" data-i18n="settings.accounts.addAccount">
-            ＋ Add Account
-          </button>
-        </div>
-
         <!-- SPENDING LIMITS section -->
-        <div class="settings-section-header">SPENDING LIMITS</div>
+        <div class="settings-section-header" data-i18n="settings.sections.spendingLimits">SPENDING LIMITS</div>
         <div class="settings-group">
           <div class="settings-row">
             <span class="settings-row-label" data-i18n="settings.allowance.dailyLimit">Daily Limit (USD)</span>
@@ -299,15 +286,22 @@
         </div>
 
         <!-- SECURITY section -->
-        <div class="settings-section-header">SECURITY</div>
+        <div class="settings-section-header" data-i18n="settings.sections.security">SECURITY</div>
         <div class="settings-group">
-          <div class="settings-row">
+          <div class="settings-row" id="row-lock-mode" style="cursor:pointer">
             <span class="settings-row-label" data-i18n="settings.lockMode.title">Lock Mode</span>
-            <select id="select-lock-mode" class="settings-select">
-              <option value="convenience" data-i18n="settings.lockMode.optionConvenience">Convenience</option>
-              <option value="strict" data-i18n="settings.lockMode.optionStrict">Strict</option>
-            </select>
+            <span class="settings-row-value" id="lock-mode-display"></span>
             <span class="settings-row-chevron">›</span>
+          </div>
+          <div id="lock-mode-picker" class="custom-picker" style="display:none">
+            <div class="custom-picker-option" data-value="convenience">
+              <svg class="custom-picker-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="settings.lockMode.optionConvenience">便捷（限额内可自动签名）</span>
+            </div>
+            <div class="custom-picker-option" data-value="strict">
+              <svg class="custom-picker-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <span data-i18n="settings.lockMode.optionStrict">严格（空闲时锁定）</span>
+            </div>
           </div>
           <div class="settings-row" id="biometric-card" style="display:none;">
             <span class="settings-row-label" id="biometric-label" data-i18n="settings.biometric.label">Touch ID / Biometrics</span>
@@ -328,12 +322,9 @@
         </div>
 
         <!-- WALLET section -->
-        <div class="settings-section-header">WALLET</div>
+        <div class="settings-section-header" data-i18n="settings.sections.wallet">WALLET</div>
         <div class="settings-group">
-          <div class="settings-row" id="btn-open-contacts">
-            <span class="settings-row-label" data-i18n="contactsPage.title">Contacts &amp; Address Book</span>
-            <span class="settings-row-chevron">›</span>
-          </div>
+
           <div class="settings-row" style="cursor:default;">
             <span class="settings-row-label">Language</span>
             <select id="language-selector" class="settings-select">
@@ -392,21 +383,10 @@
         </div>
       </div>
 
-      <!-- ── SUB-PAGE: Contacts ─────────────────────── -->
-      <div id="subpage-contacts" class="subpage">
-        <header class="subpage-header">
-          <button class="subpage-back" id="btn-close-contacts">‹</button>
-          <span class="subpage-title" data-i18n="contactsPage.title">Contacts</span>
-        </header>
-        <div class="subpage-body">
-          <div id="contacts-list"></div>
-        </div>
-      </div>
     </div>
 
     <!-- Legacy tab divs (hidden — kept so app.js refs don't break) -->
     <div id="tab-security" class="tab-content" style="display:none!important;"></div>
-    <div id="tab-contacts" class="tab-content" style="display:none!important;"></div>
 
     <!-- ── BOTTOM TAB BAR ───────────────────────────── -->
     <nav class="tab-bar-bottom">
@@ -419,9 +399,9 @@
           <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <span class="tab-label" data-i18n="common.tabs.activity">Activity</span>
         </button>
-        <button class="tab-item" data-tab="pairing">
-          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-          <span class="tab-label" data-i18n="common.tabs.pairing">Pairing</span>
+        <button class="tab-item" data-tab="contacts">
+          <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="tab-label" data-i18n="common.tabs.contacts">联系人</span>
         </button>
         <button class="tab-item" data-tab="settings">
           <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>

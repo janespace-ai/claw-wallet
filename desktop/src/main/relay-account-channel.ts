@@ -104,6 +104,7 @@ export interface ConnectionStatusInfo {
   connected: boolean;
   relayUrl: string;
   connectedDevices: number;
+  agentOnline?: boolean;
 }
 
 export interface SecurityAlertInfo {
@@ -199,6 +200,7 @@ export class RelayAccountChannel {
   private ipChangePolicy: "block" | "warn" | "allow";
   private reconnectBaseMs: number;
   private reconnectMaxMs: number;
+  private _agentOnline = false;
 
   private pendingOutbound: string[] = [];
   private pendingContactAdds = new Map<string, PendingContactAdd>();
@@ -356,6 +358,7 @@ export class RelayAccountChannel {
     this.ws.on("close", (code: number, reason: Buffer) => {
       console.log(`[relay-bridge] ws CLOSED pairId=${pairId} code=${code} reason=${reason.toString()}`);
       this.ws = null;
+      this._agentOnline = false;
       this.emitConnectionStatus(false);
       if (!this.destroyed) this.scheduleReconnect();
     });
@@ -387,6 +390,12 @@ export class RelayAccountChannel {
 
     if (msg.type === "encrypted" && typeof msg.payload === "string") {
       this.handleEncryptedMessage(msg.payload, sourceIP);
+      return;
+    }
+
+    if (msg.type === "peer_disconnected") {
+      this._agentOnline = false;
+      this.emitConnectionStatus(this.isConnected());
       return;
     }
   }
@@ -483,6 +492,11 @@ export class RelayAccountChannel {
     this.sessions.set(deviceId, session);
     sharedKey.fill(0);
 
+    if (reconnect) {
+      this._agentOnline = true;
+      this.emitConnectionStatus(this.isConnected());
+    }
+
     this.sendRaw({
       type: "handshake",
       publicKey: Buffer.from(this.keyPair.publicKey).toString("hex"),
@@ -576,6 +590,7 @@ export class RelayAccountChannel {
     console.log(`[relay-bridge] completePairing: clearing pendingPairCode (was: ${this.pendingPairCode})`);
     this.pendingPairCode = null;
     this.pendingPairExpiresAt = null;
+    this._agentOnline = true;
     await this.persistState();
     
     // Delay reconnection to ensure pairing response is sent first
@@ -1009,6 +1024,7 @@ export class RelayAccountChannel {
       connected,
       relayUrl: this.relayUrl,
       connectedDevices: this.devices.length,
+      agentOnline: this._agentOnline,
       accountIndex: this.options.accountIndex,
     });
   }
@@ -1019,6 +1035,10 @@ export class RelayAccountChannel {
 
   connectedDeviceCount(): number {
     return this.devices.length;
+  }
+
+  agentOnline(): boolean {
+    return this._agentOnline;
   }
 
   resolveContactAddRequest(requestId: string, choice: "normal" | "trusted" | "reject"): void {

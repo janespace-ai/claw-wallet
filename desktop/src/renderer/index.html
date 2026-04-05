@@ -550,11 +550,11 @@
   <div id="modal-contact-add" class="modal">
     <div class="modal-box">
       <h3 data-i18n="modals.contactAdd.title">Add Contact</h3>
-      <p id="contact-add-summary" style="font-size:14px;color:var(--text-secondary);"></p>
-      <div class="modal-actions" style="flex-direction:column;gap:8px;">
-        <button type="button" id="btn-contact-add-normal" class="btn-outline" style="height:44px;" data-i18n="modals.contactAdd.normal">Add as regular contact</button>
-        <button type="button" id="btn-contact-add-trusted" class="btn-primary" style="height:44px;" data-i18n="modals.contactAdd.trusted">Add as trusted contact</button>
-        <button type="button" id="btn-contact-add-reject" class="btn-danger-outline" style="height:44px;" data-i18n="modals.contactAdd.reject">Reject</button>
+      <p id="contact-add-summary" class="modal-summary"></p>
+      <div class="alert-modal-actions">
+        <button type="button" id="btn-contact-add-trusted" class="alert-btn alert-btn-accent" data-i18n="modals.contactAdd.trusted">Add as trusted contact</button>
+        <button type="button" id="btn-contact-add-normal" class="alert-btn alert-btn-outline" data-i18n="modals.contactAdd.normal">Add as regular contact</button>
+        <button type="button" id="btn-contact-add-reject" class="alert-btn alert-btn-danger-outline" data-i18n="modals.contactAdd.reject">Reject</button>
       </div>
     </div>
   </div>

@@ -1295,11 +1295,8 @@ function setupRealtimeEvents() {
   wapi().onContactAddRequest((req) => {
     currentContactAddRequest = req;
     const summary = document.getElementById("contact-add-summary");
-    summary.innerHTML = `
-      <strong>${escapeHtml(req.name)}</strong><br>
-      ${escapeHtml(tKey("modals.contactAdd.chainLine", { chain: req.chain }))}<br>
-      <span class="address">${escapeHtml(req.address)}</span>
-    `;
+    const shortAddr = req.address ? `${req.address.slice(0, 6)}…${req.address.slice(-4)}` : "";
+    summary.textContent = tKey("modals.contactAdd.summary", { name: req.name, chain: req.chain, addr: shortAddr });
     document.getElementById("modal-contact-add").classList.add("active");
   });
 

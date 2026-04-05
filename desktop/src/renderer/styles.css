@@ -1921,6 +1921,27 @@ input[type="number"] { -moz-appearance: textfield; }
 }
 .alert-btn-ghost:hover { background: var(--surface2); }
 
+.alert-btn-accent {
+  background: var(--accent);
+  color: var(--text-on-accent);
+  border: none;
+}
+.alert-btn-accent:hover { opacity: 0.9; }
+
+.alert-btn-danger-outline {
+  background: transparent;
+  color: var(--danger);
+  border: 1.5px solid var(--danger);
+}
+.alert-btn-danger-outline:hover { background: var(--danger-light); }
+
+.modal-summary {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin: 0;
+}
+
 .alert-modal-header {
   display: flex;
   align-items: center;

@@ -25,8 +25,8 @@
   },
   "contactAdd": {
     "title": "添加联系人",
-    "chainLine": "链：{chain}",
-    "normal": "添加为一般联系人",
+    "summary": "Agent 请求将 {name} 的地址 {addr}（{chain}）添加为联系人。",
+    "normal": "添加为普通联系人",
     "trusted": "添加为可信任联系人",
     "reject": "拒绝"
   },

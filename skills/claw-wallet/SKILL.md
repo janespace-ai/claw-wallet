@@ -10,88 +10,117 @@ metadata:
       bins:
         - node
     primaryEnv: RELAY_URL
-    # Default value: http://localhost:8080
-    # Claw Wallet desktop app starts the relay automatically on launch.
-    # For local use (agent and desktop on the same machine), no extra setup needed.
+    # Default: http://localhost:8080 (Claw Wallet desktop app starts relay automatically)
     emoji: "🔐"
     homepage: https://github.com/janespace-ai/claw-wallet
 ---
 
 # Claw Wallet
 
-You have access to Claw Wallet tools for managing an Ethereum/Base wallet. Keys are held securely on a separate Desktop Wallet app — they never touch this agent.
+Keys live in the **Claw Wallet desktop app** — never in this agent. Before any wallet operation, check pairing state.
 
-## Available Tools
+## State Check (do this first)
 
-| Tool | Description | Key Parameters |
-|------|-------------|----------------|
-| `wallet_create` | Create a new wallet (on Desktop Wallet) | — |
-| `wallet_import` | Import an existing wallet | — |
-| `wallet_pair` | Pair with Desktop Wallet using a short code | `shortCode` (required) |
-| `wallet_address` | Get the current wallet address | — |
-| `wallet_balance` | Query ETH or ERC-20 token balance | `token` (ETH, USDC, USDT), `chain` (base, ethereum) |
-| `wallet_estimate_gas` | Estimate gas cost for a transaction | `to`, `amount`, `chain` |
-| `wallet_send` | Send ETH or ERC-20 tokens | `to`, `amount`, `token`, `chain` |
-| `wallet_history` | Query transaction history | `limit`, `offset` |
-| `wallet_contacts_list` | List saved contacts | — |
-| `wallet_contacts_add` | Propose a contact on Desktop (user picks normal / trusted / reject in the app) | `name`, `address`, `chain` |
-| `wallet_contacts_resolve` | Look up a contact's address by name | `name`, `chain` |
-| `wallet_contacts_remove` | Remove a contact | `name` |
-| `wallet_policy_get` | View current security policy | — |
-| `wallet_policy_set` | Update agent-side spending limits or mode (not trusted addresses) | `per_transaction_limit_usd`, `daily_limit_usd`, `mode` |
-| `wallet_approval_list` | List pending transaction approvals | — |
-| `wallet_approval_approve` | Approve a pending transaction | `id` |
-| `wallet_approval_reject` | Reject a pending transaction | `id` |
+Call `wallet_address` silently before any wallet request. Based on the result:
+
+| Result | Meaning | What to tell the user |
+|--------|---------|----------------------|
+| Returns an address | ✅ Paired and ready | Proceed |
+| "No wallet paired" | ❌ Not paired | → see **First-time Setup** below |
+| "Desktop wallet offline" | ⚠️ App not running | "请先打开 Claw Wallet 桌面应用" |
+| "Wallet locked" | 🔒 Locked | "请在桌面应用中解锁钱包" |
+
+---
+
+## First-time Setup
+
+When not paired, guide the user through these steps in order:
+
+**Step 1 — Do you have a wallet?**
+- No wallet yet → `wallet_create` to create one on the desktop app
+- Have a wallet elsewhere → `wallet_import` to import it
+
+**Step 2 — Generate a pairing code**
+> "请打开 Claw Wallet 桌面应用 → 点击「配对」→ 生成配对码，然后把配对码告诉我。"
+
+**Step 3 — Pair**
+```
+wallet_pair { shortCode: "<8-char code>" }
+```
+On success: confirm pairing and show the wallet address.
+
+---
+
+## Tools
+
+| Tool | What it does | Key params |
+|------|-------------|------------|
+| `wallet_create` | Create new wallet on desktop | — |
+| `wallet_import` | Import existing wallet | — |
+| `wallet_pair` | Pair with desktop via short code | `shortCode` |
+| `wallet_address` | Get wallet address | — |
+| `wallet_balance` | Check ETH / token balance | `token` (ETH·USDC·USDT), `chain` (base·ethereum) |
+| `wallet_estimate_gas` | Estimate gas before sending | `to`, `amount`, `chain` |
+| `wallet_send` | Send ETH or tokens | `to`, `amount`, `token`, `chain` |
+| `wallet_history` | Transaction history | `limit`, `offset` |
+| `wallet_contacts_list` | List contacts | — |
+| `wallet_contacts_add` | Add contact (user confirms on desktop) | `name`, `address`, `chain` |
+| `wallet_contacts_resolve` | Look up contact address by name | `name`, `chain` |
+| `wallet_contacts_remove` | Remove contact | `name` |
+| `wallet_policy_get` | View spending limits | — |
+| `wallet_policy_set` | Update limits or mode | `per_transaction_limit_usd`, `daily_limit_usd`, `mode` |
+| `wallet_approval_list` | List pending approvals | — |
+| `wallet_approval_approve` | Approve a queued tx | `id` |
+| `wallet_approval_reject` | Reject a queued tx | `id` |
+
+---
+
+## Common Flows
+
+### Send tokens
+```
+1. wallet_contacts_resolve (if sending to a contact name)
+2. wallet_balance            → confirm sufficient funds
+3. wallet_estimate_gas       → show user the gas cost
+4. [ask user to confirm]
+5. wallet_send
+```
+Always confirm recipient + amount with the user before calling `wallet_send`.
+
+### Add a contact
+```
+wallet_contacts_add { name, address, chain }
+→ User sees a confirmation dialog on desktop (normal / trusted / reject)
+```
+Trusted contacts can be signed automatically within policy limits. This is set by the user on desktop, not via this agent.
+
+### Manage spending policy
+```
+wallet_policy_get            → show current limits
+wallet_policy_set { ... }    → update limits
+```
+If a send is blocked by policy, show the limit and the approval ID. The user can approve via `wallet_approval_approve`.
+
+---
 
 ## Safety Rules
 
-1. **Always confirm before sending**: Ask the user to confirm recipient address and amount before calling `wallet_send`.
-2. **Never display secrets**: Do not show private keys, mnemonics, or encrypted credential data under any circumstance.
-3. **Verify addresses**: When a user provides an address, confirm it starts with `0x` and is 42 characters. For contacts, use `wallet_contacts_resolve` first.
-4. **Check balance before sending**: Before a `wallet_send`, check the balance to ensure sufficient funds.
-5. **Respect policy limits**: If a send is blocked by agent policy, explain the limit. **可信任联系人**（限额内可静默签的收款方）在桌面钱包的「联系人」中标记，不是通过 `wallet_policy_set`。
+- **Confirm before sending** — always ask the user to confirm address + amount first.
+- **No secrets** — never display private keys, mnemonics, or passwords.
+- **Validate addresses** — must start with `0x` and be 42 characters.
+- **Check balance first** — run `wallet_balance` before `wallet_send`.
 
-## Common Task Flows
+---
 
-### Check balance
-```
-wallet_balance → show formatted result
-wallet_balance { token: "USDC", chain: "base" } → show token balance
-```
+## Error → User Response
 
-### Send to a contact
-```
-1. wallet_contacts_resolve { name: "bob" }          → get address
-2. wallet_balance { token: "ETH" }                   → verify funds
-3. wallet_estimate_gas { to: addr, amount: "0.1" }   → show gas cost
-4. wallet_send { to: addr, amount: "0.1" }           → confirm + send
-```
-
-### Manage security policy
-```
-wallet_policy_get                                     → show current agent limits
-wallet_policy_set { daily_limit_usd: 500 }           → update limit
-```
-To trust a recipient for signing, the user does that in the Claw Wallet desktop app (not via this agent).
-
-### Handle pending approvals
-```
-wallet_approval_list                                  → show queue
-wallet_approval_approve { id: "abc123" }             → approve
-wallet_approval_reject { id: "abc123" }              → reject
-```
-
-## Error Handling
-
-| Error / Code | Meaning | Action |
-|-------------|---------|--------|
-| "No wallet paired" | Agent has no pairing data | Tell user to run `wallet_pair` |
-| "Relay Server unreachable" | Cannot reach the Relay Server | Check Relay URL and server status |
-| "Request timeout (Ns)" | Operation timed out | Retry; for sign requests check if Wallet App is running |
-| "no wallet connected" (HTTP 404) | Desktop Wallet is offline | Ask user to open the Desktop Wallet App |
-| `WALLET_LOCKED` | Wallet App is locked | Ask user to unlock in the Desktop App |
-| `USER_REJECTED` | User explicitly rejected the transaction | Inform user; do not retry |
-| `APPROVAL_TIMEOUT` | User didn't approve within 10 minutes | Ask user to retry and approve promptly |
-| `SESSION_FROZEN` | Security policy froze the session | Re-pairing required |
-| `SIGN_ERROR` | Signing failed (unsupported method, key issue) | Report error details |
-| Transaction blocked by policy | Spending limit exceeded | Explain the limit, show approval ID |
+| Error | Tell the user |
+|-------|--------------|
+| No wallet paired | "需要先配对钱包。请打开桌面应用 → 配对 → 生成配对码，把码告诉我。" |
+| Desktop offline | "桌面应用未运行，请先打开 Claw Wallet。" |
+| `WALLET_LOCKED` | "钱包已锁定，请在桌面应用中解锁。" |
+| `USER_REJECTED` | "您在桌面应用中拒绝了该操作。" |
+| `APPROVAL_TIMEOUT` | "操作超时，请重试并及时在桌面应用中确认。" |
+| `SESSION_FROZEN` | "会话已冻结（安全策略触发），需要重新配对。" |
+| Relay unreachable | "无法连接中继服务器，请检查 RELAY_URL 是否正确，默认值为 http://localhost:8080。" |
+| Policy limit exceeded | "超出限额，交易已进入审批队列（ID: `<id>`）。可用 wallet_approval_approve 审批。" |

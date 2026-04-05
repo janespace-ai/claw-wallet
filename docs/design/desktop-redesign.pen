@@ -229,7 +229,7 @@
                       "type": "text",
                       "id": "V01KV",
                       "fill": "$text-on-accent",
-                      "content": "Create New Wallet",
+                      "content": "创建新钱包",
                       "fontFamily": "Inter",
                       "fontSize": 15,
                       "fontWeight": "600"
@@ -257,7 +257,7 @@
                       "type": "text",
                       "id": "6Vm7x",
                       "fill": "$text-primary",
-                      "content": "Import Wallet",
+                      "content": "导入助记词",
                       "fontFamily": "Inter",
                       "fontSize": 15,
                       "fontWeight": "500"
@@ -3508,10 +3508,147 @@
                   "type": "text",
                   "id": "023hv",
                   "fill": "$danger",
-                  "content": "Lock Wallet",
+                  "content": "锁定钱包",
                   "fontFamily": "Inter",
                   "fontSize": 14,
                   "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "muWIY",
+              "name": "secAcct",
+              "width": "fill_container",
+              "fill": "$bg",
+              "padding": [
+                14,
+                20,
+                6,
+                20
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "8CbzR",
+                  "fill": "$text-secondary",
+                  "content": "账户",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "39h0v",
+              "name": "warnWrap",
+              "width": "fill_container",
+              "fill": "$surface",
+              "padding": [
+                0,
+                16
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "1E9mw",
+                  "name": "warnCard",
+                  "width": "fill_container",
+                  "fill": "#FEF2F2",
+                  "cornerRadius": 10,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#FECACA"
+                  },
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": [
+                    12,
+                    14
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "pslkI",
+                      "name": "warnCardHdr",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "RaPr3",
+                          "width": 15,
+                          "height": 15,
+                          "iconFontName": "triangle-alert",
+                          "iconFontFamily": "lucide",
+                          "fill": "#DC2626"
+                        },
+                        {
+                          "type": "text",
+                          "id": "jv4tH",
+                          "fill": "#DC2626",
+                          "content": "危险操作",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "hVH1j",
+                      "fill": "#DC2626",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "注销账户后，本设备上的所有数据（助记词、联系人、签名历史）将被永久删除，无法恢复。请务必提前备份助记词。",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "o6sxm",
+              "name": "deregBtnWrap",
+              "width": "fill_container",
+              "fill": "$surface",
+              "layout": "vertical",
+              "padding": [
+                12,
+                16
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "0bhyF",
+                  "name": "deregBtn",
+                  "width": "fill_container",
+                  "height": 44,
+                  "fill": "#00000000",
+                  "cornerRadius": 14,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "#DC2626"
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "8Zggp",
+                      "fill": "#DC2626",
+                      "content": "注销账户",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
                 }
               ]
             }
@@ -7633,7 +7770,7 @@
                       "type": "text",
                       "id": "CEyM4",
                       "fill": "$text-on-accent",
-                      "content": "Create New Wallet",
+                      "content": "创建新钱包",
                       "fontFamily": "Inter",
                       "fontSize": 15,
                       "fontWeight": "600"
@@ -7661,7 +7798,7 @@
                       "type": "text",
                       "id": "pAvYZ",
                       "fill": "$text-primary",
-                      "content": "Import Wallet",
+                      "content": "导入助记词",
                       "fontFamily": "Inter",
                       "fontSize": 15,
                       "fontWeight": "500"
@@ -10940,6 +11077,145 @@
                   "fontFamily": "Inter",
                   "fontSize": 14,
                   "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "mvtit",
+              "name": "dSecAcct",
+              "width": "fill_container",
+              "fill": "$bg",
+              "layout": "vertical",
+              "padding": [
+                14,
+                20,
+                6,
+                20
+              ],
+              "children": [
+                {
+                  "type": "text",
+                  "id": "65pfv",
+                  "fill": "$text-secondary",
+                  "content": "账户",
+                  "fontFamily": "Inter",
+                  "fontSize": 12,
+                  "fontWeight": "600"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "rkIVD",
+              "name": "dWarnWrap",
+              "width": "fill_container",
+              "fill": "$surface",
+              "layout": "vertical",
+              "padding": [
+                0,
+                16
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "m4JZ3",
+                  "name": "dWarnCard",
+                  "width": "fill_container",
+                  "fill": "#dc26261a",
+                  "cornerRadius": 10,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#dc262647"
+                  },
+                  "layout": "vertical",
+                  "gap": 6,
+                  "padding": [
+                    12,
+                    14
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "6fSEM",
+                      "name": "dWarnHdr",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon_font",
+                          "id": "Onox9",
+                          "width": 15,
+                          "height": 15,
+                          "iconFontName": "triangle-alert",
+                          "iconFontFamily": "lucide",
+                          "fill": "#F87171"
+                        },
+                        {
+                          "type": "text",
+                          "id": "3bGHT",
+                          "fill": "#F87171",
+                          "content": "危险操作",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "700"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "Tz543",
+                      "fill": "#F87171",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "注销账户后，本设备上的所有数据（助记词、联系人、签名历史）将被永久删除，无法恢复。请务必提前备份助记词。",
+                      "fontFamily": "Inter",
+                      "fontSize": 12,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "7ulL6",
+              "name": "dDeregBtnWrap",
+              "width": "fill_container",
+              "fill": "$surface",
+              "layout": "vertical",
+              "padding": [
+                12,
+                16
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "6jLpc",
+                  "name": "dDeregBtn",
+                  "width": "fill_container",
+                  "height": 44,
+                  "fill": "#00000000",
+                  "cornerRadius": 14,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "#F87171"
+                  },
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "tm6VW",
+                      "fill": "#F87171",
+                      "content": "注销账户",
+                      "fontFamily": "Inter",
+                      "fontSize": 14,
+                      "fontWeight": "600"
+                    }
+                  ]
                 }
               ]
             }
@@ -20054,6 +20330,207 @@
                       "id": "C6kGl",
                       "fill": "$danger",
                       "content": "拒绝",
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "500"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "aoVuO",
+      "x": 900,
+      "y": 1800,
+      "name": "19 Deregister Modal",
+      "width": 390,
+      "height": 700,
+      "fill": "$bg",
+      "layout": "none",
+      "children": [
+        {
+          "type": "rectangle",
+          "id": "MpGJ5",
+          "x": 0,
+          "y": 0,
+          "name": "overlay",
+          "fill": "#0000007A",
+          "width": 390,
+          "height": 700
+        },
+        {
+          "type": "frame",
+          "id": "4YSGc",
+          "x": 24,
+          "y": 180,
+          "name": "Modal Box",
+          "width": 342,
+          "fill": "$surface",
+          "cornerRadius": 20,
+          "effect": {
+            "type": "shadow",
+            "shadowType": "outer",
+            "color": "#00000033",
+            "offset": {
+              "x": 0,
+              "y": 8
+            },
+            "blur": 32
+          },
+          "layout": "vertical",
+          "gap": 20,
+          "padding": [
+            28,
+            24,
+            24,
+            24
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "thn9V",
+              "name": "titleRow",
+              "width": "fill_container",
+              "gap": 10,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "kX7UL",
+                  "width": 20,
+                  "height": 20,
+                  "iconFontName": "triangle-alert",
+                  "iconFontFamily": "lucide",
+                  "fill": "#DC2626"
+                },
+                {
+                  "type": "text",
+                  "id": "eLj2E",
+                  "fill": "#DC2626",
+                  "content": "注销账户？",
+                  "fontFamily": "Inter",
+                  "fontSize": 17,
+                  "fontWeight": "700"
+                }
+              ]
+            },
+            {
+              "type": "text",
+              "id": "WXcop",
+              "fill": "$text-secondary",
+              "textGrowth": "fixed-width",
+              "width": "fill_container",
+              "content": "此操作将永久删除本设备上的所有数据，包括助记词密钥、联系人、签名历史。操作不可逆，请确认已备份助记词。",
+              "fontFamily": "Inter",
+              "fontSize": 14,
+              "fontWeight": "normal"
+            },
+            {
+              "type": "frame",
+              "id": "3GH6K",
+              "name": "pwdSection",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 8,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "L9PLS",
+                  "fill": "$text-secondary",
+                  "content": "输入钱包密码确认",
+                  "fontFamily": "Inter",
+                  "fontSize": 13,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "frame",
+                  "id": "9atkd",
+                  "name": "pwdInput",
+                  "width": "fill_container",
+                  "height": 46,
+                  "fill": "$bg",
+                  "cornerRadius": 10,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "$col-border"
+                  },
+                  "padding": [
+                    0,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "0STmA",
+                      "fill": "$text-secondary",
+                      "content": "••••••••",
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Ix1Mf",
+              "name": "btns",
+              "width": "fill_container",
+              "gap": 10,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "12E8e",
+                  "name": "btnConfirm",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#DC2626",
+                  "cornerRadius": 14,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Rus0J",
+                      "fill": "#FFFFFF",
+                      "content": "永久注销",
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "CP3Qt",
+                  "name": "btnCancel",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "$surface",
+                  "cornerRadius": 14,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "$col-border"
+                  },
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "4hN7I",
+                      "fill": "$text-primary",
+                      "content": "取消",
                       "fontFamily": "Inter",
                       "fontSize": 15,
                       "fontWeight": "500"

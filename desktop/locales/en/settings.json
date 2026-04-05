@@ -45,5 +45,18 @@
     "warning": "⚠ Never share your mnemonic with anyone!",
     "button": "Export Mnemonic",
     "copied": "Mnemonic copied to clipboard!"
+  },
+  "deregister": {
+    "sectionHeader": "ACCOUNT",
+    "warningTitle": "Danger Zone",
+    "warningBody": "Deregistering permanently deletes all wallet data on this device. Back up your mnemonic phrase before proceeding.",
+    "button": "Deregister Account",
+    "modalTitle": "Deregister Account?",
+    "modalBody": "This will permanently delete your keys, transaction history, and all wallet data on this device. This action cannot be undone.",
+    "passwordLabel": "Enter wallet password to confirm",
+    "passwordPlaceholder": "••••••••",
+    "confirmButton": "Permanently Deregister",
+    "cancelButton": "Cancel",
+    "wrongPassword": "Incorrect password, please try again"
   }
 }

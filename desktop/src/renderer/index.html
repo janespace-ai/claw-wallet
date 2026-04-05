@@ -386,6 +386,21 @@
 
         <!-- Hidden export trigger (kept for app.js compatibility) -->
         <button id="btn-export-mnemonic" style="display:none" data-i18n="settings.export.button">Export Mnemonic</button>
+
+        <!-- ACCOUNT section -->
+        <div class="settings-section-header" data-i18n="settings.deregister.sectionHeader">ACCOUNT</div>
+        <div class="deregister-warning-card">
+          <div class="deregister-warning-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          </div>
+          <div class="deregister-warning-content">
+            <div class="deregister-warning-title" data-i18n="settings.deregister.warningTitle">Danger Zone</div>
+            <div class="deregister-warning-body" data-i18n="settings.deregister.warningBody">Deregistering permanently deletes all wallet data on this device. Back up your mnemonic first.</div>
+          </div>
+        </div>
+        <div class="deregister-btn-wrap">
+          <button id="btn-deregister-row" class="btn-deregister-outline" data-i18n="settings.deregister.button">Deregister Account</button>
+        </div>
       </div>
 
       <!-- ── SUB-PAGE: Security Events ─────────────── -->
@@ -626,6 +641,32 @@
       <div class="modal-actions">
         <button type="button" id="btn-biometric-confirm" class="btn-primary" style="height:44px;" data-i18n="common.buttons.confirm">Confirm</button>
         <button type="button" id="btn-biometric-cancel" class="btn-outline" style="height:44px;" data-i18n="common.buttons.cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deregister confirmation -->
+  <div id="modal-deregister" class="modal">
+    <div class="modal-box">
+      <!-- Title row: icon + red text -->
+      <div class="deregister-modal-title-row">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <h3 class="deregister-modal-title" data-i18n="settings.deregister.modalTitle">注销账户？</h3>
+      </div>
+      <!-- Body -->
+      <p class="deregister-modal-body" data-i18n="settings.deregister.modalBody">此操作将永久删除您的密钥、交易记录及本设备上的所有钱包数据，且无法恢复。</p>
+      <!-- Password section: label + input -->
+      <div class="deregister-pwd-section">
+        <span class="deregister-pwd-label" data-i18n="settings.deregister.passwordLabel">输入钱包密码确认</span>
+        <input type="password" id="input-deregister-password" class="deregister-pwd-input"
+               data-i18n-placeholder="settings.deregister.passwordPlaceholder"
+               placeholder="••••••••" autocomplete="off">
+        <p id="deregister-error" class="input-error" style="display:none;"></p>
+      </div>
+      <!-- Buttons side by side -->
+      <div class="deregister-btns">
+        <button id="btn-deregister-confirm" class="deregister-btn-confirm" data-i18n="settings.deregister.confirmButton">永久注销</button>
+        <button id="btn-deregister-cancel" class="deregister-btn-cancel" data-i18n="settings.deregister.cancelButton">取消</button>
       </div>
     </div>
   </div>

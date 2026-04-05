@@ -1169,6 +1169,50 @@ function setupEventListeners() {
     document.getElementById("btn-export-mnemonic").click();
   });
 
+  // Settings: deregister account
+  const modalDeregister = document.getElementById("modal-deregister");
+
+  document.getElementById("btn-deregister-row")?.addEventListener("click", () => {
+    document.getElementById("input-deregister-password").value = "";
+    const errEl = document.getElementById("deregister-error");
+    errEl.style.display = "none";
+    errEl.textContent = "";
+    modalDeregister.classList.add("active");
+    document.getElementById("input-deregister-password").focus();
+  });
+
+  document.getElementById("btn-deregister-cancel").onclick = () => {
+    modalDeregister.classList.remove("active");
+  };
+
+  document.getElementById("btn-deregister-confirm").onclick = async () => {
+    const password = document.getElementById("input-deregister-password").value;
+    if (!password) return;
+    const errEl = document.getElementById("deregister-error");
+    errEl.style.display = "none";
+    const btn = document.getElementById("btn-deregister-confirm");
+    btn.disabled = true;
+    try {
+      await wapi().deregisterWallet(password);
+      modalDeregister.classList.remove("active");
+      showScreen("setup");
+    } catch (err) {
+      const msg = err?.message || String(err);
+      const isWrongPwd = /password|incorrect|invalid|wrong|unauthorized/i.test(msg);
+      errEl.textContent = isWrongPwd
+        ? tKey("settings.deregister.wrongPassword")
+        : tKey("messages.saveFailed");
+      errEl.style.display = "block";
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  wapi().onDeregistered(() => {
+    modalDeregister.classList.remove("active");
+    showScreen("setup");
+  });
+
   // Theme segmented control
   document.querySelectorAll(".theme-seg-btn").forEach(btn => {
     btn.addEventListener("click", () => setTheme(btn.dataset.themeVal));

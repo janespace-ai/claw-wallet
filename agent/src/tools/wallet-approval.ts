@@ -44,8 +44,11 @@ export function createWalletApprovalTools(policy: PolicyEngine): ToolDefinition[
             to: approved.to,
             amount: approved.amount,
             token: approved.token,
+            chain: approved.chain,
           },
-          message: `Transaction approved. Execute the transfer manually: send ${approved.amount} ${approved.token} to ${approved.to}`,
+          nextStep: "call wallet_send to execute the transfer",
+          sendArgs: { to: approved.to, amount: approved.amount, token: approved.token, chain: approved.chain },
+          message: `Approved. Now call wallet_send to complete: send ${approved.amount} ${approved.token} to ${approved.to} on ${approved.chain}.`,
         };
       },
     },

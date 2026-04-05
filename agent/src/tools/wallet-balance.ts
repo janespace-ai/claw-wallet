@@ -10,7 +10,7 @@ export function createWalletBalanceTool(
 ): ToolDefinition {
   return {
     name: "wallet_balance",
-    description: "Query the current balance of ETH and/or ERC-20 tokens in the wallet. Can specify a token symbol (e.g., USDC) and chain (e.g., base, ethereum). If chain is omitted, returns balances across all supported chains.",
+    description: "Query ETH or ERC-20 token balance. Specify token (ETH, USDC, USDT) and chain (base, ethereum). If chain is omitted, checks all supported chains. Always check balance before calling wallet_send.",
     parameters: {
       type: "object",
       properties: {
@@ -26,7 +26,7 @@ export function createWalletBalanceTool(
     },
     execute: async (args) => {
       const address = getAddress();
-      if (!address) return { error: "No wallet configured. Use wallet_create or wallet_import first." };
+      if (!address) return { error: "Wallet not paired. Ask the user to open Claw Wallet desktop app → Pairing tab → generate a code, then call wallet_pair with that code." };
 
       const token = (args.token as string) || "ETH";
       const specifiedChain = args.chain as SupportedChain | undefined;
@@ -105,11 +105,11 @@ export function createWalletAddressTool(
 ): ToolDefinition {
   return {
     name: "wallet_address",
-    description: "Get the current wallet address.",
+    description: "Get the current wallet address. Also use this to check pairing state — returns an error if the wallet is not yet paired, which means the user needs to go through the pairing flow first.",
     parameters: { type: "object", properties: {} },
     execute: async () => {
       const address = getAddress();
-      if (!address) return { error: "No wallet configured. Use wallet_create or wallet_import first." };
+      if (!address) return { error: "Wallet not paired. Ask the user to open Claw Wallet desktop app → Pairing tab → generate a code, then call wallet_pair with that code." };
       return { address };
     },
   };
@@ -121,7 +121,7 @@ export function createWalletEstimateGasTool(
 ): ToolDefinition {
   return {
     name: "wallet_estimate_gas",
-    description: "Estimate gas cost for a transaction.",
+    description: "Estimate the gas fee for a transaction before sending. Call this after checking balance and before calling wallet_send, so the user can see the cost upfront.",
     parameters: {
       type: "object",
       properties: {

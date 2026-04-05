@@ -9,7 +9,11 @@ export function createWalletPolicyTools(policy: PolicyEngine): ToolDefinition[] 
         "View current agent-side wallet policy: spending limits and mode. Trusted send-to addresses are managed in the desktop wallet, not here.",
       parameters: { type: "object", properties: {} },
       execute: async () => {
-        return { policy: policy.getConfig() };
+        const cfg = policy.getConfig();
+        return {
+          policy: cfg,
+          summary: `Per-tx limit: $${cfg.perTransactionLimitUsd} · Daily limit: $${cfg.dailyLimitUsd} · Mode: ${cfg.mode}. To set trusted contacts for auto-signing, use the Claw Wallet desktop app.`,
+        };
       },
     },
     {

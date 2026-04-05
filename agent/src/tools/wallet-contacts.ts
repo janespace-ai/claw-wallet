@@ -29,8 +29,7 @@ export function createWalletContactsTools(
   return [
     {
       name: "wallet_contacts_list",
-      description:
-        "List contacts from the paired Desktop wallet (authoritative). Falls back to local cache if offline. Updates local contacts.json as a non-authoritative mirror.",
+      description: "List all saved contacts. Fetches from Desktop wallet when paired (authoritative); falls back to local cache if offline.",
       parameters: { type: "object", properties: {} },
       execute: async () => {
         if (walletConnection.hasPairing()) {
@@ -76,7 +75,7 @@ export function createWalletContactsTools(
             [chain]: args.address as Address,
           });
           await contacts.save();
-          return { contact, message: `Contact saved locally only (no Desktop paired).` };
+          return { contact, warning: "Wallet not paired — contact saved to local cache only. It will NOT appear in the desktop app. Pair the wallet first for permanent storage." };
         }
         try {
           const result = (await walletConnection.sendToWallet("wallet_contacts_add", {
@@ -140,9 +139,11 @@ export function createWalletContactsTools(
           } catch (e) {
             const code = (e as Error & { walletErrorCode?: string }).walletErrorCode;
             if (code === "CHAIN_MISMATCH") {
+              const err = e as Error & { storedChain?: string };
               return {
-                error: (e as Error).message,
+                error: `Contact "${args.name}" exists but is saved on a different chain (${err.storedChain ?? "unknown"}). Either use chain: "${err.storedChain}" or ask the user to update the contact in the desktop app.`,
                 errorCode: "CHAIN_MISMATCH",
+                storedChain: err.storedChain,
                 source: "desktop",
               };
             }

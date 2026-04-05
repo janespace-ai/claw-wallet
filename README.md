@@ -22,7 +22,7 @@ A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Priv
 │ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
 │ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
 │ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
-│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+│ 17 tools     │                               │ Rate limiter │                               │ Lock manager     │
 └──────────────┘                               └──────────────┘                               └──────────────────┘
        │                                                                                              │
        │  Agent never sees:                                                        Desktop holds:     │
@@ -38,7 +38,36 @@ A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Priv
 
 ## 📦 Two Ways to Use
 
-### 🔧 Option 1: Direct SDK Integration (for your code)
+### 🤖 Option 1: Skills (for AI agents — recommended)
+
+One command gives your AI agent full wallet capabilities. Works with OpenClaw, Claude Code, Cline, Cursor, and any `npx skills`-compatible agent.
+
+**Install via CLI:**
+```bash
+npx skills add janespace-ai/claw-wallet
+```
+
+**Or paste directly into your agent chat (OpenClaw):**
+```
+帮我安装 Claw Wallet: https://github.com/janespace-ai/claw-wallet
+```
+
+After install, set `RELAY_URL=http://localhost:8080` (default — Claw Wallet desktop app starts the relay automatically on launch).
+
+Then pair once:
+```
+"请配对我的钱包，配对码是 XXXXXXXX"
+```
+
+**Advantages:**
+- ✅ Zero code required
+- ✅ One command setup
+- ✅ Works with any skills-compatible agent
+- ✅ Natural language interaction
+
+See [skills/claw-wallet/SKILL.md](./skills/claw-wallet/SKILL.md) for full tool reference.
+
+### 🔧 Option 2: Direct SDK Integration (for your code)
 
 Install and use directly in your Node.js application:
 
@@ -64,33 +93,11 @@ await pairTool.execute({ shortCode: 'ABC12345' });
 ```
 
 **Advantages:**
-- ✅ No MCP Server needed
-- ✅ Direct integration into your code
 - ✅ Full control over tool calls
-- ✅ Perfect for Node.js apps, scripts, automation
+- ✅ Direct integration into Node.js apps, scripts, automation
+- ✅ Embed in any custom agent framework
 
 See [agent/examples/](./agent/examples/README.md) for complete examples.
-
-### 🤖 Option 2: MCP Server (for AI assistants)
-
-Use with Cursor, Claude Desktop, or any MCP-compatible AI assistant:
-
-```bash
-npx -y @claw-wallet/mcp-server
-```
-
-Configure in your AI assistant, then use natural language:
-- "Pair wallet with code ABC12345"
-- "Check my ETH balance"
-- "Send 0.1 ETH to Bob"
-
-**Advantages:**
-- ✅ Standardized MCP protocol
-- ✅ Natural language interaction
-- ✅ No code needed
-- ✅ Perfect for AI assistant environments
-
-See [agent/skills/claw-wallet-setup/](./agent/skills/claw-wallet-setup/SKILL.md) for setup instructions.
 
 ---
 
@@ -332,7 +339,7 @@ The policy engine runs **before** any signing and cannot be bypassed through pro
 - **Balance monitoring** — Background polling for incoming transfers
 - **Transaction history** — Local cache with full records
 - **Containerized Relay** — Go Relay Server with Docker support (Hertz framework)
-- **17 MCP tools** — Ready-to-register tool definitions for AI Agent integration
+- **17 wallet tools** — Ready-to-use tool definitions, installable via `npx skills add janespace-ai/claw-wallet`
 - **Internationalization (i18n)** — Desktop app supports English and Simplified Chinese with runtime language switching
 
 ---
@@ -377,7 +384,7 @@ npm run dev
 
 ### 4. Use with Your Agent
 
-The Agent provides 17 tools. Example conversation:
+17 tools available. Example conversation:
 
 ```
 You:    "Send 10 USDC to Bob on Base"
@@ -432,7 +439,7 @@ wallet/
 │   │   ├── relay-client.ts    # Relay connection, deterministic pairId, repair
 │   │   ├── ipc-server.ts     # Unix domain socket IPC server
 │   │   └── ipc-client.ts     # IPC client for tool → signer communication
-│   ├── tools/             # 17 MCP tool definitions
+│   ├── tools/             # 17 wallet tool definitions
 │   └── *.ts               # Policy, contacts, history, monitor, validation
 │
 ├── desktop/               # Electron Desktop Wallet — holds all secrets

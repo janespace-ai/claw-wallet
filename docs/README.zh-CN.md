@@ -22,7 +22,7 @@
 │ 零秘密       │                               │ 无状态       │                               │ 持有所有密钥     │
 │ Tool APIs    │                               │ WS 转发      │                               │ 本地签名         │
 │ JSON-RPC IPC │                               │ IP 绑定      │                               │ 安全监控         │
-│ 17 个 MCP 工具│                               │ 速率限制     │                               │ 锁定管理         │
+│ 17 个工具    │                               │ 速率限制     │                               │ 锁定管理         │
 └──────────────┘                               └──────────────┘                               └──────────────────┘
        │                                                                                              │
        │  Agent 无法访问:                                                          桌面钱包持有:       │
@@ -274,7 +274,55 @@ Agent 仅通过 Tool API 交互。没有任何工具会返回密钥材料。
 - **余额监控** — 后台轮询检测入账转账
 - **交易历史** — 本地缓存完整记录
 - **容器化中继** — Go 中继服务器支持 Docker 部署（Hertz 框架）
-- **17 个 MCP 工具** — 即插即用的工具定义，无缝接入 AI Agent
+- **17 个钱包工具** — 一行命令安装，`npx skills add janespace-ai/claw-wallet`
+
+---
+
+## 📦 两种使用方式
+
+### 🤖 方式一：Skills 安装（推荐，适合 AI Agent）
+
+一行命令，让 AI Agent 获得完整的钱包能力。支持 OpenClaw、Claude Code、Cline、Cursor 等任何兼容 `npx skills` 的 Agent。
+
+**通过 CLI 安装：**
+```bash
+npx skills add janespace-ai/claw-wallet
+```
+
+**或直接粘贴到 Agent 对话（OpenClaw）：**
+```
+帮我安装 Claw Wallet: https://github.com/janespace-ai/claw-wallet
+```
+
+安装后设置 `RELAY_URL=http://localhost:8080`（默认值——打开 Claw Wallet 桌面 app 后中继服务自动启动）。
+
+然后配对一次：
+```
+"请配对我的钱包，配对码是 XXXXXXXX"
+```
+
+查看 [skills/claw-wallet/SKILL.md](../skills/claw-wallet/SKILL.md) 了解完整工具说明。
+
+### 🔧 方式二：SDK 直接集成（适合代码集成）
+
+在 Node.js 应用中直接安装使用：
+
+```bash
+npm install claw-wallet
+```
+
+```typescript
+import { ClawWallet } from 'claw-wallet';
+
+const wallet = new ClawWallet({
+  relayUrl: 'http://localhost:8080',
+  defaultChain: 'base',
+});
+await wallet.initialize();
+const tools = wallet.getTools();
+```
+
+查看 [agent/examples/](../agent/examples/README.md) 获取完整示例。
 
 ---
 
@@ -373,7 +421,7 @@ wallet/
 │   │   ├── relay-client.ts    # 中继连接、确定性 pairId、修复
 │   │   ├── ipc-server.ts     # Unix 域套接字 IPC 服务器
 │   │   └── ipc-client.ts     # IPC 客户端（工具 → 签名器通信）
-│   ├── tools/             # 17 个 MCP 工具定义
+│   ├── tools/             # 17 个钱包工具定义
 │   └── *.ts               # 策略、通讯录、历史、监控、验证
 │
 ├── desktop/               # Electron 桌面钱包 — 持有所有秘密

@@ -16,7 +16,10 @@ export class TransactionHistory {
   }
 
   getHistory(limit = 20, offset = 0): TxRecord[] {
-    return this.records.slice(offset, offset + limit);
+    return this.records
+      .slice()
+      .sort((a, b) => b.timestamp - a.timestamp)
+      .slice(offset, offset + limit);
   }
 
   getByHash(hash: string): TxRecord | undefined {

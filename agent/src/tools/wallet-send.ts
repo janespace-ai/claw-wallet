@@ -38,7 +38,7 @@ export function createWalletSendTool(
     execute: async (args) => {
       const service = getTransferService();
       if (!service) {
-        return { error: "No wallet configured. Use wallet_create or wallet_import first." };
+        return { error: "Wallet not paired. Ask the user to open Claw Wallet desktop app → Pairing tab → generate a code, then call wallet_pair with that code." };
       }
 
       try {

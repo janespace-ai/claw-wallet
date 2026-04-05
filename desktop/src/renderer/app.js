@@ -87,6 +87,9 @@ function enterMainScreen(status) {
   if (err) err.textContent = "";
   currentAccountIndex = typeof status.activeAccountIndex === "number" ? status.activeAccountIndex : 0;
   showScreen("main");
+  // Restore account header group visibility (may have been hidden on lock)
+  const ag = document.getElementById("account-header-group");
+  if (ag) ag.style.display = "";
   document.getElementById("main-address").textContent = status.address;
   if (status.sameMachineWarning) {
     document.getElementById("same-machine-warning").style.display = "block";
@@ -154,47 +157,96 @@ async function loadWalletBalances(address) {
   }
 }
 
+function closeHomeNetworkPicker() {
+  const picker = document.getElementById("home-network-picker");
+  if (picker) picker.style.display = "none";
+  document.getElementById("home-network-btn")?.classList.remove("active");
+}
+
+function buildHomeNetworkPicker() {
+  const picker = document.getElementById("home-network-picker");
+  const networkFilter = document.getElementById("network-filter");
+  if (!picker || !networkFilter) return;
+
+  const checkSvg = `<svg class="network-picker-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+  const netColors = { ethereum:"#627EEA", base:"#0052FF", optimism:"#FF0420", arbitrum:"#28A0F0", polygon:"#8247E5", zksync:"#8C8DFC", linea:"#61DFFF", scroll:"#FFDBB0" };
+  const current = networkFilter.value || "all";
+
+  const allOption = `<div class="network-picker-option${current === "all" ? " selected" : ""}" data-value="all">
+    <span class="network-picker-dot" style="background:var(--text-secondary);opacity:0.4"></span>
+    <span class="network-picker-name">${escapeHtml(tKey("common.home.allNetworks"))}</span>
+    ${checkSvg}
+  </div>`;
+
+  const netOptions = Array.from(networkFilter.options)
+    .filter(o => o.value !== "all")
+    .map(o => {
+      const color = netColors[o.value.toLowerCase()] || "var(--text-secondary)";
+      const sel = current === o.value;
+      return `<div class="network-picker-option${sel ? " selected" : ""}" data-value="${escapeHtml(o.value)}">
+        <span class="network-picker-dot" style="background:${color}"></span>
+        <span class="network-picker-name">${escapeHtml(o.text || o.value)}</span>
+        ${checkSvg}
+      </div>`;
+    }).join("");
+
+  picker.innerHTML = allOption + netOptions;
+
+  picker.querySelectorAll(".network-picker-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      const val = opt.dataset.value;
+      networkFilter.value = val;
+      networkFilter.dispatchEvent(new Event("change"));
+      closeHomeNetworkPicker();
+    });
+  });
+}
+
+function updateHomeNetworkLabel() {
+  const networkFilter = document.getElementById("network-filter");
+  const label = document.getElementById("home-network-label");
+  if (!label || !networkFilter) return;
+  const val = networkFilter.value || "all";
+  label.textContent = val === "all"
+    ? tKey("common.home.allNetworks")
+    : (Array.from(networkFilter.options).find(o => o.value === val)?.text || val);
+}
+
 function initializeNetworkFilter() {
   const networkFilter = document.getElementById('network-filter');
   const hideZeroBalances = document.getElementById('hide-zero-balances');
+  const btn = document.getElementById("home-network-btn");
+  const picker = document.getElementById("home-network-picker");
 
   if (networkFilter) {
     networkFilter.addEventListener('change', () => {
-      // Sync active chip to match hidden select
-      const val = networkFilter.value;
-      document.querySelectorAll('#network-chips-row .chip').forEach(chip => {
-        const net = chip.dataset.network;
-        chip.classList.toggle('active',
-          val === 'all' ? net === 'all' : net.toLowerCase() === val.toLowerCase());
-      });
-      if (currentBalances.length > 0) {
-        renderBalances(currentBalances, currentPrices);
-      }
+      updateHomeNetworkLabel();
+      if (currentBalances.length > 0) renderBalances(currentBalances, currentPrices);
     });
   }
 
-  // Wire home network chips → hidden select
-  document.querySelectorAll('#network-chips-row .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      if (!networkFilter) return;
-      const net = chip.dataset.network;
-      if (net === 'all') {
-        networkFilter.value = 'all';
-      } else {
-        const match = Array.from(networkFilter.options).find(
-          o => o.value.toLowerCase() === net.toLowerCase()
-        );
-        networkFilter.value = match ? match.value : net;
-      }
-      networkFilter.dispatchEvent(new Event('change'));
+  // Home network picker button
+  if (btn && picker) {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (picker.style.display !== "none") { closeHomeNetworkPicker(); return; }
+      buildHomeNetworkPicker();
+      const rect = btn.getBoundingClientRect();
+      picker.style.width = "190px";
+      picker.style.left = (rect.right - 190) + "px";
+      picker.style.top = (rect.bottom + 4) + "px";
+      picker.style.display = "block";
+      btn.classList.add("active");
     });
-  });
+
+    document.addEventListener("click", (e) => {
+      if (!picker.contains(e.target) && e.target !== btn) closeHomeNetworkPicker();
+    });
+  }
 
   if (hideZeroBalances) {
     hideZeroBalances.addEventListener('change', () => {
-      if (currentBalances.length > 0) {
-        renderBalances(currentBalances, currentPrices);
-      }
+      if (currentBalances.length > 0) renderBalances(currentBalances, currentPrices);
     });
   }
 }
@@ -278,6 +330,7 @@ async function syncHomeNetworkFilterFromConfig() {
     for (const n of nets) {
       appendNetworkOptionIfMissing(networkFilter, n.name);
     }
+    updateHomeNetworkLabel();
   } catch (e) {
     console.error("syncHomeNetworkFilterFromConfig:", e);
   }
@@ -818,12 +871,18 @@ function setupEventListeners() {
 
   // Settings
   document.getElementById("btn-save-allowance").onclick = async () => {
-    await wapi().setAllowance({
-      dailyLimitUSD: Number(document.getElementById("input-daily-limit").value),
-      perTxLimitUSD: Number(document.getElementById("input-per-tx-limit").value),
-      tokenWhitelist: ["ETH", "USDC", "USDT"],
-      addressWhitelist: [],
-    });
+    try {
+      await wapi().setAllowance({
+        dailyLimitUSD: Number(document.getElementById("input-daily-limit").value),
+        perTxLimitUSD: Number(document.getElementById("input-per-tx-limit").value),
+        tokenWhitelist: ["ETH", "USDC", "USDT"],
+        addressWhitelist: [],
+      });
+      showToast(tKey("settings.allowance.saved"));
+    } catch (err) {
+      showToast(tKey("common.messages.saveFailed"));
+      console.error("setAllowance failed:", err);
+    }
   };
 
   // Custom lock-mode picker
@@ -877,6 +936,8 @@ function setupEventListeners() {
     try {
       await wapi().setBiometricEnabled(true, password);
       toggle.checked = true;
+      // Clear declined flag so future prompts can show if biometric is toggled off again
+      localStorage.removeItem("biometric-prompt-declined");
     } catch (err) {
       showToast(err.message || tKey("errors.biometric.changeFailed"));
     }
@@ -901,31 +962,56 @@ function setupEventListeners() {
   };
 
   const modalExport = document.getElementById("modal-export");
-  document.getElementById("btn-export-mnemonic").onclick = () => {
+
+  function openExportModal() {
     document.getElementById("input-export-password").value = "";
     document.getElementById("export-error").textContent = "";
-    const disp = document.getElementById("export-mnemonic-display");
-    disp.style.display = "none";
-    disp.innerHTML = "";
+    document.getElementById("export-mnemonic-display").innerHTML = "";
+    document.getElementById("export-phase-password").style.display = "flex";
+    document.getElementById("export-phase-mnemonic").style.display = "none";
     modalExport.classList.add("active");
-  };
+  }
 
+  document.getElementById("btn-export-mnemonic").onclick = openExportModal;
+
+  // Phase 1: cancel
   document.getElementById("btn-export-cancel").onclick = () => {
     modalExport.classList.remove("active");
   };
 
+  // Phase 1: confirm password → show mnemonic
   document.getElementById("btn-export-confirm").onclick = async () => {
     const pwd = document.getElementById("input-export-password").value;
     const errEl = document.getElementById("export-error");
     errEl.textContent = "";
     try {
       const { mnemonic } = await wapi().exportMnemonic(pwd);
-      await navigator.clipboard.writeText(mnemonic.join(" "));
-      modalExport.classList.remove("active");
-      showClipboardFeedback();
+      const words = Array.isArray(mnemonic) ? mnemonic : mnemonic.split(" ");
+      renderMnemonicWords(document.getElementById("export-mnemonic-display"), words.join(" "));
+      document.getElementById("export-phase-password").style.display = "none";
+      document.getElementById("export-phase-mnemonic").style.display = "flex";
+      modalExport._exportedMnemonic = words.join(" ");
     } catch (err) {
-      errEl.textContent = err.message || String(err);
+      const msg = err?.message || String(err);
+      const isWrongPwd = /password|incorrect|invalid|wrong|unauthorized/i.test(msg);
+      errEl.textContent = isWrongPwd
+        ? tKey("modals.export.wrongPassword")
+        : tKey("messages.saveFailed");
     }
+  };
+
+  // Phase 2: copy mnemonic → toast + close
+  document.getElementById("btn-export-copy").onclick = async () => {
+    try {
+      await navigator.clipboard.writeText(modalExport._exportedMnemonic || "");
+    } catch (_) { /* ignore */ }
+    modalExport.classList.remove("active");
+    showToast(tKey("modals.export.copied"));
+  };
+
+  // Phase 2: close
+  document.getElementById("btn-export-close").onclick = () => {
+    modalExport.classList.remove("active");
   };
 
   // Transaction modal
@@ -1095,6 +1181,84 @@ function setupEventListeners() {
   document.getElementById("btn-load-more-activity").onclick = () => {
     loadActivityRecords(currentActivityFilter, false);
   };
+
+  // TX detail modal close
+  document.getElementById("btn-tx-detail-close")?.addEventListener("click", () => {
+    document.getElementById("modal-tx-detail").classList.remove("active");
+  });
+  document.getElementById("modal-tx-detail")?.addEventListener("click", (e) => {
+    if (e.target === document.getElementById("modal-tx-detail")) {
+      document.getElementById("modal-tx-detail").classList.remove("active");
+    }
+  });
+
+  // Biometric enable confirmation modal
+  document.getElementById("btn-biometric-enable-confirm")?.addEventListener("click", async () => {
+    const modal = document.getElementById("modal-biometric-enable");
+    const password = modal._pendingPassword;
+    modal.classList.remove("active");
+    modal._pendingPassword = null;
+    if (password) {
+      try {
+        await wapi().setBiometricEnabled(true, password);
+      } catch (err) {
+        console.error("Failed to enable biometric:", err);
+      }
+    }
+  });
+  document.getElementById("btn-biometric-enable-cancel")?.addEventListener("click", () => {
+    const modal = document.getElementById("modal-biometric-enable");
+    modal.classList.remove("active");
+    modal._pendingPassword = null;
+    // Remember user's choice — don't prompt again
+    localStorage.setItem("biometric-prompt-declined", "1");
+  });
+
+  // Contact delete modal buttons
+  document.getElementById("btn-contact-delete-confirm")?.addEventListener("click", async () => {
+    const name = _pendingDeleteName;
+    if (!name) return;
+    document.getElementById("modal-contact-delete").classList.remove("active");
+    _pendingDeleteName = null;
+    try {
+      await wapi().removeDesktopContact(name, currentAccountIndex);
+      await loadContactsTab();
+    } catch (err) {
+      showToast(err.message || String(err));
+    }
+  });
+  document.getElementById("btn-contact-delete-cancel")?.addEventListener("click", () => {
+    document.getElementById("modal-contact-delete").classList.remove("active");
+    _pendingDeleteName = null;
+  });
+
+  // Contact detail modal buttons
+  document.getElementById("btn-contact-detail-copy")?.addEventListener("click", async () => {
+    const addr = _currentDetailContact?.address || "";
+    try { await navigator.clipboard.writeText(addr); } catch (_) {}
+    document.getElementById("modal-contact-detail").classList.remove("active");
+    showToast(tKey("common.contacts.detailModal.copied"));
+  });
+  document.getElementById("btn-contact-detail-cancel")?.addEventListener("click", () => {
+    document.getElementById("modal-contact-detail").classList.remove("active");
+  });
+
+  // Contact trust picker options
+  document.getElementById("contact-trust-picker")?.querySelectorAll(".custom-picker-option").forEach(opt => {
+    opt.addEventListener("click", async () => {
+      if (!_trustPickerTarget) return;
+      const newTrusted = opt.dataset.trust === "true";
+      const { name } = _trustPickerTarget;
+      closeContactTrustPicker();
+      try {
+        await wapi().updateDesktopContactTrust(name, newTrusted, currentAccountIndex);
+        await loadContactsTab();
+      } catch (err) {
+        showToast(err.message || String(err));
+      }
+    });
+  });
+  document.getElementById("contact-trust-picker-cancel")?.addEventListener("click", closeContactTrustPicker);
 }
 
 async function respondAlert(action) {
@@ -1191,15 +1355,15 @@ function setupRealtimeEvents() {
   });
 
   wapi().onBiometricPrompt(async (password) => {
+    // Respect user's previous decline — don't prompt again
+    if (localStorage.getItem("biometric-prompt-declined") === "1") return;
     const label = await wapi().getBiometricLabel();
     const name = label || tKey("common.biometric.defaultUnlock");
-    if (confirm(tKey("common.biometric.enableConfirm", { name }))) {
-      try {
-        await wapi().setBiometricEnabled(true, password);
-      } catch (err) {
-        console.error("Failed to enable biometric:", err);
-      }
-    }
+    const modal = document.getElementById("modal-biometric-enable");
+    document.getElementById("biometric-enable-body").textContent =
+      tKey("common.biometric.enableConfirm", { name });
+    modal._pendingPassword = password;
+    modal.classList.add("active");
   });
 }
 
@@ -1468,7 +1632,7 @@ async function generateAndShowPairCode() {
     pairCodeAutoHideTimer = setTimeout(() => {
       pairCodeAutoHideTimer = null;
       hidePairCodeCard();
-    }, 5000);
+    }, 10000);
   } catch (err) {
     console.error("generatePairCode failed:", err);
     alert(err.message || String(err));
@@ -1489,30 +1653,155 @@ function hidePairCodeCard() {
   currentPairCode = null;
 }
 
+// ── Contact trust picker ──────────────────────────────────────
+let _trustPickerTarget = null; // { name, trusted, rowEl }
+
+function closeContactTrustPicker() {
+  const picker = document.getElementById("contact-trust-picker");
+  if (picker) picker.style.display = "none";
+  _trustPickerTarget = null;
+}
+
+function openContactTrustPicker(name, trusted, anchorEl) {
+  const picker = document.getElementById("contact-trust-picker");
+  if (!picker) return;
+
+  // Update title and selection state
+  document.getElementById("contact-trust-picker-title").textContent = tKey("common.contacts.trustPicker.title");
+  picker.querySelectorAll(".custom-picker-option").forEach(opt => {
+    const isTrusted = opt.dataset.trust === "true";
+    opt.classList.toggle("selected", isTrusted === trusted);
+  });
+
+  // Position near anchor
+  const rect = anchorEl.getBoundingClientRect();
+  const pickerW = 240;
+  let left = rect.right - pickerW;
+  if (left < 8) left = 8;
+  const top = rect.bottom + 6;
+  picker.style.width = pickerW + "px";
+  picker.style.left = left + "px";
+  picker.style.top = top + "px";
+  picker.style.display = "block";
+
+  _trustPickerTarget = { name, trusted };
+}
+
+document.addEventListener("click", (e) => {
+  const picker = document.getElementById("contact-trust-picker");
+  if (picker && picker.style.display !== "none" && !picker.contains(e.target)) {
+    closeContactTrustPicker();
+  }
+});
+
+// ── Contact delete modal ──────────────────────────────────────
+let _pendingDeleteName = null;
+
+function openContactDeleteModal(name) {
+  _pendingDeleteName = name;
+  document.getElementById("contact-delete-body").textContent =
+    tKey("common.contacts.deleteModal.body", { name });
+  document.getElementById("modal-contact-delete").classList.add("active");
+}
+
+// ── Contact detail modal ──────────────────────────────────────
+let _currentDetailContact = null;
+
+function openContactDetailModal(contact) {
+  _currentDetailContact = contact;
+  const initials = (contact.name || contact.address).slice(0, 2).toUpperCase();
+  const avatarEl = document.getElementById("contact-detail-avatar");
+  avatarEl.textContent = initials;
+  avatarEl.style.background = contact.trusted ? "var(--success)" : "var(--accent)";
+
+  document.getElementById("contact-detail-name").textContent = contact.name;
+  const badge = document.getElementById("contact-detail-badge");
+  badge.style.display = contact.trusted ? "inline-block" : "none";
+  document.getElementById("contact-detail-chain").textContent = contact.chain || "";
+  document.getElementById("contact-detail-addr").textContent = contact.address || "";
+  document.getElementById("modal-contact-detail").classList.add("active");
+}
+
 async function loadContactsTab() {
   const list = document.getElementById("contacts-list-main");
   if (!list) return;
+
+  const agentHintHtml = `
+    <div class="contact-agent-hint">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>${escapeHtml(tKey("common.contacts.agentHint"))}</span>
+    </div>`;
+
   try {
     const rows = await wapi().listDesktopContacts(currentAccountIndex);
     if (!rows || rows.length === 0) {
-      list.innerHTML = `<p style="padding:20px;color:var(--text-secondary)">${tKey("contactsPage.empty")}</p>`;
+      list.innerHTML = `<p style="padding:24px 20px 8px;color:var(--text-secondary);font-size:14px;">${escapeHtml(tKey("contactsPage.empty") || "暂无联系人")}</p>${agentHintHtml}`;
       return;
     }
+
+    const shieldSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+    const trashSvg  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
     list.innerHTML = rows.map(c => {
-      const initial = (c.name || c.address).slice(0, 1).toUpperCase();
-      const trusted = c.trusted ? `<span style="font-size:10px;color:var(--success);margin-left:4px;">${tKey("contactsPage.trusted")}</span>` : "";
-      return `<div class="settings-row" style="cursor:default;">
-        <div class="settings-account-avatar" style="background:var(--accent-light);color:var(--accent);">${escapeHtml(initial)}</div>
-        <div class="settings-account-info">
-          <span class="settings-account-name">${escapeHtml(c.name || c.address)}${trusted}</span>
-          <span class="settings-account-addr">${escapeHtml(truncateEthAddress(c.address))}</span>
-        </div>
-      </div>`;
-    }).join("");
+      const initials = (c.name || c.address).slice(0, 2).toUpperCase();
+      const badge = c.trusted
+        ? `<span class="contact-badge">${escapeHtml(tKey("common.contacts.trusted"))}</span>`
+        : "";
+      const addrShort = c.address
+        ? `${escapeHtml(c.address.slice(0, 6))}…${escapeHtml(c.address.slice(-4))}`
+        : "";
+      const avatarClass = c.trusted ? "" : "regular";
+      const trustBtnClass = `contact-action-btn trust${c.trusted ? " is-trusted" : ""}`;
+      return `
+        <div class="contact-row" data-name="${escapeHtml(c.name)}" data-address="${escapeHtml(c.address)}" data-chain="${escapeHtml(c.chain || "")}" data-trusted="${c.trusted}" style="cursor:pointer">
+          <div class="contact-avatar ${avatarClass}">${escapeHtml(initials)}</div>
+          <div class="contact-info">
+            <div class="contact-name-row">
+              <span class="contact-name">${escapeHtml(c.name)}</span>
+              ${badge}
+            </div>
+            <span class="contact-chain">${escapeHtml(addrShort)}</span>
+          </div>
+          <div class="contact-actions">
+            <button class="${trustBtnClass}" data-name="${escapeHtml(c.name)}" data-trusted="${c.trusted}" title="${escapeHtml(tKey("common.contacts.trustPicker.title"))}">${shieldSvg}</button>
+            <button class="contact-action-btn delete" data-name="${escapeHtml(c.name)}" title="${escapeHtml(tKey("common.contacts.deleteModal.confirm"))}">${trashSvg}</button>
+          </div>
+        </div>`;
+    }).join("") + agentHintHtml;
+
+    // Row click → detail modal (but not on action buttons)
+    list.querySelectorAll(".contact-row").forEach(row => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".contact-actions")) return;
+        openContactDetailModal({
+          name: row.dataset.name,
+          address: row.dataset.address,
+          chain: row.dataset.chain,
+          trusted: row.dataset.trusted === "true",
+        });
+      });
+    });
+
+    // Trust button → open picker
+    list.querySelectorAll(".contact-action-btn.trust").forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        openContactTrustPicker(btn.dataset.name, btn.dataset.trusted === "true", btn);
+      };
+    });
+
+    // Delete button → custom modal
+    list.querySelectorAll(".contact-action-btn.delete").forEach(btn => {
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        openContactDeleteModal(btn.dataset.name);
+      };
+    });
   } catch (e) {
     list.innerHTML = `<p style="padding:20px;color:var(--danger)">${escapeHtml(String(e))}</p>`;
   }
 }
+
 
 // ==========================================
 // Activity Tab Functions
@@ -1575,6 +1864,7 @@ async function loadActivityRecords(filter = "all", reset = true) {
 
     records.forEach((record) => {
       const recordEl = renderActivityRecord(record, lookup);
+      recordEl.addEventListener("click", () => openTxDetailModal(record, lookup));
       list.appendChild(recordEl);
     });
 
@@ -1592,40 +1882,85 @@ async function loadActivityRecords(filter = "all", reset = true) {
   }
 }
 
+const ACTIVITY_NETWORKS = [
+  { value: 'all',      label: () => tKey('activity.filters.allNetworks'), color: null },
+  { value: 'ethereum', label: () => 'Ethereum',  color: '#627EEA' },
+  { value: 'base',     label: () => 'Base',      color: '#0052FF' },
+  { value: 'optimism', label: () => 'Optimism',  color: '#FF0420' },
+  { value: 'arbitrum', label: () => 'Arbitrum',  color: '#28A0F0' },
+  { value: 'polygon',  label: () => 'Polygon',   color: '#8247E5' },
+  { value: 'zksync',   label: () => 'zkSync Era',color: '#8C8DFC' },
+  { value: 'linea',    label: () => 'Linea',     color: '#61DFFF' },
+  { value: 'scroll',   label: () => 'Scroll',    color: '#FFDBB0' },
+];
+
+function updateActivityNetworkLabel() {
+  const net = ACTIVITY_NETWORKS.find(n => n.value === currentNetworkFilter) || ACTIVITY_NETWORKS[0];
+  const label = document.getElementById("activity-network-label");
+  if (label) label.textContent = net.label();
+}
+
+function closeActivityNetworkPicker() {
+  const picker = document.getElementById("activity-network-picker");
+  if (picker) picker.style.display = "none";
+  document.getElementById("activity-network-btn")?.classList.remove("active");
+}
+
 function initializeActivityNetworkFilter() {
-  const networkFilter = document.getElementById("activity-network-filter");
-  if (!networkFilter) return;
+  const btn = document.getElementById("activity-network-btn");
+  const picker = document.getElementById("activity-network-picker");
+  if (!btn || !picker) return;
 
-  // Populate network options
-  const networks = [
-    { value: 'ethereum', label: 'Ethereum' },
-    { value: 'base', label: 'Base' },
-    { value: 'optimism', label: 'Optimism' },
-    { value: 'arbitrum', label: 'Arbitrum' },
-    { value: 'polygon', label: 'Polygon' },
-    { value: 'zksync', label: 'zkSync Era' },
-    { value: 'linea', label: 'Linea' },
-    { value: 'scroll', label: 'Scroll' }
-  ];
+  const checkSvg = `<svg class="network-picker-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
-  // Clear existing options (except "All Networks")
-  while (networkFilter.options.length > 1) {
-    networkFilter.remove(1);
-  }
+  // Build picker options
+  picker.innerHTML = ACTIVITY_NETWORKS.map(net => {
+    const dot = net.color
+      ? `<span class="network-picker-dot" style="background:${net.color}"></span>`
+      : `<span class="network-picker-dot" style="background:var(--text-secondary);opacity:0.4"></span>`;
+    return `<div class="network-picker-option${net.value === currentNetworkFilter ? ' selected' : ''}" data-value="${net.value}">
+      ${dot}
+      <span class="network-picker-name">${net.label()}</span>
+      ${checkSvg}
+    </div>`;
+  }).join("");
 
-  // Add network options
-  networks.forEach(net => {
-    const option = document.createElement('option');
-    option.value = net.value;
-    option.textContent = `${getNetworkIcon(net.value)} ${net.label}`;
-    networkFilter.appendChild(option);
+  // Option click
+  picker.querySelectorAll(".network-picker-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      currentNetworkFilter = opt.dataset.value;
+      updateActivityNetworkLabel();
+      // Update selected state
+      picker.querySelectorAll(".network-picker-option").forEach(o =>
+        o.classList.toggle("selected", o.dataset.value === currentNetworkFilter)
+      );
+      closeActivityNetworkPicker();
+      loadActivityRecords(currentActivityFilter, true);
+    });
   });
 
-  // Handle network filter change
-  networkFilter.addEventListener('change', (e) => {
-    currentNetworkFilter = e.target.value;
-    loadActivityRecords(currentActivityFilter, true);
+  // Button click → show/hide picker
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (picker.style.display !== "none") {
+      closeActivityNetworkPicker();
+      return;
+    }
+    const rect = btn.getBoundingClientRect();
+    picker.style.left = (rect.right - 180) + "px";
+    picker.style.top = (rect.bottom + 6) + "px";
+    picker.style.display = "block";
+    btn.classList.add("active");
   });
+
+  // Outside click closes picker
+  document.addEventListener("click", (e) => {
+    if (!picker.contains(e.target) && e.target !== btn) {
+      closeActivityNetworkPicker();
+    }
+  });
+
+  updateActivityNetworkLabel();
 }
 
 function renderActivityRecord(record, contactLookup) {
@@ -1673,7 +2008,96 @@ function renderActivityRecord(record, contactLookup) {
     </div>
   `;
 
+  div.style.cursor = "pointer";
+  div._activityRecord = record;
+  div._contactLookup = contactLookup;
+
   return div;
+}
+
+function openTxDetailModal(record, contactLookup) {
+  const modal = document.getElementById("modal-tx-detail");
+
+  // Type badge
+  const typeBadge = document.getElementById("tx-detail-type-badge");
+  const typeMap = { manual: "typeBadgeManual", auto: "typeBadgeAuto", rejected: "typeBadgeRejected" };
+  typeBadge.textContent = tKey(`activity.detail.${typeMap[record.type] || "typeBadgeManual"}`);
+  typeBadge.className = `tx-badge type-${record.type}`;
+
+  // Status badge
+  const statusBadge = document.getElementById("tx-detail-status-badge");
+  let statusKey, statusClass;
+  if (record.type === "rejected") { statusKey = "rejected"; statusClass = "status-failed"; }
+  else if (!record.tx_hash)       { statusKey = "signed";   statusClass = "status-signed"; }
+  else if (record.tx_status === "success") { statusKey = "success"; statusClass = "status-success"; }
+  else if (record.tx_status === "failed")  { statusKey = "failed";  statusClass = "status-failed"; }
+  else if (record.tx_status === "pending") { statusKey = "pending"; statusClass = "status-pending"; }
+  else                                     { statusKey = "signed";  statusClass = "status-signed"; }
+  statusBadge.textContent = tKey(`activity.status.${statusKey}`);
+  statusBadge.className = `tx-badge ${statusClass}`;
+
+  // Amount
+  const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
+  const amountText = `${amount} ${record.tx_token || ""}`.trim();
+  document.getElementById("tx-detail-amount").textContent = amountText;
+  const usdEl = document.getElementById("tx-detail-usd");
+  usdEl.textContent = record.estimated_usd > 0 ? `$${record.estimated_usd.toFixed(2)}` : "";
+
+  // Recipient
+  const match = record.tx_to && record.tx_chain && contactLookup
+    ? contactLookup.get(contactRecipientKey(record.tx_chain, record.tx_to))
+    : null;
+  const recipientDisplay = match
+    ? match.name
+    : record.tx_to || tKey("activity.detail.noRecipient");
+
+  // Time
+  const dt = new Date(record.timestamp);
+  const timeStr = dt.toLocaleString("zh-CN", { year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit" });
+
+  // Type label
+  const typeLabels = { manual: tKey("activity.filters.manual"), auto: tKey("activity.filters.auto"), rejected: tKey("activity.filters.rejected") };
+
+  // Hash
+  const hashDisplay = record.tx_hash
+    ? `${record.tx_hash.slice(0, 10)}…${record.tx_hash.slice(-8)}`
+    : tKey("activity.detail.noHash");
+
+  // Network dot color
+  const netColors = { ethereum:"#627EEA", base:"#0052FF", optimism:"#FF0420", arbitrum:"#28A0F0", polygon:"#8247E5", zksync:"#8C8DFC", linea:"#61DFFF", scroll:"#FFDBB0" };
+  const netColor = netColors[(record.tx_chain || "").toLowerCase()] || "var(--text-secondary)";
+  const chainLabel = record.tx_chain
+    ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${netColor};margin-right:6px;vertical-align:middle;"></span>${escapeHtml(record.tx_chain)}`
+    : "—";
+
+  // Status row value
+  const statusValueClass = record.tx_status === "success" ? "success" : record.tx_status === "failed" ? "danger" : "";
+
+  // Build info rows
+  const rows = [
+    { label: tKey("activity.detail.labelTo"),     value: escapeHtml(recipientDisplay), cls: record.tx_to ? "accent mono" : "" },
+    { label: tKey("activity.detail.labelChain"),  value: chainLabel, raw: true },
+    { label: tKey("activity.detail.labelTime"),   value: escapeHtml(timeStr) },
+    { label: tKey("activity.detail.labelType"),   value: escapeHtml(typeLabels[record.type] || record.type) },
+    { label: tKey("activity.detail.labelHash"),   value: escapeHtml(hashDisplay), cls: record.tx_hash ? "accent mono" : "" },
+    { label: tKey("activity.detail.labelStatus"), value: escapeHtml(tKey(`activity.status.${statusKey}`)), cls: statusValueClass },
+  ];
+  if (record.gas_used)    rows.push({ label: tKey("activity.detail.labelGas"),   value: escapeHtml(String(record.gas_used)) });
+  if (record.block_number) rows.push({ label: tKey("activity.detail.labelBlock"), value: escapeHtml(String(record.block_number)) });
+
+  document.getElementById("tx-detail-info").innerHTML = rows.map(r => `
+    <div class="tx-detail-row">
+      <span class="tx-detail-label">${escapeHtml(r.label)}</span>
+      <span class="tx-detail-value ${r.cls || ""}">${r.raw ? r.value : r.value}</span>
+    </div>`).join("");
+
+  // Explorer button
+  const explorerUrl = getBlockExplorerUrl(record.tx_chain, record.tx_hash);
+  const explorerBtn = document.getElementById("btn-tx-detail-explorer");
+  explorerBtn.style.display = explorerUrl ? "" : "none";
+  explorerBtn.onclick = () => { if (explorerUrl) window.open(explorerUrl, "_blank"); };
+
+  modal.classList.add("active");
 }
 
 function getBlockExplorerUrl(chain, txHash) {
@@ -1803,30 +2227,60 @@ async function initializeI18n() {
  * Initialize language switcher UI component
  */
 function initializeLanguageSwitcher() {
-  const selector = document.getElementById('language-selector');
-  if (!selector) return;
-  
-  selector.value = i18next.language;
-  
-  selector.addEventListener('change', async (e) => {
-    const newLang = e.target.value;
-    const appRoot = document.getElementById("app");
+  const LANG_LABELS = { "en": "English", "zh-CN": "简体中文" };
 
-    selector.disabled = true;
-    appRoot?.classList.add("i18n-switching");
+  function setLanguageDisplay(lang) {
+    const display = document.getElementById("language-display");
+    if (display) display.textContent = LANG_LABELS[lang] ?? lang;
+    document.querySelectorAll("#language-picker .custom-picker-option").forEach(opt => {
+      opt.classList.toggle("selected", opt.dataset.value === lang);
+    });
+  }
 
-    try {
-      await changeLanguage(newLang);
-      updateStaticTexts();
-      await refreshDynamicI18n();
-      console.log(`Language changed to: ${newLang}`);
-    } catch (err) {
-      console.error('Failed to change language:', err);
-      selector.value = i18next.language;
-    } finally {
-      selector.disabled = false;
-      appRoot?.classList.remove("i18n-switching");
-    }
+  function closeLanguagePicker() {
+    document.getElementById("language-picker").style.display = "none";
+    document.removeEventListener("click", closeLanguagePickerOutside, true);
+  }
+
+  function closeLanguagePickerOutside(e) {
+    const picker = document.getElementById("language-picker");
+    const row = document.getElementById("row-language");
+    if (!picker.contains(e.target) && !row.contains(e.target)) closeLanguagePicker();
+  }
+
+  setLanguageDisplay(i18next.language);
+
+  document.getElementById("row-language")?.addEventListener("click", () => {
+    const picker = document.getElementById("language-picker");
+    const row = document.getElementById("row-language");
+    if (picker.style.display !== "none") { closeLanguagePicker(); return; }
+    const rect = row.getBoundingClientRect();
+    const pickerW = 200;
+    picker.style.display = "block";
+    picker.style.width = pickerW + "px";
+    picker.style.left = Math.max(8, rect.right - pickerW) + "px";
+    picker.style.top = rect.bottom + 4 + "px";
+    setTimeout(() => document.addEventListener("click", closeLanguagePickerOutside, true), 0);
+  });
+
+  document.querySelectorAll("#language-picker .custom-picker-option").forEach(opt => {
+    opt.addEventListener("click", async () => {
+      const newLang = opt.dataset.value;
+      setLanguageDisplay(newLang);
+      closeLanguagePicker();
+      const appRoot = document.getElementById("app");
+      appRoot?.classList.add("i18n-switching");
+      try {
+        await changeLanguage(newLang);
+        updateStaticTexts();
+        await refreshDynamicI18n();
+      } catch (err) {
+        console.error("Failed to change language:", err);
+        setLanguageDisplay(i18next.language);
+      } finally {
+        appRoot?.classList.remove("i18n-switching");
+      }
+    });
   });
 }
 

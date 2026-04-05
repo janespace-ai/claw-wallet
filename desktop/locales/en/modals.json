@@ -31,12 +31,18 @@
     "reject": "Reject"
   },
   "export": {
-    "title": "Export mnemonic",
+    "title": "Export Mnemonic",
     "warning": "Anyone with these words can control your wallet. Use in a private place.",
     "passwordPlaceholder": "Wallet password",
+    "confirm": "Confirm",
+    "cancel": "Cancel",
     "reveal": "Reveal",
-    "copy": "Copy mnemonic",
-    "close": "Close"
+    "mnemonicTitle": "Your Mnemonic",
+    "mnemonicWarning": "Keep this safe. Never screenshot or share with anyone.",
+    "copy": "Copy Mnemonic",
+    "close": "Close",
+    "copied": "Mnemonic copied",
+    "wrongPassword": "Incorrect password, please try again"
   },
   "alert": {
     "title": "⚠ Security alert",

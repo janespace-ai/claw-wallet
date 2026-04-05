@@ -14,7 +14,8 @@
   "allowance": {
     "title": "限额",
     "dailyLimit": "每日限额（美元）",
-    "perTxLimit": "单笔交易限额（美元）"
+    "perTxLimit": "单笔交易限额（美元）",
+    "saved": "限额已保存"
   },
   "lockMode": {
     "title": "锁定模式",

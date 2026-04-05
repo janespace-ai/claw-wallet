@@ -35,5 +35,22 @@
     "auto": "🤖 自动",
     "manual": "👤 手动",
     "rejected": "❌ 已拒绝"
+  },
+  "detail": {
+    "explorer": "区块浏览器 ↗",
+    "close": "关闭",
+    "labelTo": "接收方",
+    "labelChain": "网络",
+    "labelTime": "时间",
+    "labelType": "类型",
+    "labelHash": "交易哈希",
+    "labelStatus": "状态",
+    "labelGas": "Gas 用量",
+    "labelBlock": "区块",
+    "typeBadgeManual": "手动签名",
+    "typeBadgeAuto": "自动签名",
+    "typeBadgeRejected": "已拒绝",
+    "noHash": "未广播",
+    "noRecipient": "—"
   }
 }

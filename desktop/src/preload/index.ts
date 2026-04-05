@@ -50,6 +50,7 @@ export interface WalletAPI {
   ) => Promise<ActivityRecord[]>;
   listDesktopContacts: (accountIndex?: number) => Promise<DesktopContactEntry[]>;
   removeDesktopContact: (name: string, accountIndex?: number) => Promise<void>;
+  updateDesktopContactTrust: (name: string, trusted: boolean, accountIndex?: number) => Promise<void>;
 
   listWalletAccounts: () => Promise<WalletAccountSummary[]>;
   /** Chains from network-config (for home network filter before balances load). */
@@ -291,6 +292,8 @@ const api: WalletAPI = {
   listDesktopContacts: (accountIndex?) => ipcRenderer.invoke("wallet:list-contacts", accountIndex),
   removeDesktopContact: (name, accountIndex) =>
     ipcRenderer.invoke("wallet:remove-contact", accountIndex, name),
+  updateDesktopContactTrust: (name, trusted, accountIndex) =>
+    ipcRenderer.invoke("wallet:update-contact-trust", accountIndex, name, trusted),
 
   listWalletAccounts: () => ipcRenderer.invoke("wallet:list-accounts"),
   listConfiguredNetworks: () => ipcRenderer.invoke("wallet:list-configured-networks"),

@@ -213,6 +213,15 @@ export class WalletAuthorityStore {
     return { name: n, chain: c, address: a, trusted: trustedVal === 1 };
   }
 
+  updateContactTrust(accountIndex: number, name: string, trusted: boolean): boolean {
+    const n = name.trim();
+    const now = Date.now();
+    const result = this.db
+      .prepare(`UPDATE desktop_contacts SET trusted = ?, updated_at = ? WHERE account_index = ? AND name = ? COLLATE NOCASE`)
+      .run(trusted ? 1 : 0, now, accountIndex, n);
+    return result.changes > 0;
+  }
+
   removeContactsByName(accountIndex: number, name: string): number {
     const n = name.trim();
     return this.db.prepare("DELETE FROM desktop_contacts WHERE account_index = ? AND name = ? COLLATE NOCASE").run(accountIndex, n).changes;

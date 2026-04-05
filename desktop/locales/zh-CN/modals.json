@@ -34,9 +34,15 @@
     "title": "导出助记词",
     "warning": "任何人获得这些单词即可控制您的钱包。请在私密环境下操作。",
     "passwordPlaceholder": "钱包密码",
+    "confirm": "确认",
+    "cancel": "取消",
     "reveal": "显示",
-    "copy": "拷贝助记词",
-    "close": "关闭"
+    "mnemonicTitle": "你的助记词",
+    "mnemonicWarning": "请妥善保存，切勿截图或分享给他人。",
+    "copy": "复制助记词",
+    "close": "关闭",
+    "copied": "助记词已拷贝",
+    "wrongPassword": "密码错误，请重试"
   },
   "alert": {
     "title": "⚠ 安全警报",

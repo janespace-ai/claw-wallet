@@ -51,11 +51,13 @@
     "error": "Error",
     "copied": "Copied!",
     "sameMachineWarning": "⚠ Agent and Wallet are on the same machine — security is significantly reduced!",
-    "copiedToClipboard": "Copied to clipboard!"
+    "copiedToClipboard": "Copied to clipboard!",
+    "saveFailed": "Save failed, please try again"
   },
   "home": {
     "portfolioValue": "Total Portfolio Value",
     "balances": "Balances",
+    "allNetworks": "All Networks",
     "hideZero": "Hide zero balances",
     "noPendingTx": "No pending transactions",
     "noBalances": "No balances found",
@@ -80,6 +82,7 @@
   "biometric": {
     "useWithLabel": "Use {label}",
     "defaultUnlock": "Biometrics",
+    "enableTitle": "Enable Biometric Unlock",
     "enableConfirm": "Enable {name} for quick unlock?"
   },
   "relativeTime": {
@@ -91,7 +94,27 @@
   "contacts": {
     "trusted": "Trusted",
     "removeConfirm": "Remove all entries for contact \"{name}\"?",
-    "nameRequired": "Please enter a display name for the trusted contact."
+    "nameRequired": "Please enter a display name for the trusted contact.",
+    "trustPicker": {
+      "title": "Set Trust Level",
+      "trusted": "Trusted",
+      "trustedDesc": "Transactions within spending limits are signed automatically",
+      "normal": "Normal",
+      "normalDesc": "Every transaction requires manual approval",
+      "cancel": "Cancel"
+    },
+    "deleteModal": {
+      "title": "Remove Contact",
+      "body": "Remove contact \"{name}\"? This action cannot be undone.",
+      "confirm": "Remove",
+      "cancel": "Cancel"
+    },
+    "detailModal": {
+      "copyAddress": "Copy Address",
+      "cancel": "Cancel",
+      "copied": "Address copied"
+    },
+    "agentHint": "New contacts are added automatically by Agent after completing a transaction"
   },
   "accounts": {
     "selectorLabel": "Active account",

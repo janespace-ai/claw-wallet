@@ -633,12 +633,15 @@
   <!-- Security alert -->
   <div id="modal-alert" class="modal">
     <div class="modal-box">
-      <h3 style="color:var(--warning);" data-i18n="modals.alert.title">⚠ Security Alert</h3>
-      <p id="alert-message" style="font-size:14px;color:var(--text-primary);"></p>
-      <div class="modal-actions" style="flex-direction:column;gap:8px;">
-        <button id="btn-alert-freeze" class="btn-danger-outline" style="height:44px;" data-i18n="modals.alert.freeze">Freeze (30 min)</button>
+      <div class="alert-modal-header">
+        <span class="alert-modal-icon">⚠️</span>
+        <h3 class="alert-modal-title" data-i18n="modals.alert.title">Security Alert</h3>
+      </div>
+      <p id="alert-message" class="alert-modal-message"></p>
+      <div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:8px;">
+        <button id="btn-alert-freeze" class="btn-primary" style="height:44px;" data-i18n="modals.alert.freeze">Freeze (30 min)</button>
         <button id="btn-alert-allow" class="btn-outline" style="height:44px;" data-i18n="modals.alert.allowOnce">Allow once</button>
-        <button id="btn-alert-trust" class="btn-ghost" data-i18n="modals.alert.trustDevice">Trust new device</button>
+        <button id="btn-alert-trust" class="btn-ghost" style="font-size:13px;color:var(--text-secondary);" data-i18n="modals.alert.trustDevice">Trust this device</button>
       </div>
     </div>
   </div>

@@ -25,5 +25,12 @@
     "failed": "Failed",
     "pending": "Pending",
     "signed": "Signed"
+  },
+  "alertMessages": {
+    "ip_change": "A request was detected from a new IP address that doesn't match the previous login location.",
+    "fingerprint_change": "The device fingerprint has changed — the device may have been replaced or spoofed.",
+    "same_machine": "Agent and Wallet App are running on the same machine, which significantly reduces security.",
+    "key_mismatch": "A key mismatch was detected — this device's identity may have been tampered with.",
+    "device_mismatch": "The device identifier doesn't match. Please verify this is a trusted device."
   }
 }

@@ -675,7 +675,10 @@
                   "type": "text",
                   "id": "k4ESJ",
                   "fill": "$text-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "TOTAL PORTFOLIO VALUE",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 11,
                   "fontWeight": "600",
@@ -685,7 +688,10 @@
                   "type": "text",
                   "id": "ql6ig",
                   "fill": "$text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "$12,345.67",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 36,
                   "fontWeight": "700"
@@ -694,7 +700,10 @@
                   "type": "text",
                   "id": "tlQGw",
                   "fill": "$success",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "↑ $124.50 today",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 13,
                   "fontWeight": "normal"
@@ -2326,12 +2335,16 @@
                 20,
                 20
               ],
+              "alignItems": "center",
               "children": [
                 {
                   "type": "text",
                   "id": "jxdzh",
                   "fill": "$text-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "TOTAL PORTFOLIO VALUE",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 11,
                   "fontWeight": "600",
@@ -2341,7 +2354,10 @@
                   "type": "text",
                   "id": "H7tUY",
                   "fill": "$text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "$12,345.67",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 28,
                   "fontWeight": "700"
@@ -2351,7 +2367,10 @@
                   "id": "GlAVk",
                   "name": "chg",
                   "fill": "#10B981",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "↑ $124.50 today",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 13,
                   "fontWeight": "500"
@@ -3676,14 +3695,19 @@
       "x": 2700,
       "y": 0,
       "name": "07 Tx Approval",
+      "theme": {
+        "mode": "dark"
+      },
       "width": 390,
       "height": 700,
       "fill": "$bg",
-      "layout": "vertical",
+      "layout": "none",
       "children": [
         {
           "type": "frame",
           "id": "FNWxh",
+          "x": 0,
+          "y": 0,
           "name": "Overlay",
           "width": 390,
           "height": 700,
@@ -3707,9 +3731,11 @@
         {
           "type": "frame",
           "id": "JMsDk",
+          "x": 0,
+          "y": 120,
           "name": "Bottom Sheet",
           "width": 390,
-          "height": 480,
+          "height": 580,
           "fill": "$surface",
           "cornerRadius": [
             24,
@@ -3749,6 +3775,7 @@
               "name": "sheetContent",
               "width": "fill_container",
               "layout": "vertical",
+              "gap": 12,
               "padding": [
                 8,
                 24,
@@ -3756,37 +3783,6 @@
                 24
               ],
               "children": [
-                {
-                  "type": "frame",
-                  "id": "PXx9K",
-                  "name": "agentBadge",
-                  "fill": "$accent-light",
-                  "cornerRadius": 20,
-                  "gap": 6,
-                  "padding": [
-                    6,
-                    12
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "ellipse",
-                      "id": "rX2qm",
-                      "fill": "$accent",
-                      "width": 8,
-                      "height": 8
-                    },
-                    {
-                      "type": "text",
-                      "id": "eQkn3",
-                      "fill": "$accent",
-                      "content": "Request from Agent-1",
-                      "fontFamily": "Inter",
-                      "fontSize": 12,
-                      "fontWeight": "500"
-                    }
-                  ]
-                },
                 {
                   "type": "frame",
                   "id": "6T053",
@@ -3805,9 +3801,9 @@
                       "type": "text",
                       "id": "GEbhG",
                       "fill": "$text-primary",
-                      "content": "Transaction Request",
+                      "content": "交易审批",
                       "fontFamily": "Inter",
-                      "fontSize": 19,
+                      "fontSize": 17,
                       "fontWeight": "700"
                     },
                     {
@@ -3823,65 +3819,17 @@
                 },
                 {
                   "type": "frame",
-                  "id": "iuzgf",
-                  "name": "amountCard",
+                  "id": "infoBox1",
+                  "name": "infoBox",
                   "width": "fill_container",
-                  "fill": "$surface2",
-                  "cornerRadius": 16,
+                  "fill": "$bg",
+                  "cornerRadius": 12,
                   "layout": "vertical",
-                  "gap": 4,
-                  "padding": [
-                    20,
-                    16
-                  ],
-                  "alignItems": "center",
-                  "children": [
-                    {
-                      "type": "text",
-                      "id": "tWZwu",
-                      "fill": "$text-secondary",
-                      "content": "You are sending",
-                      "fontFamily": "Inter",
-                      "fontSize": 12,
-                      "fontWeight": "normal"
-                    },
-                    {
-                      "type": "text",
-                      "id": "vCkrf",
-                      "fill": "$text-primary",
-                      "content": "0.01 ETH",
-                      "fontFamily": "Inter",
-                      "fontSize": 32,
-                      "fontWeight": "700"
-                    },
-                    {
-                      "type": "text",
-                      "id": "CzLjx",
-                      "fill": "$text-secondary",
-                      "content": "≈ $24.50",
-                      "fontFamily": "Inter",
-                      "fontSize": 15,
-                      "fontWeight": "normal"
-                    }
-                  ]
-                },
-                {
-                  "type": "frame",
-                  "id": "2qa9x",
-                  "name": "detailsFrame",
-                  "width": "fill_container",
-                  "layout": "vertical",
-                  "padding": [
-                    16,
-                    0,
-                    0,
-                    0
-                  ],
                   "children": [
                     {
                       "type": "frame",
-                      "id": "UCqAZ",
-                      "name": "row_to",
+                      "id": "NnbRf",
+                      "name": "rowMethod",
                       "width": "fill_container",
                       "stroke": {
                         "align": "inside",
@@ -3891,36 +3839,36 @@
                         "fill": "$col-border"
                       },
                       "padding": [
-                        10,
-                        0
+                        11,
+                        14
                       ],
                       "justifyContent": "space_between",
                       "alignItems": "center",
                       "children": [
                         {
                           "type": "text",
-                          "id": "ekM3J",
+                          "id": "6aZbr",
                           "fill": "$text-secondary",
-                          "content": "To",
+                          "content": "方法",
                           "fontFamily": "Inter",
                           "fontSize": 13,
                           "fontWeight": "normal"
                         },
                         {
                           "type": "text",
-                          "id": "kNdqu",
+                          "id": "yMQgM",
                           "fill": "$text-primary",
-                          "content": "0x1234...5678",
-                          "fontFamily": "Geist Mono",
+                          "content": "sign_transaction",
+                          "fontFamily": "Inter",
                           "fontSize": 13,
-                          "fontWeight": "500"
+                          "fontWeight": "normal"
                         }
                       ]
                     },
                     {
                       "type": "frame",
-                      "id": "Y0OCw",
-                      "name": "row_net",
+                      "id": "g6upu",
+                      "name": "rowBook",
                       "width": "fill_container",
                       "stroke": {
                         "align": "inside",
@@ -3930,61 +3878,306 @@
                         "fill": "$col-border"
                       },
                       "padding": [
-                        10,
-                        0
+                        11,
+                        14
                       ],
                       "justifyContent": "space_between",
                       "alignItems": "center",
                       "children": [
                         {
                           "type": "text",
-                          "id": "U86Fl",
+                          "id": "YYD0r",
                           "fill": "$text-secondary",
-                          "content": "Network",
+                          "content": "通讯录",
                           "fontFamily": "Inter",
                           "fontSize": 13,
                           "fontWeight": "normal"
                         },
                         {
-                          "type": "text",
-                          "id": "YIIw2",
-                          "fill": "$text-primary",
-                          "content": "Base",
-                          "fontFamily": "Inter",
-                          "fontSize": 13,
-                          "fontWeight": "500"
+                          "type": "frame",
+                          "id": "YeHyV",
+                          "name": "bookVal",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "2DAUD",
+                              "fill": "$text-primary",
+                              "content": "jeff",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "V3oZf",
+                              "name": "trustedBadge",
+                              "fill": "$accent",
+                              "cornerRadius": 4,
+                              "padding": [
+                                2,
+                                6
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "9tx7B",
+                                  "fill": "$text-on-accent",
+                                  "content": "可信任",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
                         }
                       ]
                     },
                     {
                       "type": "frame",
-                      "id": "snMr0",
-                      "name": "row_gas",
+                      "id": "c3EIR",
+                      "name": "rowTo",
                       "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "layout": "vertical",
+                      "gap": 4,
                       "padding": [
-                        10,
-                        0
+                        11,
+                        14
                       ],
-                      "justifyContent": "space_between",
-                      "alignItems": "center",
                       "children": [
                         {
                           "type": "text",
-                          "id": "tT7jL",
+                          "id": "Tq5Jv",
                           "fill": "$text-secondary",
-                          "content": "Est. Gas",
+                          "content": "收款地址",
                           "fontFamily": "Inter",
                           "fontSize": 13,
                           "fontWeight": "normal"
                         },
                         {
                           "type": "text",
-                          "id": "5x9jR",
-                          "fill": "$text-primary",
-                          "content": "~$0.12",
+                          "id": "eVrrb",
+                          "fill": "$accent",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "S58eC",
+                      "name": "rowTransfer",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "h7thK",
+                          "fill": "$text-secondary",
+                          "content": "转账",
                           "fontFamily": "Inter",
                           "fontSize": 13,
-                          "fontWeight": "500"
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "bGwig",
+                          "fill": "$text-primary",
+                          "content": "1 ETH",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "laLZf",
+                      "name": "rowUsd",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "6H5r9",
+                          "fill": "$text-secondary",
+                          "content": "预估价值",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "noWQK",
+                          "fill": "$text-primary",
+                          "content": "≈ 2040.83 USDT",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "QOv7K",
+                      "name": "rowChain",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "z23wm",
+                          "fill": "$text-secondary",
+                          "content": "链",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "qJL6Q",
+                          "name": "chainVal",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "h74gY",
+                              "fill": "#627EEA",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "TD3oE",
+                              "fill": "$text-primary",
+                              "content": "ethereum",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "BLBPP",
+                      "name": "rowDevice",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Se51d",
+                          "fill": "$text-secondary",
+                          "content": "来源设备",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "Tw0nW",
+                          "fill": "$text-primary",
+                          "content": "fba68a61b590f7ee",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "JEkV9",
+                      "name": "rowIp",
+                      "width": "fill_container",
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "HRbjj",
+                          "fill": "$text-secondary",
+                          "content": "来源 IP",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "gH72T",
+                          "fill": "$text-primary",
+                          "content": "120.229.207.128",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
                         }
                       ]
                     }
@@ -3997,7 +4190,7 @@
                   "width": "fill_container",
                   "height": 52,
                   "fill": "$accent",
-                  "cornerRadius": 14,
+                  "cornerRadius": 26,
                   "layout": "vertical",
                   "justifyContent": "center",
                   "alignItems": "center",
@@ -4006,7 +4199,7 @@
                       "type": "text",
                       "id": "bEsYW",
                       "fill": "$text-on-accent",
-                      "content": "Approve",
+                      "content": "批准",
                       "fontFamily": "Inter",
                       "fontSize": 16,
                       "fontWeight": "600"
@@ -4019,8 +4212,13 @@
                   "name": "btnReject",
                   "width": "fill_container",
                   "height": 48,
-                  "fill": "#FEF2F2",
-                  "cornerRadius": 14,
+                  "fill": "#00000000",
+                  "cornerRadius": 24,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "$danger"
+                  },
                   "layout": "vertical",
                   "justifyContent": "center",
                   "alignItems": "center",
@@ -4029,7 +4227,7 @@
                       "type": "text",
                       "id": "rUeHA",
                       "fill": "$danger",
-                      "content": "Reject",
+                      "content": "拒绝",
                       "fontFamily": "Inter",
                       "fontSize": 15,
                       "fontWeight": "500"
@@ -4096,25 +4294,25 @@
               "id": "Wp44T",
               "name": "Alert Header",
               "width": "fill_container",
-              "gap": 10,
+              "gap": 12,
               "alignItems": "center",
               "children": [
                 {
-                  "type": "text",
-                  "id": "LWd0N",
+                  "type": "icon_font",
+                  "id": "CYJ3Y",
                   "name": "alertIcon",
-                  "fill": "$warning",
-                  "content": "⚠️",
-                  "fontFamily": "Inter",
-                  "fontSize": 22,
-                  "fontWeight": "normal"
+                  "width": 24,
+                  "height": 24,
+                  "iconFontName": "shield-alert",
+                  "iconFontFamily": "lucide",
+                  "fill": "$danger"
                 },
                 {
                   "type": "text",
                   "id": "FdzTT",
                   "name": "alertTitle",
-                  "fill": "$warning",
-                  "content": "Security Alert",
+                  "fill": "$danger",
+                  "content": "安全警报",
                   "fontFamily": "Inter",
                   "fontSize": 17,
                   "fontWeight": "700"
@@ -4147,7 +4345,7 @@
                   "name": "Freeze Btn",
                   "width": "fill_container",
                   "height": 44,
-                  "fill": "$accent",
+                  "fill": "$danger",
                   "cornerRadius": 14,
                   "layout": "vertical",
                   "justifyContent": "center",
@@ -4199,8 +4397,13 @@
                   "id": "WwIpk",
                   "name": "Trust Btn",
                   "width": "fill_container",
-                  "height": 36,
-                  "cornerRadius": 10,
+                  "height": 44,
+                  "cornerRadius": 14,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "$col-border"
+                  },
                   "layout": "vertical",
                   "justifyContent": "center",
                   "alignItems": "center",
@@ -4935,7 +5138,7 @@
                       "id": "yUq5Q",
                       "name": "txRow1Label",
                       "fill": "$text-secondary",
-                      "content": "发送至",
+                      "content": "接收方",
                       "fontFamily": "Inter",
                       "fontSize": 13,
                       "fontWeight": "normal"
@@ -4944,8 +5147,8 @@
                       "type": "text",
                       "id": "4UXDG",
                       "name": "txRow1Value",
-                      "fill": "$text-primary",
-                      "content": "0x742d...f44e",
+                      "fill": "$accent",
+                      "content": "jeff",
                       "fontFamily": "Inter",
                       "fontSize": 13,
                       "fontWeight": "normal"
@@ -4998,6 +5201,11 @@
                   "id": "i1pkA",
                   "name": "txRow3",
                   "width": "fill_container",
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 0,
+                    "fill": "$col-border"
+                  },
                   "padding": [
                     12,
                     16
@@ -5010,20 +5218,39 @@
                       "id": "L7FTi",
                       "name": "txRow3Label",
                       "fill": "$text-secondary",
-                      "content": "Gas 费",
+                      "content": "交易哈希",
                       "fontFamily": "Inter",
                       "fontSize": 13,
                       "fontWeight": "normal"
                     },
                     {
-                      "type": "text",
-                      "id": "83K0G",
-                      "name": "txRow3Value",
-                      "fill": "$text-primary",
-                      "content": "$2.34",
-                      "fontFamily": "Inter",
-                      "fontSize": 13,
-                      "fontWeight": "normal"
+                      "type": "frame",
+                      "id": "iIYsm",
+                      "name": "hashRight",
+                      "gap": 6,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "WXboh",
+                          "name": "hashText",
+                          "fill": "$accent",
+                          "content": "0x65a3…42bf",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "icon_font",
+                          "id": "DGbzq",
+                          "name": "copyIcon",
+                          "width": 14,
+                          "height": 14,
+                          "iconFontName": "copy",
+                          "iconFontFamily": "lucide",
+                          "fill": "$accent"
+                        }
+                      ]
                     }
                   ]
                 }
@@ -7858,7 +8085,10 @@
                   "type": "text",
                   "id": "nOZti",
                   "fill": "$text-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "TOTAL PORTFOLIO VALUE",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 11,
                   "fontWeight": "600",
@@ -7868,7 +8098,10 @@
                   "type": "text",
                   "id": "goxnj",
                   "fill": "$text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "$12,345.67",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 36,
                   "fontWeight": "700"
@@ -7877,7 +8110,10 @@
                   "type": "text",
                   "id": "zqRYo",
                   "fill": "$success",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "↑ $124.50 today",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 13,
                   "fontWeight": "normal"
@@ -9524,12 +9760,16 @@
                 20,
                 20
               ],
+              "alignItems": "center",
               "children": [
                 {
                   "type": "text",
                   "id": "lVhOC",
                   "fill": "$text-secondary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "TOTAL PORTFOLIO VALUE",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 11,
                   "fontWeight": "600",
@@ -9539,7 +9779,10 @@
                   "type": "text",
                   "id": "VXpzI",
                   "fill": "$text-primary",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "$12,345.67",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 28,
                   "fontWeight": "700"
@@ -9549,7 +9792,10 @@
                   "id": "m0Rxx",
                   "name": "dchg",
                   "fill": "#10B981",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
                   "content": "↑ $124.50 today",
+                  "textAlign": "center",
                   "fontFamily": "Inter",
                   "fontSize": 13,
                   "fontWeight": "500"
@@ -12061,25 +12307,25 @@
               "id": "OBOVk",
               "name": "Alert Header",
               "width": "fill_container",
-              "gap": 10,
+              "gap": 12,
               "alignItems": "center",
               "children": [
                 {
-                  "type": "text",
-                  "id": "8hVd2",
+                  "type": "icon_font",
+                  "id": "nWJhY",
                   "name": "alertIcon",
-                  "fill": "$warning",
-                  "content": "⚠️",
-                  "fontFamily": "Inter",
-                  "fontSize": 22,
-                  "fontWeight": "normal"
+                  "width": 24,
+                  "height": 24,
+                  "iconFontName": "shield-alert",
+                  "iconFontFamily": "lucide",
+                  "fill": "$danger"
                 },
                 {
                   "type": "text",
                   "id": "VNurU",
                   "name": "alertTitle",
-                  "fill": "$warning",
-                  "content": "Security Alert",
+                  "fill": "$danger",
+                  "content": "安全警报",
                   "fontFamily": "Inter",
                   "fontSize": 17,
                   "fontWeight": "700"
@@ -12112,7 +12358,7 @@
                   "name": "Freeze Btn",
                   "width": "fill_container",
                   "height": 44,
-                  "fill": "$accent",
+                  "fill": "$danger",
                   "cornerRadius": 14,
                   "layout": "vertical",
                   "justifyContent": "center",
@@ -12165,7 +12411,12 @@
                   "name": "Trust Btn",
                   "width": "fill_container",
                   "height": 36,
-                  "cornerRadius": 10,
+                  "cornerRadius": 14,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "$col-border"
+                  },
                   "layout": "vertical",
                   "justifyContent": "center",
                   "alignItems": "center",
@@ -19255,6 +19506,557 @@
                       "fontFamily": "Inter",
                       "fontSize": 14,
                       "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
+      "id": "6GkeL",
+      "x": 3150,
+      "y": 0,
+      "name": "07 Tx Approval (Light)",
+      "theme": {
+        "mode": "light"
+      },
+      "width": 390,
+      "height": 700,
+      "fill": "$bg",
+      "layout": "none",
+      "children": [
+        {
+          "type": "frame",
+          "id": "hElOJ",
+          "x": 0,
+          "y": 0,
+          "name": "Overlay",
+          "width": 390,
+          "height": 700,
+          "fill": "#00000066",
+          "layout": "none",
+          "children": [
+            {
+              "type": "frame",
+              "id": "lnxlI",
+              "x": 0,
+              "y": 0,
+              "name": "BG Snap",
+              "opacity": 0.4,
+              "width": 390,
+              "height": 700,
+              "fill": "$bg",
+              "layout": "vertical"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "OpVGM",
+          "x": 0,
+          "y": 120,
+          "name": "Bottom Sheet",
+          "width": 390,
+          "height": 580,
+          "fill": "$surface",
+          "cornerRadius": [
+            24,
+            24,
+            0,
+            0
+          ],
+          "layout": "vertical",
+          "children": [
+            {
+              "type": "frame",
+              "id": "3Fmcf",
+              "name": "handle",
+              "width": "fill_container",
+              "padding": [
+                12,
+                0,
+                4,
+                0
+              ],
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 2,
+                  "id": "St4SV",
+                  "fill": "$col-border",
+                  "width": 36,
+                  "height": 4
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "5H0Yw",
+              "name": "sheetContent",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 12,
+              "padding": [
+                8,
+                24,
+                32,
+                24
+              ],
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "aWvvU",
+                  "name": "sheetHdr",
+                  "width": "fill_container",
+                  "padding": [
+                    14,
+                    0,
+                    16,
+                    0
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "s17TI",
+                      "fill": "$text-primary",
+                      "content": "交易审批",
+                      "fontFamily": "Inter",
+                      "fontSize": 17,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "icon_font",
+                      "id": "iLgoW",
+                      "width": 20,
+                      "height": 20,
+                      "iconFontName": "x",
+                      "iconFontFamily": "lucide",
+                      "fill": "$text-secondary"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "hAam8",
+                  "name": "infoBox",
+                  "width": "fill_container",
+                  "fill": "$bg",
+                  "cornerRadius": 12,
+                  "layout": "vertical",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "dvdOx",
+                      "name": "rowMethod",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "8Oo6k",
+                          "fill": "$text-secondary",
+                          "content": "方法",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "WT5k9",
+                          "fill": "$text-primary",
+                          "content": "sign_transaction",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "k5wiP",
+                      "name": "rowBook",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ZN78p",
+                          "fill": "$text-secondary",
+                          "content": "通讯录",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "4WhPc",
+                          "name": "bookVal",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "oX30M",
+                              "fill": "$text-primary",
+                              "content": "jeff",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "bdCQf",
+                              "name": "trustedBadge",
+                              "fill": "$accent",
+                              "cornerRadius": 4,
+                              "padding": [
+                                2,
+                                6
+                              ],
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "7Df1y",
+                                  "fill": "$text-on-accent",
+                                  "content": "可信任",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 11,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "6amtc",
+                      "name": "rowTo",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "layout": "vertical",
+                      "gap": 4,
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "q4VbT",
+                          "fill": "$text-secondary",
+                          "content": "收款地址",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "DMaKq",
+                          "fill": "$accent",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "d6h1Q",
+                      "name": "rowTransfer",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "7PX97",
+                          "fill": "$text-secondary",
+                          "content": "转账",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "IkiL9",
+                          "fill": "$text-primary",
+                          "content": "1 ETH",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "KmgUI",
+                      "name": "rowUsd",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "UxIld",
+                          "fill": "$text-secondary",
+                          "content": "预估价值",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "I0zDv",
+                          "fill": "$text-primary",
+                          "content": "≈ 2040.83 USDT",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "Hp9S3",
+                      "name": "rowChain",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "q2Ig2",
+                          "fill": "$text-secondary",
+                          "content": "链",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Xc6Y0",
+                          "name": "chainVal",
+                          "gap": 6,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "ellipse",
+                              "id": "Xb9xD",
+                              "fill": "#627EEA",
+                              "width": 8,
+                              "height": 8
+                            },
+                            {
+                              "type": "text",
+                              "id": "Kv7Ly",
+                              "fill": "$text-primary",
+                              "content": "ethereum",
+                              "fontFamily": "Inter",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "T9FlS",
+                      "name": "rowDevice",
+                      "width": "fill_container",
+                      "stroke": {
+                        "align": "inside",
+                        "thickness": {
+                          "bottom": 1
+                        },
+                        "fill": "$col-border"
+                      },
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "jEWtj",
+                          "fill": "$text-secondary",
+                          "content": "来源设备",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "DAO7Y",
+                          "fill": "$text-primary",
+                          "content": "fba68a61b590f7ee",
+                          "fontFamily": "Inter",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "nspZu",
+                      "name": "rowIp",
+                      "width": "fill_container",
+                      "padding": [
+                        11,
+                        14
+                      ],
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "clnRz",
+                          "fill": "$text-secondary",
+                          "content": "来源 IP",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "tdzzI",
+                          "fill": "$text-primary",
+                          "content": "120.229.207.128",
+                          "fontFamily": "Inter",
+                          "fontSize": 13,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "OaWEG",
+                  "name": "btnApprove",
+                  "width": "fill_container",
+                  "height": 52,
+                  "fill": "$accent",
+                  "cornerRadius": 26,
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "bQwXe",
+                      "fill": "$text-on-accent",
+                      "content": "批准",
+                      "fontFamily": "Inter",
+                      "fontSize": 16,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "S3TVY",
+                  "name": "btnReject",
+                  "width": "fill_container",
+                  "height": 48,
+                  "fill": "#00000000",
+                  "cornerRadius": 24,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1.5,
+                    "fill": "$danger"
+                  },
+                  "layout": "vertical",
+                  "justifyContent": "center",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "C6kGl",
+                      "fill": "$danger",
+                      "content": "拒绝",
+                      "fontFamily": "Inter",
+                      "fontSize": 15,
+                      "fontWeight": "500"
                     }
                   ]
                 }

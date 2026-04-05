@@ -634,14 +634,17 @@
   <div id="modal-alert" class="modal">
     <div class="modal-box">
       <div class="alert-modal-header">
-        <span class="alert-modal-icon">⚠️</span>
-        <h3 class="alert-modal-title" data-i18n="modals.alert.title">Security Alert</h3>
+        <svg class="alert-modal-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+          <path d="M12 8v4"/><path d="M12 16h.01"/>
+        </svg>
+        <h3 class="alert-modal-title" data-i18n="modals.alert.title">安全警报</h3>
       </div>
       <p id="alert-message" class="alert-modal-message"></p>
-      <div class="modal-actions" style="flex-direction:column;gap:8px;margin-top:8px;">
-        <button id="btn-alert-freeze" class="btn-primary" style="height:44px;" data-i18n="modals.alert.freeze">Freeze (30 min)</button>
-        <button id="btn-alert-allow" class="btn-outline" style="height:44px;" data-i18n="modals.alert.allowOnce">Allow once</button>
-        <button id="btn-alert-trust" class="btn-ghost" style="font-size:13px;color:var(--text-secondary);" data-i18n="modals.alert.trustDevice">Trust this device</button>
+      <div class="alert-modal-actions">
+        <button id="btn-alert-freeze" class="alert-btn alert-btn-danger" data-i18n="modals.alert.freeze">冻结 (30 分钟)</button>
+        <button id="btn-alert-allow" class="alert-btn alert-btn-outline" data-i18n="modals.alert.allowOnce">仅允许一次</button>
+        <button id="btn-alert-trust" class="alert-btn alert-btn-ghost" data-i18n="modals.alert.trustDevice">信任新设备</button>
       </div>
     </div>
   </div>

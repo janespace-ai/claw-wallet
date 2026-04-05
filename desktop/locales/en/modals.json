@@ -45,7 +45,7 @@
     "wrongPassword": "Incorrect password, please try again"
   },
   "alert": {
-    "title": "⚠ Security alert",
+    "title": "Security Alert",
     "freeze": "Freeze (30 min)",
     "allowOnce": "Allow once",
     "trustDevice": "Trust new device"

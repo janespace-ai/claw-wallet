@@ -14,7 +14,8 @@
   "allowance": {
     "title": "Allowance",
     "dailyLimit": "Daily Limit (USD)",
-    "perTxLimit": "Per-Transaction Limit (USD)"
+    "perTxLimit": "Per-Transaction Limit (USD)",
+    "saved": "Limits saved"
   },
   "lockMode": {
     "title": "Lock Mode",

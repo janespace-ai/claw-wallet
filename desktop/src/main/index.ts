@@ -471,6 +471,13 @@ function registerIpcHandlers(): void {
       throw new Error("Contact not found");
     }
   });
+
+  ipcMain.handle("wallet:update-contact-trust", async (_, accountIndex: number | undefined, name: string, trusted: boolean) => {
+    const index = accountIndex ?? accountManager.getActiveAccountIndex();
+    if (!name?.trim() || !authorityStore.updateContactTrust(index, name, trusted)) {
+      throw new Error("Contact not found");
+    }
+  });
 }
 
 app.whenReady().then(async () => {

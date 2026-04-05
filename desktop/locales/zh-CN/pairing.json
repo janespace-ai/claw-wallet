@@ -13,5 +13,5 @@
   "expiresIn": "剩余 {time}",
   "countdownExpires": "剩余",
   "countdownSeconds": "秒",
-  "clipboardPrompt": "我的 Claw 钱包配对码为：{code}\n请使用 wallet_pair 工具完成配对。"
+  "clipboardPrompt": "我的 Claw wallet 配对码为：{code}\n请使用 wallet_pair 工具完成配对。"
 }

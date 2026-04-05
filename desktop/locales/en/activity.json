@@ -35,5 +35,22 @@
     "auto": "🤖 Auto",
     "manual": "👤 Manual",
     "rejected": "❌ Rejected"
+  },
+  "detail": {
+    "explorer": "Block Explorer ↗",
+    "close": "Close",
+    "labelTo": "To",
+    "labelChain": "Network",
+    "labelTime": "Time",
+    "labelType": "Type",
+    "labelHash": "TX Hash",
+    "labelStatus": "Status",
+    "labelGas": "Gas Used",
+    "labelBlock": "Block",
+    "typeBadgeManual": "Manual",
+    "typeBadgeAuto": "Auto",
+    "typeBadgeRejected": "Rejected",
+    "noHash": "Not broadcast",
+    "noRecipient": "—"
   }
 }

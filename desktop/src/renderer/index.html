@@ -182,24 +182,22 @@
           <div class="portfolio-change positive" id="portfolio-change" style="display:none"></div>
         </div>
 
-        <!-- Network chips -->
-        <div class="chips-row" id="network-chips-row">
-          <button class="chip active" data-network="all">All</button>
-          <button class="chip" data-network="ethereum">Ethereum</button>
-          <button class="chip" data-network="base">Base</button>
-          <button class="chip" data-network="arbitrum">Arbitrum</button>
-        </div>
-
-        <!-- Hidden network filter select (kept for app.js compatibility) -->
+        <!-- Hidden network filter select (kept for renderBalances compatibility) -->
         <select id="network-filter" style="display:none">
           <option value="all">All Networks</option>
         </select>
 
-        <!-- Balances section -->
+        <!-- Balances section with inline network filter -->
         <div class="section-header">
           <span class="section-header-label" data-i18n="common.home.balances">Balances</span>
+          <button id="home-network-btn" class="home-network-filter-btn">
+            <span id="home-network-label" data-i18n="common.home.allNetworks">所有网络</span>
+            <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
           <button id="btn-refresh-balances" class="section-header-action" data-i18n="common.buttons.refresh">Refresh</button>
         </div>
+        <!-- Home network picker dropdown -->
+        <div id="home-network-picker" class="network-picker" style="display:none"></div>
 
         <div id="balances-list"></div>
 
@@ -224,10 +222,13 @@
     <div id="tab-activity" class="tab-content">
       <header class="app-header">
         <span class="header-title" data-i18n="common.tabs.activity">Activity</span>
-        <select id="activity-network-filter" class="header-dropdown">
-          <option value="all" data-i18n="activity.filters.allNetworks">All Networks</option>
-        </select>
+        <button id="activity-network-btn" class="network-filter-btn">
+          <span id="activity-network-label" data-i18n="activity.filters.allNetworks">所有网络</span>
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
       </header>
+      <!-- Network picker dropdown -->
+      <div id="activity-network-picker" class="network-picker" style="display:none"></div>
 
       <!-- Filter chips -->
       <div class="filter-chips">
@@ -252,6 +253,25 @@
       </header>
       <div class="tab-scrollable">
         <div id="contacts-list-main"></div>
+      </div>
+      <!-- Trust level picker (floating, shown on demand) -->
+      <div id="contact-trust-picker" class="custom-picker trust-picker" style="display:none">
+        <div class="custom-picker-title" id="contact-trust-picker-title"></div>
+        <div class="custom-picker-option trust-picker-option" data-trust="true">
+          <svg class="custom-picker-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <div class="trust-picker-text">
+            <span class="trust-picker-label contact-trust-opt-trusted" data-i18n="common.contacts.trustPicker.trusted">可信任</span>
+            <span class="trust-picker-desc" data-i18n="common.contacts.trustPicker.trustedDesc">限额内交易自动签名，无需每次确认</span>
+          </div>
+        </div>
+        <div class="custom-picker-option trust-picker-option" data-trust="false">
+          <svg class="custom-picker-check" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <div class="trust-picker-text">
+            <span class="trust-picker-label" data-i18n="common.contacts.trustPicker.normal">普通</span>
+            <span class="trust-picker-desc" data-i18n="common.contacts.trustPicker.normalDesc">每笔交易均需手动审批确认</span>
+          </div>
+        </div>
+        <div class="custom-picker-cancel" id="contact-trust-picker-cancel" data-i18n="common.contacts.trustPicker.cancel">取消</div>
       </div>
     </div>
 
@@ -467,6 +487,65 @@
        MODALS
        ════════════════════════════════════════════════ -->
 
+  <!-- Activity TX detail -->
+  <div id="modal-tx-detail" class="modal">
+    <div class="modal-box tx-detail-box">
+      <!-- Header: type + status badges -->
+      <div class="tx-detail-header">
+        <span id="tx-detail-type-badge" class="tx-badge"></span>
+        <span id="tx-detail-status-badge" class="tx-badge"></span>
+      </div>
+      <!-- Amount -->
+      <div class="tx-detail-amount-section">
+        <div id="tx-detail-amount" class="tx-detail-amount"></div>
+        <div id="tx-detail-usd" class="tx-detail-usd"></div>
+      </div>
+      <!-- Info rows -->
+      <div class="tx-detail-info-box" id="tx-detail-info"></div>
+      <!-- Buttons -->
+      <div class="modal-actions">
+        <button type="button" id="btn-tx-detail-explorer" class="btn-outline" style="display:none">
+          <span data-i18n="activity.detail.explorer">区块浏览器</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </button>
+        <button type="button" id="btn-tx-detail-close" class="btn-outline" data-i18n="activity.detail.close">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact delete confirmation -->
+  <div id="modal-contact-delete" class="modal">
+    <div class="modal-box">
+      <h3 data-i18n="common.contacts.deleteModal.title">移除联系人</h3>
+      <p id="contact-delete-body" style="color:var(--text-secondary);"></p>
+      <div class="modal-actions">
+        <button type="button" id="btn-contact-delete-confirm" class="btn-danger">
+          <span data-i18n="common.contacts.deleteModal.confirm">移除</span>
+        </button>
+        <button type="button" id="btn-contact-delete-cancel" class="btn-outline" data-i18n="common.contacts.deleteModal.cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Contact detail -->
+  <div id="modal-contact-detail" class="modal">
+    <div class="modal-box">
+      <div class="contact-detail-header">
+        <div class="contact-detail-avatar" id="contact-detail-avatar"></div>
+        <div class="contact-detail-name" id="contact-detail-name"></div>
+        <div id="contact-detail-badge" style="display:none" class="contact-badge" data-i18n="common.contacts.trusted">可信任</div>
+      </div>
+      <div class="contact-detail-address-box">
+        <div class="contact-detail-chain" id="contact-detail-chain"></div>
+        <div class="contact-detail-addr" id="contact-detail-addr"></div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" id="btn-contact-detail-copy" class="btn-primary" data-i18n="common.contacts.detailModal.copyAddress">复制地址</button>
+        <button type="button" id="btn-contact-detail-cancel" class="btn-outline" data-i18n="common.contacts.detailModal.cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Contact add: normal / trusted / reject -->
   <div id="modal-contact-add" class="modal">
     <div class="modal-box">
@@ -498,16 +577,40 @@
   <!-- Export mnemonic -->
   <div id="modal-export" class="modal">
     <div class="modal-box">
-      <h3 data-i18n="modals.export.title">Export Mnemonic</h3>
-      <p style="color:var(--warning);font-size:13px;" data-i18n="modals.export.warning">Anyone with these words can control your wallet. Use in a private place.</p>
-      <input type="password" id="input-export-password" class="input-field"
-             data-i18n-placeholder="modals.export.passwordPlaceholder"
-             placeholder="Wallet password" autocomplete="off">
-      <div id="export-error" class="error" style="color:var(--danger);font-size:13px;"></div>
-      <div id="export-mnemonic-display" class="mnemonic-grid" style="display:none"></div>
+      <!-- Phase 1: Password input -->
+      <div id="export-phase-password" class="export-phase">
+        <h3 data-i18n="modals.export.title">Export Mnemonic</h3>
+        <p style="color:var(--warning);" data-i18n="modals.export.warning">Anyone with these words can control your wallet. Use in a private place.</p>
+        <input type="password" id="input-export-password" class="input-field"
+               data-i18n-placeholder="modals.export.passwordPlaceholder"
+               placeholder="Wallet password" autocomplete="off">
+        <div id="export-error" style="color:var(--danger);font-size:13px;min-height:0;"></div>
+        <div class="modal-actions">
+          <button type="button" id="btn-export-confirm" class="btn-primary" data-i18n="modals.export.confirm">Confirm</button>
+          <button type="button" id="btn-export-cancel" class="btn-outline" data-i18n="modals.export.cancel">Cancel</button>
+        </div>
+      </div>
+      <!-- Phase 2: Mnemonic display -->
+      <div id="export-phase-mnemonic" class="export-phase" style="display:none">
+        <h3 data-i18n="modals.export.mnemonicTitle">Your Mnemonic</h3>
+        <p style="color:var(--warning);" data-i18n="modals.export.mnemonicWarning">Keep this safe. Never screenshot or share with anyone.</p>
+        <div id="export-mnemonic-display" class="mnemonic-grid"></div>
+        <div class="modal-actions">
+          <button type="button" id="btn-export-copy" class="btn-primary" data-i18n="modals.export.copy">Copy Mnemonic</button>
+          <button type="button" id="btn-export-close" class="btn-outline" data-i18n="modals.export.close">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Biometric enable confirmation -->
+  <div id="modal-biometric-enable" class="modal">
+    <div class="modal-box">
+      <h3 id="biometric-enable-title" data-i18n="common.biometric.enableTitle">启用生物识别解锁</h3>
+      <p id="biometric-enable-body" style="color:var(--text-secondary);"></p>
       <div class="modal-actions">
-        <button type="button" id="btn-export-confirm" class="btn-primary" style="height:44px;" data-i18n="modals.export.copy">Copy mnemonic</button>
-        <button type="button" id="btn-export-cancel" class="btn-outline" style="height:44px;" data-i18n="modals.export.close">Close</button>
+        <button type="button" id="btn-biometric-enable-confirm" class="btn-primary" data-i18n="common.buttons.confirm">确认</button>
+        <button type="button" id="btn-biometric-enable-cancel" class="btn-outline" data-i18n="common.buttons.cancel">取消</button>
       </div>
     </div>
   </div>

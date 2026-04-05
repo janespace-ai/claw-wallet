@@ -10,13 +10,16 @@ metadata:
       bins:
         - node
     primaryEnv: RELAY_URL
+    # Default value: http://localhost:8080
+    # Claw Wallet desktop app starts the relay automatically on launch.
+    # For local use (agent and desktop on the same machine), no extra setup needed.
     emoji: "🔐"
     homepage: https://github.com/janespace-ai/claw-wallet
 ---
 
 # Claw Wallet
 
-You have access to Claw Wallet MCP tools for managing an Ethereum/Base wallet. Keys are held securely on a separate Desktop Wallet app — they never touch this agent.
+You have access to Claw Wallet tools for managing an Ethereum/Base wallet. Keys are held securely on a separate Desktop Wallet app — they never touch this agent.
 
 ## Available Tools
 

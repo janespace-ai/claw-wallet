@@ -1,44 +1,44 @@
-# Desktop 配置说明
+# Desktop configuration
 
-在 `desktop/` 目录下复制示例为实际配置：
+Copy an example under `desktop/` to your real config:
 
-- 通用示例：`cp config.example.json config.json`
-- 生产环境可参考：`config.prod.example.json`
-- 本地开发（本地链、放宽限额）可参考：`config.local.example.json`
+- Default: `cp config.example.json config.json`
+- Production-oriented: `config.prod.example.json`
+- Local dev (local chains, relaxed limits): `config.local.example.json`
 
-运行时从当前工作目录读取 `config.json`（见 `src/main/config.ts`）。未出现的字段使用代码内默认值。
+At runtime the app reads `config.json` from the current working directory (see `src/main/config.ts`). Omitted keys use in-code defaults.
 
-## 环境变量（覆盖同名字段）
+## Environment variables (override file values)
 
-| 变量 | 作用 |
-|------|------|
-| `CLAW_DESKTOP_RELAY_URL` | 中继 WebSocket URL |
+| Variable | Purpose |
+|----------|---------|
+| `CLAW_DESKTOP_RELAY_URL` | Relay WebSocket URL |
 | `CLAW_DESKTOP_IP_POLICY` | `block` / `warn` / `allow` |
 | `CLAW_DESKTOP_LOCK_MODE` | `convenience` / `strict` |
-| `CLAW_DESKTOP_SCRYPT_N` | 密钥派生 scrypt 参数 N（数字字符串） |
+| `CLAW_DESKTOP_SCRYPT_N` | Keystore scrypt `N` as a numeric string |
 
-## 顶层字段
+## Top-level keys
 
-| 路径 | 说明 |
-|------|------|
-| `relayUrl` | 中继 WebSocket 地址，例如 `ws://localhost:8080`。 |
-| `ipChangePolicy` | 对端 IP 变化：`block` 拒绝、`warn` 提示、`allow` 忽略。 |
-| `lockMode` | `convenience` 可使用生物识别；`strict` 要求密码 + 空闲锁定。 |
-| `chains` | 可选。按链覆盖 RPC；可省略则使用内置默认公共 RPC。 |
-| `chains.ethereum.rpcUrl` | 以太坊主网 RPC；留空或省略该链则走默认。 |
-| `chains.base.rpcUrl` | Base 主网 RPC；同上。 |
-| `relay.reconnectBaseMs` | 首次重连前基础延迟（毫秒）。 |
-| `relay.reconnectMaxMs` | 重连退避上限（毫秒）。 |
-| `signing.dailyLimitUsd` | 单日自动批准交易 USD 总额上限。 |
-| `signing.perTxLimitUsd` | 单笔自动批准交易 USD 上限。 |
-| `signing.tokenWhitelist` | 允许自动批准的代币符号列表。 |
-| `signing.autoApproveWithinBudget` | 为 `true` 时，在限额内可能无需桌面弹窗即可签名；`false` 时每笔链上交易需应用内批准（钱包场景建议 `false`）。 |
-| `lock.strictIdleTimeoutMs` | `strict` 模式下空闲多久自动锁定（毫秒，例如 `300000` = 5 分钟）。 |
-| `security.maxEvents` | 内存中保留的安全事件条数上限。 |
-| `keyring.scryptN` | 可选。Keystore 的 scrypt `N`（默认 `16384`）。勿过大，以免超出 Electron/OpenSSL 内存限制；可被 `CLAW_DESKTOP_SCRYPT_N` 覆盖。 |
+| Path | Description |
+|------|-------------|
+| `relayUrl` | Relay WebSocket URL, e.g. `ws://localhost:8080`. |
+| `ipChangePolicy` | Peer IP change handling: `block`, `warn`, or `allow`. |
+| `lockMode` | `convenience` allows biometric unlock; `strict` enforces password plus idle lockout. |
+| `chains` | Optional per-chain RPC overrides; omit to use built-in public defaults. |
+| `chains.ethereum.rpcUrl` | Ethereum mainnet RPC; omit chain or leave empty for default. |
+| `chains.base.rpcUrl` | Base mainnet RPC; same as above. |
+| `relay.reconnectBaseMs` | Base delay in ms before the first reconnect attempt. |
+| `relay.reconnectMaxMs` | Upper bound for reconnect backoff in ms. |
+| `signing.dailyLimitUsd` | Max total USD value of auto-approved txs per day. |
+| `signing.perTxLimitUsd` | Max USD value per auto-approved tx. |
+| `signing.tokenWhitelist` | Token symbols eligible for auto-approval. |
+| `signing.autoApproveWithinBudget` | If `true`, txs within limits may sign without a desktop prompt; if `false`, every on-chain tx needs in-app approval (`false` recommended for wallets). |
+| `lock.strictIdleTimeoutMs` | Idle time in ms before auto-lock in `strict` mode (e.g. `300000` = 5 minutes). |
+| `security.maxEvents` | Max security events kept in memory. |
+| `keyring.scryptN` | Optional. Keystore scrypt `N` (default `16384`). Keep moderate to stay within Electron/OpenSSL memory limits; overridden by `CLAW_DESKTOP_SCRYPT_N` when set. |
 
-## 本地开发示例文件说明
+## Local example file
 
-`config.local.example.json` 中常见调整：本地 Anvil/Hardhat RPC（如 `8545` / `8546`）、更短的重连间隔、更高的签名限额、以及可选的更长 `strictIdleTimeoutMs` 等。请仅作本地使用，勿用于生产。
+`config.local.example.json` is tuned for local Anvil/Hardhat RPC (e.g. `8545` / `8546`), shorter reconnect delays, higher signing limits, and a long `strictIdleTimeoutMs`. **Local use only**—do not use in production.
 
-本地链示例（与示例中的端口对齐）：以太坊 `npx hardhat node --chain-id 1 --port 8545`；Base `npx hardhat node --chain-id 8453 --port 8546`。
+Example local nodes (ports match the sample): Ethereum `npx hardhat node --chain-id 1 --port 8545`; Base `npx hardhat node --chain-id 8453 --port 8546`.

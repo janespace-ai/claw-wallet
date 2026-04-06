@@ -146,30 +146,55 @@ export class ChainAdapter {
   async estimateGas(
     tx: TransactionRequest,
     chainName: SupportedChain
-  ): Promise<{ gas: bigint; gasPrice: bigint; totalCostWei: bigint; totalCostFormatted: string }> {
+  ): Promise<{
+    gas: bigint;
+    gasPrice: bigint;
+    maxFeePerGas?: bigint;
+    maxPriorityFeePerGas?: bigint;
+    totalCostWei: bigint;
+    totalCostFormatted: string;
+  }> {
     const client = this.getClient(chainName);
 
-    const [gas, gasPrice] = await Promise.all([
-      client.estimateGas({
-        account: tx.from,
-        to: tx.to,
-        value: tx.value,
-        data: tx.data,
-      }),
-      client.getGasPrice(),
-    ]);
+    const gas = await client.estimateGas({
+      account: tx.from,
+      to: tx.to,
+      value: tx.value,
+      data: tx.data,
+    });
 
     if (gas === 0n) throw new Error("Invalid gas estimate: 0");
     const GAS_LIMIT_MAX = 30_000_000n;
     if (gas > GAS_LIMIT_MAX) throw new Error(`Gas estimate ${gas} exceeds maximum ${GAS_LIMIT_MAX}`);
 
-    const totalCostWei = gas * gasPrice;
-    return {
-      gas,
-      gasPrice,
-      totalCostWei,
-      totalCostFormatted: formatEther(totalCostWei),
-    };
+    // Try EIP-1559 fee estimation first (Arbitrum, Ethereum, Base, etc.)
+    // estimateFeesPerGas() returns maxFeePerGas = 2 * baseFee + tip, providing
+    // a built-in buffer so the transaction isn't rejected when baseFee ticks up.
+    try {
+      const fees = await client.estimateFeesPerGas();
+      const maxFeePerGas = fees.maxFeePerGas;
+      const maxPriorityFeePerGas = fees.maxPriorityFeePerGas;
+      const totalCostWei = gas * maxFeePerGas;
+      return {
+        gas,
+        gasPrice: maxFeePerGas, // kept for cost display / balance check
+        maxFeePerGas,
+        maxPriorityFeePerGas,
+        totalCostWei,
+        totalCostFormatted: formatEther(totalCostWei),
+      };
+    } catch {
+      // Chain doesn't support EIP-1559 — fall back to legacy gas price with a 30% buffer
+      const rawGasPrice = await client.getGasPrice();
+      const gasPrice = rawGasPrice * 130n / 100n;
+      const totalCostWei = gas * gasPrice;
+      return {
+        gas,
+        gasPrice,
+        totalCostWei,
+        totalCostFormatted: formatEther(totalCostWei),
+      };
+    }
   }
 
   async broadcastTransaction(

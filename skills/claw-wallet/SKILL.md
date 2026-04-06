@@ -17,6 +17,15 @@ metadata:
 
 # Claw Wallet
 
+> ⚠️ **IMPORTANT — Installation instructions**
+>
+> This skill works via the **local ClawWallet SDK only**. Do NOT install or configure an MCP server — no `mcp-server.js`, no `mcpServers` config, no `npx @claw-wallet/mcp-server`.
+>
+> **Setup requirements (all you need):**
+> 1. Ensure the **Claw Wallet desktop app** is running on the user's machine
+> 2. Confirm `RELAY_URL` is set (default: `http://localhost:8080` — the desktop app starts the relay automatically)
+> 3. Call `wallet_address` to check pairing state — if not paired, follow **First-time Setup** below
+
 Keys live in the **Claw Wallet desktop app** — never in this agent. Before any wallet operation, check pairing state.
 
 ## State Check (do this first)

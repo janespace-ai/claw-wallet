@@ -305,4 +305,45 @@ export class AccountManager {
     const accounts = this.listAccounts();
     return accounts.map(acc => this.getAddress(mnemonic, acc.index));
   }
+
+  /**
+   * Import a recovered sub-account at a specific HD index.
+   * Used by the account recovery flow to re-register accounts found on-chain.
+   * Throws if the index is already registered.
+   */
+  importAccountAtIndex(mnemonic: string, index: number, nickname?: string): Account {
+    if (index < 0 || index > 9) {
+      throw new Error('Account index must be 0-9');
+    }
+
+    if (this.hasAccount(index)) {
+      throw new Error(`Account ${index} is already registered`);
+    }
+
+    if (this.getAccountCount() >= MAX_ACCOUNTS) {
+      throw new Error('Maximum 10 accounts allowed');
+    }
+
+    const { address } = this.deriveAccount(mnemonic, index);
+    const defaultNickname = nickname || `Account ${index}`;
+
+    const account: Account = {
+      index,
+      address,
+      nickname: defaultNickname,
+      createdAt: Date.now(),
+      lastUsedAt: null
+    };
+
+    this.db.prepare(`
+      INSERT INTO accounts (account_index, nickname, created_at, last_used_at)
+      VALUES (?, ?, ?, ?)
+    `).run(index, defaultNickname, account.createdAt, null);
+
+    this.accounts.set(index, account);
+
+    console.log(`[AccountManager] Recovered account ${index}: ${address}`);
+
+    return account;
+  }
 }

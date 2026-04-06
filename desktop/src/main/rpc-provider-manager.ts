@@ -91,7 +91,7 @@ export class RPCProviderManager {
       await Promise.race([
         provider.getBlockNumber(),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Timeout')), 3000)
+          setTimeout(() => reject(new Error('Timeout')), 5000)
         )
       ]);
       
@@ -144,8 +144,16 @@ export class RPCProviderManager {
       });
 
     if (healthyRPCs.length === 0) {
-      const network = this.networkConfig.getNetwork(chainId);
-      throw new Error(`All RPC providers for ${network?.name || `chain ${chainId}`} are down`);
+      // All health-checked providers are failing. Fall back to highest-priority
+      // RPC and try anyway — better to attempt than to block outright.
+      const fallback = rpcs.sort((a, b) => a.priority - b.priority)[0];
+      if (!fallback) {
+        const network = this.networkConfig.getNetwork(chainId);
+        throw new Error(`No RPC providers configured for ${network?.name || `chain ${chainId}`}`);
+      }
+      const provider = new ethers.JsonRpcProvider(fallback.url, chainId, { staticNetwork: true });
+      this.providers.set(`provider-${chainId}`, provider);
+      return provider;
     }
 
     const selectedRPC = healthyRPCs[0];
@@ -164,13 +172,15 @@ export class RPCProviderManager {
   }
 
   /**
-   * Check if RPC provider is healthy
+   * Check if RPC provider is healthy.
+   * Providers with no check yet (lastCheck === 0) are treated as healthy
+   * so the first balance query doesn't block waiting for health checks.
    */
   private isHealthy(url: string): boolean {
     const status = this.healthStatus.get(url);
     if (!status) return false;
-    
-    return status.healthy && status.consecutiveFailures < 3;
+    if (status.lastCheck === 0) return true; // not yet checked → optimistically healthy
+    return status.consecutiveFailures < 3; // exclude only after 3 consecutive failures
   }
 
   /**

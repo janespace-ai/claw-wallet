@@ -10,17 +10,17 @@
       },
       "rpcs": [
         {
-          "url": "https://eth.llamarpc.com",
+          "url": "https://ethereum.publicnode.com",
           "priority": 1,
           "custom": false
         },
         {
-          "url": "https://rpc.ankr.com/eth",
+          "url": "https://1rpc.io/eth",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://ethereum.publicnode.com",
+          "url": "https://rpc.mevblocker.io",
           "priority": 3,
           "custom": false
         }
@@ -43,12 +43,12 @@
           "custom": false
         },
         {
-          "url": "https://base.llamarpc.com",
+          "url": "https://base.publicnode.com",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://base.publicnode.com",
+          "url": "https://1rpc.io/base",
           "priority": 3,
           "custom": false
         }
@@ -66,17 +66,17 @@
       },
       "rpcs": [
         {
-          "url": "https://mainnet.optimism.io",
+          "url": "https://optimism.publicnode.com",
           "priority": 1,
           "custom": false
         },
         {
-          "url": "https://optimism.llamarpc.com",
+          "url": "https://1rpc.io/op",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://optimism.publicnode.com",
+          "url": "https://mainnet.optimism.io",
           "priority": 3,
           "custom": false
         }
@@ -99,12 +99,12 @@
           "custom": false
         },
         {
-          "url": "https://arbitrum.llamarpc.com",
+          "url": "https://arbitrum-one.publicnode.com",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://arbitrum-one.publicnode.com",
+          "url": "https://1rpc.io/arb",
           "priority": 3,
           "custom": false
         }
@@ -122,51 +122,23 @@
       },
       "rpcs": [
         {
-          "url": "https://polygon-rpc.com",
+          "url": "https://polygon-bor-rpc.publicnode.com",
           "priority": 1,
           "custom": false
         },
         {
-          "url": "https://polygon.llamarpc.com",
+          "url": "https://1rpc.io/matic",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://polygon-bor-rpc.publicnode.com",
+          "url": "https://rpc-mainnet.matic.network",
           "priority": 3,
           "custom": false
         }
       ],
       "explorers": ["https://polygonscan.com"],
       "icon": "🟣"
-    },
-    "324": {
-      "name": "zkSync Era",
-      "chainId": 324,
-      "nativeCurrency": {
-        "name": "Ether",
-        "symbol": "ETH",
-        "decimals": 18
-      },
-      "rpcs": [
-        {
-          "url": "https://mainnet.era.zksync.io",
-          "priority": 1,
-          "custom": false
-        },
-        {
-          "url": "https://zksync.drpc.org",
-          "priority": 2,
-          "custom": false
-        },
-        {
-          "url": "https://zksync-era.blockpi.network/v1/rpc/public",
-          "priority": 3,
-          "custom": false
-        }
-      ],
-      "explorers": ["https://explorer.zksync.io"],
-      "icon": "⚡"
     },
     "59144": {
       "name": "Linea",
@@ -183,12 +155,12 @@
           "custom": false
         },
         {
-          "url": "https://linea.drpc.org",
+          "url": "https://linea.publicnode.com",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://linea.blockpi.network/v1/rpc/public",
+          "url": "https://1rpc.io/linea",
           "priority": 3,
           "custom": false
         }
@@ -196,33 +168,61 @@
       "explorers": ["https://lineascan.build"],
       "icon": "🟢"
     },
-    "534352": {
-      "name": "Scroll",
-      "chainId": 534352,
+    "56": {
+      "name": "BNB Chain",
+      "chainId": 56,
       "nativeCurrency": {
-        "name": "Ether",
-        "symbol": "ETH",
+        "name": "BNB",
+        "symbol": "BNB",
         "decimals": 18
       },
       "rpcs": [
         {
-          "url": "https://rpc.scroll.io",
+          "url": "https://bsc.publicnode.com",
           "priority": 1,
           "custom": false
         },
         {
-          "url": "https://scroll.drpc.org",
+          "url": "https://1rpc.io/bnb",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://scroll.blockpi.network/v1/rpc/public",
+          "url": "https://bsc-dataseed1.binance.org",
           "priority": 3,
           "custom": false
         }
       ],
-      "explorers": ["https://scrollscan.com"],
-      "icon": "📜"
+      "explorers": ["https://bscscan.com"],
+      "icon": "🟡"
+    },
+    "1329": {
+      "name": "Sei",
+      "chainId": 1329,
+      "nativeCurrency": {
+        "name": "Sei",
+        "symbol": "SEI",
+        "decimals": 18
+      },
+      "rpcs": [
+        {
+          "url": "https://evm-rpc.sei-apis.com",
+          "priority": 1,
+          "custom": false
+        },
+        {
+          "url": "https://evm-rpc-arctic-1.sei-apis.com",
+          "priority": 2,
+          "custom": false
+        },
+        {
+          "url": "https://sei.publicnode.com",
+          "priority": 3,
+          "custom": false
+        }
+      ],
+      "explorers": ["https://seitrace.com"],
+      "icon": "🔴"
     }
   },
   "tokens": {
@@ -236,7 +236,9 @@
         "10": "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
         "42161": "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
         "137": "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
-        "324": "0x1d17CBcF0D6D143135aE902365D2E5e2A16538D4"
+        "59144": "0x176211869cA2b568f2A7D4EE941E073a821EE1ff",
+        "56": "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+        "1329": "0x3894085Ef7Ff0f0aeDf52E2A2704928d1Ec074F1"
       }
     },
     "USDT": {
@@ -247,7 +249,9 @@
         "1": "0xdAC17F958D2ee523a2206206994597C13D831ec7",
         "10": "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
         "42161": "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
-        "137": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F"
+        "137": "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+        "59144": "0xA219439258ca9da29E9Cc4cE5596924745e12B93",
+        "56": "0x55d398326f99059fF775485246999027B3197955"
       }
     },
     "DAI": {

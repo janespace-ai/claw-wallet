@@ -22,20 +22,25 @@ interface CoinGeckoResponse {
   [key: string]: { usd: number };
 }
 
+// Tokens that are USD-pegged — no API call needed, always $1
+const USD_PEGGED: Set<string> = new Set(["USDT", "DAI", "USDC"]);
+
 const TOKEN_TO_GATE_PAIR: Record<string, string> = {
-  ETH: "ETH_USDT",
-  USDC: "USDC_USDT",
-  USDT: "USDT_USDT",
-  DAI: "DAI_USDT",
-  WETH: "ETH_USDT", // WETH same as ETH
+  ETH:  "ETH_USDT",
+  WETH: "ETH_USDT",
+  BNB:  "BNB_USDT",
+  MATIC:"MATIC_USDT",
+  POL:  "POL_USDT",
+  SEI:  "SEI_USDT",
 };
 
 const TOKEN_TO_COINGECKO_ID: Record<string, string> = {
-  ETH: "ethereum",
-  USDC: "usd-coin",
-  USDT: "tether",
-  DAI: "dai",
+  ETH:  "ethereum",
   WETH: "weth",
+  BNB:  "binancecoin",
+  MATIC:"matic-network",
+  POL:  "matic-network",
+  SEI:  "sei-network",
 };
 
 export class PriceService {
@@ -50,8 +55,13 @@ export class PriceService {
     const result: Record<string, number> = {};
     const tokensToFetch: string[] = [];
 
-    // Check cache first
     for (const token of tokens) {
+      const key = token.toUpperCase();
+      // Stablecoins are always $1 — no API needed
+      if (USD_PEGGED.has(key)) {
+        result[token] = 1;
+        continue;
+      }
       const cached = this.getCachedPrice(token);
       if (cached !== null) {
         result[token] = cached;
@@ -60,36 +70,34 @@ export class PriceService {
       }
     }
 
-    // If all prices are cached, return immediately
-    if (tokensToFetch.length === 0) {
-      return result;
-    }
+    if (tokensToFetch.length === 0) return result;
 
-    // Try fetching from Gate.com
+    // Primary: Gate.io
+    let remaining = [...tokensToFetch];
     try {
-      const gatePrices = await this.fetchFromGate(tokensToFetch);
+      const gatePrices = await this.fetchFromGate(remaining);
       for (const [token, price] of Object.entries(gatePrices)) {
         result[token] = price;
         this.updateCache(token, price);
       }
-      return result;
+      remaining = remaining.filter((t) => result[t] === undefined);
     } catch (gateError) {
-      console.warn("[PriceService] Gate.com failed, falling back to CoinGecko:", gateError);
+      console.warn(`[PriceService] Gate.io failed: ${(gateError as Error).message ?? gateError}`);
     }
 
-    // Fallback to CoinGecko
-    try {
-      const geckoPrices = await this.fetchFromCoinGecko(tokensToFetch);
-      for (const [token, price] of Object.entries(geckoPrices)) {
-        result[token] = price;
-        this.updateCache(token, price);
+    // Fallback: CoinGecko for any tokens Gate couldn't price
+    if (remaining.length > 0) {
+      try {
+        const geckoPrices = await this.fetchFromCoinGecko(remaining);
+        for (const [token, price] of Object.entries(geckoPrices)) {
+          result[token] = price;
+          this.updateCache(token, price);
+        }
+      } catch (geckoError) {
+        console.error(`[PriceService] CoinGecko failed: ${(geckoError as Error).message ?? geckoError}`);
       }
-      return result;
-    } catch (geckoError) {
-      console.error("[PriceService] CoinGecko failed:", geckoError);
     }
 
-    // If both fail, return partial results (cached + any successful fetches)
     return result;
   }
 

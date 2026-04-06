@@ -11,7 +11,7 @@ import {
   type TransactionReceipt,
   type Chain,
 } from "viem";
-import { base, mainnet } from "viem/chains";
+import { base, mainnet, linea, arbitrum, bsc, optimism, polygon, sei } from "viem/chains";
 import type { SupportedChain, ChainConfig, TransactionRequest } from "./types.js";
 
 const ERC20_ABI = [
@@ -51,6 +51,12 @@ const ERC20_ABI = [
 const DEFAULT_CHAINS: Record<SupportedChain, Chain> = {
   base: base,
   ethereum: mainnet,
+  linea: linea,
+  arbitrum: arbitrum,
+  bsc: bsc,
+  optimism: optimism,
+  polygon: polygon,
+  sei: sei,
 };
 
 export class ChainAdapter {
@@ -58,15 +64,12 @@ export class ChainAdapter {
   private chainConfigs: Map<SupportedChain, ChainConfig> = new Map();
 
   constructor(configs?: Partial<Record<SupportedChain, ChainConfig>>) {
-    const defaultEntries: [SupportedChain, ChainConfig][] = [
-      ["base", { chain: base }],
-      ["ethereum", { chain: mainnet }],
-    ];
+    const defaultEntries = Object.entries(DEFAULT_CHAINS) as [SupportedChain, Chain][];
 
-    for (const [name, defaultConfig] of defaultEntries) {
+    for (const [name, defaultChain] of defaultEntries) {
       const userConfig = configs?.[name];
       const config: ChainConfig = {
-        chain: userConfig?.chain ?? defaultConfig.chain,
+        chain: userConfig?.chain ?? defaultChain,
         rpcUrl: userConfig?.rpcUrl,
       };
       this.chainConfigs.set(name, config);

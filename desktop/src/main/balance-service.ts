@@ -80,7 +80,7 @@ export class BalanceService {
     const balancePromises = supportedChainIds.map((chainId) =>
       this.getBalancesForNetwork(address, chainId, tokenWhitelist).catch((err) => {
         const network = this.networkConfig.getNetwork(chainId);
-        console.error(`[BalanceService] Failed to fetch balances for ${network?.name || chainId}:`, err);
+        console.error(`[BalanceService] Failed to fetch balances for ${network?.name || chainId}: ${(err as Error).message ?? err}`);
         return [];
       })
     );
@@ -136,7 +136,7 @@ export class BalanceService {
           token.symbol,
           token.decimals
         ).catch((err) => {
-          console.error(`[BalanceService] Failed to fetch ${token.symbol} on ${network.name}:`, err);
+          console.error(`[BalanceService] Failed to fetch ${token.symbol} on ${network.name}: ${(err as Error).message ?? err}`);
           return null;
         })
       );
@@ -218,7 +218,7 @@ export class BalanceService {
       };
     } catch (err) {
       const network = this.networkConfig.getNetwork(chainId);
-      console.error(`[BalanceService] getNativeBalance failed for ${network?.name || chainId}:`, err);
+      console.error(`[BalanceService] getNativeBalance failed for ${network?.name || chainId}: ${(err as Error).message ?? err}`);
       return null;
     }
   }
@@ -291,7 +291,7 @@ export class BalanceService {
       if (isEmptyContractCallResult(err)) {
         return null;
       }
-      console.error(`[BalanceService] getERC20Balance failed for ${tokenSymbol} on ${network.name}:`, err);
+      console.error(`[BalanceService] getERC20Balance failed for ${tokenSymbol} on ${network.name}: ${(err as Error).message ?? err}`);
       return null;
     }
   }

@@ -303,6 +303,38 @@ function registerIpcHandlers(): void {
     return listWalletAccountsForRenderer();
   });
 
+  ipcMain.handle("wallet:recover-scan-next", async (_, fromIndex: number) => {
+    const mnemonic = keyManager.getMnemonicIfUnlocked();
+    if (!mnemonic) throw new Error("Wallet locked");
+
+    if (fromIndex > 9) return { status: "done" };
+
+    if (accountManager.hasAccount(fromIndex)) {
+      return { status: "already-registered", nextIndex: fromIndex + 1 };
+    }
+
+    const address = accountManager.getAddress(mnemonic, fromIndex);
+    const balances = await balanceService.getWalletBalances(address, undefined, false);
+
+    // Slow scan: 1-second delay before returning empty result
+    const hasBalance = balances.some(b => parseFloat(b.amount) > 0);
+    if (!hasBalance) {
+      await new Promise(r => setTimeout(r, 1000));
+      return { status: "empty", nextIndex: fromIndex + 1 };
+    }
+
+    return { status: "found", index: fromIndex, address, balances };
+  });
+
+  ipcMain.handle("wallet:import-recovered-account", async (_, index: number, nickname?: string) => {
+    const mnemonic = keyManager.getMnemonicIfUnlocked();
+    if (!mnemonic) throw new Error("Wallet locked");
+    accountManager.importAccountAtIndex(mnemonic, index, nickname);
+    balanceService.clearCache();
+    await relayBridge?.refreshChannels();
+    return listWalletAccountsForRenderer();
+  });
+
   ipcMain.handle("wallet:pair-code", async () => {
     if (!relayBridge) throw new Error("Relay not initialized");
     return relayBridge.generatePairCode();

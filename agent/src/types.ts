@@ -24,7 +24,15 @@ export interface KeystoreV3 {
 
 // ── Chain ──
 
-export type SupportedChain = "base" | "ethereum";
+export type SupportedChain =
+  | "base"
+  | "ethereum"
+  | "linea"
+  | "arbitrum"
+  | "bsc"
+  | "optimism"
+  | "polygon"
+  | "sei";
 
 export interface ChainConfig {
   chain: Chain;
@@ -55,6 +63,29 @@ export const KNOWN_TOKENS: Record<SupportedChain, Record<string, Address>> = {
   ethereum: {
     USDC: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",
     USDT: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+  },
+  linea: {
+    USDC: "0x176211869cA2b568f2A7D4EE941E073a821EE1ff",
+    USDT: "0xA219439258ca9da29E9Cc4cE5596924745e12B93",
+  },
+  arbitrum: {
+    USDC: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",
+    USDT: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9",
+  },
+  bsc: {
+    USDC: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d",
+    USDT: "0x55d398326f99059fF775485246999027B3197955",
+  },
+  optimism: {
+    USDC: "0x0b2C639c533813f4Aa9D7837CAf62653d097Ff85",
+    USDT: "0x94b008aA00579c1307B0EF2c499aD98a8ce58e58",
+  },
+  polygon: {
+    USDC: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+    USDT: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F",
+  },
+  sei: {
+    USDC: "0x3894085Ef7Ff0f0aeDf52E2A2704928d1Ec074F1",
   },
 };
 

@@ -161,6 +161,15 @@
         <div id="account-dropdown-list"></div>
       </div>
 
+      <!-- Pairing error card (shown on relay failure) -->
+      <div id="pair-code-error-card" class="pair-code-error-card" style="display:none">
+        <button type="button" id="btn-pair-code-error-close" class="pair-code-error-close-btn" aria-label="Close">×</button>
+        <div class="pair-code-error-icon">!</div>
+        <div class="pair-code-error-title" id="pair-code-error-title"></div>
+        <div class="pair-code-error-desc" id="pair-code-error-desc"></div>
+        <button type="button" id="btn-pair-code-retry" class="pair-code-retry-btn"></button>
+      </div>
+
       <!-- Pairing code card (shown on demand) -->
       <div id="pair-code-card" class="pair-code-card" style="display:none">
         <div class="pair-code-title">
@@ -324,7 +333,7 @@
             </div>
           </div>
           <div class="settings-row" id="biometric-card" style="display:none;">
-            <span class="settings-row-label" id="biometric-label" data-i18n="settings.biometric.label">Touch ID / Biometrics</span>
+            <span class="settings-row-label" id="biometric-label">Touch ID / Biometrics</span>
             <label class="ios-toggle">
               <input type="checkbox" id="toggle-biometric">
               <span class="ios-toggle-track"></span>
@@ -585,6 +594,54 @@
       <div class="modal-actions">
         <button type="button" id="btn-new-account-confirm" class="btn-primary" style="height:44px;" data-i18n="common.buttons.create">Create</button>
         <button type="button" id="btn-new-account-cancel" class="btn-outline" style="height:44px;" data-i18n="common.buttons.cancel">Cancel</button>
+      </div>
+      <div style="text-align:center;margin-top:4px;">
+        <a href="#" id="btn-open-recover" style="color:var(--accent);font-size:13px;text-decoration:none;">Or → Recover existing sub-accounts</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Recovery: Scanning -->
+  <div id="modal-recover-scanning" class="modal">
+    <div class="modal-box">
+      <h3>Scanning for sub-accounts</h3>
+      <p style="font-size:14px;color:var(--text-secondary);">Checking on-chain balances slowly to find your accounts…</p>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:4px;">
+        <span id="recover-scan-label" style="font-size:14px;font-weight:500;">Scanning account #1</span>
+        <span id="recover-scan-count" style="font-size:13px;color:var(--text-secondary);">1 / 9</span>
+      </div>
+      <div style="background:var(--border);border-radius:3px;height:6px;margin-top:8px;overflow:hidden;">
+        <div id="recover-scan-bar" style="background:var(--accent);height:6px;border-radius:3px;width:11%;transition:width 0.3s;"></div>
+      </div>
+      <p style="font-size:12px;color:var(--text-tertiary,#9CA3AF);margin-top:8px;">Only accounts with balance will be shown.</p>
+      <div class="modal-actions" style="margin-top:8px;">
+        <button type="button" id="btn-recover-cancel" class="btn-outline" style="height:44px;">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Recovery: Found Account -->
+  <div id="modal-recover-found" class="modal">
+    <div class="modal-box">
+      <h3>Sub-account found</h3>
+      <p id="recover-found-index" style="font-size:13px;color:var(--text-secondary);"></p>
+      <div id="recover-found-address" style="font-family:monospace;font-size:13px;background:var(--surface-2,#F7F8FA);border:1px solid var(--border);border-radius:10px;padding:10px 14px;word-break:break-all;"></div>
+      <p style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-top:12px;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px;">Balance</p>
+      <div id="recover-found-balances" style="background:var(--surface-2,#F7F8FA);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;"></div>
+      <div class="modal-actions" style="flex-direction:column;gap:10px;margin-top:16px;">
+        <button type="button" id="btn-recover-import" class="btn-primary" style="height:44px;width:100%;">Import this account</button>
+        <button type="button" id="btn-recover-skip" class="btn-outline" style="height:44px;width:100%;">Skip, find next account</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Account Recovery: Done -->
+  <div id="modal-recover-done" class="modal">
+    <div class="modal-box">
+      <h3>Scan complete</h3>
+      <p id="recover-done-msg" style="font-size:14px;color:var(--text-secondary);"></p>
+      <div class="modal-actions" style="margin-top:8px;">
+        <button type="button" id="btn-recover-done-close" class="btn-outline" style="height:44px;">Close</button>
       </div>
     </div>
   </div>

@@ -14,7 +14,7 @@ Local / staging testing (do not commit secrets)
 
 3) Full transfer test
    Requires Desktop running, unlocked, paired with the same Agent dataDir used for pairing.
-   Use wallet_send via MCP or your skill; agent policy enforces USD limits; desktop wallet enforces trusted recipients and signing.
+   Use wallet_send via your skill; agent policy enforces USD limits; desktop wallet enforces trusted recipients and signing.
 
 4) Never commit
    - agent/config.json, agent/config.local.json (ignored)

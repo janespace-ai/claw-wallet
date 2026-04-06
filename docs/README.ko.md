@@ -22,7 +22,7 @@
 │ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
 │ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
 │ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
-│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+│ 17 tools     │                               │ Rate limiter │                               │ Lock manager     │
 └──────────────┘                               └──────────────┘                               └──────────────────┘
        │                                                                                              │
        │  Agent never sees:                                                        Desktop holds:     │
@@ -275,7 +275,7 @@ Agent는 오직 Tool API를 통해서만 상호작용합니다. 어떤 도구도
 - **잔액 모니터링** — 입금 전송을 위한 백그라운드 폴링
 - **트랜잭션 히스토리** — 전체 기록이 포함된 로컬 캐시
 - **컨테이너화된 Relay** — Docker 지원 Go Relay Server (Hertz 프레임워크)
-- **17개 MCP 도구** — AI Agent 통합을 위한 즉시 등록 가능한 도구 정의
+- **17개 지갑 도구** — AI Agent 통합을 위한 즉시 사용 가능한 도구 정의
 
 ---
 
@@ -374,7 +374,7 @@ wallet/
 │   │   ├── relay-client.ts    # Relay connection, deterministic pairId, repair
 │   │   ├── ipc-server.ts     # Unix domain socket IPC server
 │   │   └── ipc-client.ts     # IPC client for tool → signer communication
-│   ├── tools/             # 17 MCP tool definitions
+│   ├── tools/             # 17 tool definitions
 │   └── *.ts               # Policy, contacts, history, monitor, validation
 │
 ├── desktop/               # Electron Desktop Wallet — holds all secrets

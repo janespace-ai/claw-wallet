@@ -22,7 +22,7 @@ Un portefeuille crypto non-custodial pour les agents IA [OpenClaw](https://getcl
 │ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
 │ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
 │ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
-│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+│ 17 tools     │                               │ Rate limiter │                               │ Lock manager     │
 └──────────────┘                               └──────────────┘                               └──────────────────┘
        │                                                                                              │
        │  Agent never sees:                                                        Desktop holds:     │
@@ -275,7 +275,7 @@ Le moteur de politiques s'exécute **avant** toute signature et ne peut pas êtr
 - **Surveillance des soldes** — Interrogation en arrière-plan pour les transferts entrants
 - **Historique des transactions** — Cache local avec enregistrements complets
 - **Relais conteneurisé** — Serveur relais Go avec support Docker (framework Hertz)
-- **17 outils MCP** — Définitions d'outils prêtes à l'emploi pour l'intégration d'agents IA
+- **17 outils wallet** — Définitions d'outils prêtes à l'emploi pour l'intégration d'agents IA
 
 ---
 
@@ -374,7 +374,7 @@ wallet/
 │   │   ├── relay-client.ts    # Relay connection, deterministic pairId, repair
 │   │   ├── ipc-server.ts     # Unix domain socket IPC server
 │   │   └── ipc-client.ts     # IPC client for tool → signer communication
-│   ├── tools/             # 17 MCP tool definitions
+│   ├── tools/             # 17 tool definitions
 │   └── *.ts               # Policy, contacts, history, monitor, validation
 │
 ├── desktop/               # Electron Desktop Wallet — holds all secrets

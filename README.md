@@ -49,14 +49,14 @@ npx skills add janespace-ai/claw-wallet
 
 **Or paste directly into your agent chat (OpenClaw):**
 ```
-帮我安装 Claw Wallet: https://github.com/janespace-ai/claw-wallet
+Install Claw Wallet: https://github.com/janespace-ai/claw-wallet
 ```
 
 After install, set `RELAY_URL=http://localhost:8080` (default — Claw Wallet desktop app starts the relay automatically on launch).
 
 Then pair once:
 ```
-"请配对我的钱包，配对码是 XXXXXXXX"
+"Please pair my wallet, the pairing code is XXXXXXXX"
 ```
 
 **Advantages:**

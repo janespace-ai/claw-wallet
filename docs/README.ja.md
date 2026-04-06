@@ -22,7 +22,7 @@
 │ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
 │ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
 │ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
-│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+│ 17 tools     │                               │ Rate limiter │                               │ Lock manager     │
 └──────────────┘                               └──────────────┘                               └──────────────────┘
        │                                                                                              │
        │  Agent never sees:                                                        Desktop holds:     │
@@ -374,7 +374,7 @@ wallet/
 │   │   ├── relay-client.ts    # Relay connection, deterministic pairId, repair
 │   │   ├── ipc-server.ts     # Unix domain socket IPC server
 │   │   └── ipc-client.ts     # IPC client for tool → signer communication
-│   ├── tools/             # 17 MCP tool definitions
+│   ├── tools/             # 17 tool definitions
 │   └── *.ts               # Policy, contacts, history, monitor, validation
 │
 ├── desktop/               # Electron Desktop Wallet — holds all secrets

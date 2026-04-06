@@ -246,7 +246,7 @@ O motor de políticas é executado **antes** de qualquer assinatura e não pode 
 |-------|-----------|
 | Endereço | Formato hex, comprimento=42, checksum EIP-55 via viem |
 | Valor | Rejeita NaN, Infinity, negativo, zero, vazio |
-| Chain | Lista restrita (`base`, `ethereum`) |
+| Chain | Lista restrita (`ethereum`, `base`, `linea`, `arbitrum`, `bsc`, `optimism`, `polygon`, `sei`) |
 | Símbolo do token | Máximo 20 caracteres, rejeita caracteres de injeção |
 | Nome do contato | Máximo 100 caracteres, rejeita travessia de diretório |
 
@@ -268,7 +268,8 @@ O motor de políticas é executado **antes** de qualquer assinatura e não pode 
 - **Verificação em três níveis** — Chave pública + impressão digital do dispositivo + política de IP a cada reconexão
 - **Criptografia Keystore V3** — AES-256-GCM + scrypt KDF para chaves em repouso
 - **Motor de políticas** — Limites por transação e diários, lista de endereços permitidos, fila de aprovação
-- **Multi-chain EVM** — Base (padrão, taxa baixa) e Ethereum mainnet, extensível para qualquer chain EVM
+- **8 chains EVM** — Ethereum, Base, Linea, Arbitrum, BNB Chain, Optimism, Polygon, Sei; extensível para qualquer chain EVM
+- **Recuperação de subcontas** — Escaneia e recupera automaticamente contas derivadas BIP-44 (m/44'/60'/0'/0/{n}) ao restaurar a carteira
 - **Modo de operação dual** — Supervisionado (humano aprova) ou Autônomo (dentro dos limites)
 - **Contatos do Agente** — Catálogo de endereços P2P com resolução de nomes
 - **Monitoramento de saldo** — Verificação em segundo plano para transferências recebidas
@@ -404,10 +405,16 @@ wallet/
 
 ## Chains e Tokens Suportados
 
-| Chain | Chain ID | RPC Padrão | Tokens Integrados |
-|-------|----------|-------------|-----------------|
-| Base | 8453 | RPC público da Base | USDC, USDT |
-| Ethereum | 1 | RPC público do Ethereum | USDC, USDT |
+| Chain | Chain ID | Tokens Integrados |
+|-------|----------|-----------------|
+| Ethereum | 1 | USDC, USDT |
+| Base | 8453 | USDC, USDT |
+| Linea | 59144 | USDC, USDT |
+| Arbitrum | 42161 | USDC, USDT |
+| BNB Chain | 56 | USDC, USDT |
+| Optimism | 10 | USDC, USDT |
+| Polygon | 137 | USDC, USDT |
+| Sei EVM | 1329 | USDC |
 
 Qualquer token ERC-20 pode ser usado passando seu endereço de contrato. As chains são extensíveis — adicione qualquer chain compatível com EVM por meio de configuração.
 

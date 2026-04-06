@@ -246,7 +246,7 @@ Agent 仅通过 Tool API 交互。没有任何工具会返回密钥材料。
 |--------|---------|
 | 地址 | 十六进制格式、长度=42、EIP-55 校验和 |
 | 金额 | 拒绝 NaN、Infinity、负数、零、空值 |
-| 链 | 严格白名单 (`base`, `ethereum`) |
+| 链 | 严格白名单 (`ethereum`, `base`, `linea`, `arbitrum`, `bsc`, `optimism`, `polygon`, `sei`) |
 | 代币符号 | 最多 20 字符，拒绝注入字符 |
 | 联系人名称 | 最多 100 字符，拒绝路径遍历 |
 
@@ -268,7 +268,8 @@ Agent 仅通过 Tool API 交互。没有任何工具会返回密钥材料。
 - **三级验证** — 每次重连都验证公钥 + 设备指纹 + IP 策略
 - **Keystore V3 加密** — AES-256-GCM + scrypt KDF 静态加密
 - **策略引擎** — 单笔/每日消费限额、地址白名单、审批队列
-- **多链 EVM** — 支持 Base（默认，低 Gas）和以太坊主网，可扩展至任何 EVM 链
+- **8 条 EVM 链** — 以太坊、Base、Linea、Arbitrum、BNB Chain、Optimism、Polygon、Sei；可扩展至任意 EVM 链
+- **子账户恢复** — 钱包恢复时自动扫描并找回 BIP-44 派生账户（m/44'/60'/0'/0/{n}）
 - **双运行模式** — 监督模式（人工审批）或自主模式（限额内自动执行）
 - **Agent 通讯录** — P2P 地址簿，按名称自动解析
 - **余额监控** — 后台轮询检测入账转账
@@ -452,10 +453,16 @@ wallet/
 
 ## 支持的链和代币
 
-| 链 | Chain ID | 默认 RPC | 内置代币 |
-|----|----------|----------|----------|
-| Base | 8453 | 公共 Base RPC | USDC, USDT |
-| Ethereum | 1 | 公共 Ethereum RPC | USDC, USDT |
+| 链 | Chain ID | 内置代币 |
+|----|----------|----------|
+| Ethereum | 1 | USDC, USDT |
+| Base | 8453 | USDC, USDT |
+| Linea | 59144 | USDC, USDT |
+| Arbitrum | 42161 | USDC, USDT |
+| BNB Chain | 56 | USDC, USDT |
+| Optimism | 10 | USDC, USDT |
+| Polygon | 137 | USDC, USDT |
+| Sei EVM | 1329 | USDC |
 
 可以通过传入合约地址使用任何 ERC-20 代币。链可扩展——通过配置添加任何 EVM 兼容链。
 

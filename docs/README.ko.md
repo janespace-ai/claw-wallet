@@ -246,7 +246,7 @@ Agent는 오직 Tool API를 통해서만 상호작용합니다. 어떤 도구도
 |-------|-----------|
 | Address | Hex format, length=42, EIP-55 checksum via viem |
 | Amount | Rejects NaN, Infinity, negative, zero, empty |
-| Chain | Strict whitelist (`base`, `ethereum`) |
+| Chain | Strict whitelist (`ethereum`, `base`, `linea`, `arbitrum`, `bsc`, `optimism`, `polygon`, `sei`) |
 | Token symbol | Max 20 chars, rejects injection chars |
 | Contact name | Max 100 chars, rejects path traversal |
 
@@ -268,7 +268,8 @@ Agent는 오직 Tool API를 통해서만 상호작용합니다. 어떤 도구도
 - **3단계 검증** — 재연결 시마다 공개 키 + 디바이스 핑거프린트 + IP 정책 확인
 - **Keystore V3 암호화** — 저장 시 AES-256-GCM + scrypt KDF
 - **정책 엔진** — 트랜잭션별 및 일일 지출 한도, 주소 화이트리스트, 승인 대기열
-- **멀티체인 EVM** — Base (기본, 낮은 가스) 및 Ethereum 메인넷, 모든 EVM 체인으로 확장 가능
+- **8개 EVM 체인** — Ethereum, Base, Linea, Arbitrum, BNB Chain, Optimism, Polygon, Sei; 모든 EVM 체인으로 확장 가능
+- **서브 계정 복원** — 지갑 복원 시 BIP-44 파생 계정(m/44'/60'/0'/0/{n}) 자동 스캔 및 복원
 - **듀얼 운영 모드** — 감독(Supervised, 사람이 승인) 또는 자율(Autonomous, 한도 내)
 - **Agent 연락처** — 이름 해석 기능이 있는 P2P 주소록
 - **잔액 모니터링** — 입금 전송을 위한 백그라운드 폴링
@@ -404,10 +405,16 @@ wallet/
 
 ## 지원 체인 및 토큰
 
-| Chain | Chain ID | Default RPC | Built-in Tokens |
-|-------|----------|-------------|-----------------|
-| Base | 8453 | Public Base RPC | USDC, USDT |
-| Ethereum | 1 | Public Ethereum RPC | USDC, USDT |
+| 체인 | Chain ID | 내장 토큰 |
+|------|----------|----------|
+| Ethereum | 1 | USDC, USDT |
+| Base | 8453 | USDC, USDT |
+| Linea | 59144 | USDC, USDT |
+| Arbitrum | 42161 | USDC, USDT |
+| BNB Chain | 56 | USDC, USDT |
+| Optimism | 10 | USDC, USDT |
+| Polygon | 137 | USDC, USDT |
+| Sei EVM | 1329 | USDC |
 
 모든 ERC-20 토큰은 컨트랙트 주소를 전달하여 사용할 수 있습니다. 체인은 확장 가능합니다 — 설정을 통해 모든 EVM 호환 체인을 추가할 수 있습니다.
 

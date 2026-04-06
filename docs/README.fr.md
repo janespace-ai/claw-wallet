@@ -246,7 +246,7 @@ Le moteur de politiques s'exécute **avant** toute signature et ne peut pas êtr
 |--------|-----------|
 | Adresse | Format hexadécimal, longueur=42, somme de contrôle EIP-55 via viem |
 | Montant | Rejette NaN, Infinity, négatif, zéro, vide |
-| Chaîne | Liste blanche stricte (`base`, `ethereum`) |
+| Chaîne | Liste blanche stricte (`ethereum`, `base`, `linea`, `arbitrum`, `bsc`, `optimism`, `polygon`, `sei`) |
 | Symbole de jeton | Maximum 20 caractères, rejette les caractères d'injection |
 | Nom de contact | Maximum 100 caractères, rejette la traversée de chemin |
 
@@ -268,7 +268,8 @@ Le moteur de politiques s'exécute **avant** toute signature et ne peut pas êtr
 - **Vérification à trois niveaux** — Clé publique + empreinte d'appareil + politique IP à chaque reconnexion
 - **Chiffrement Keystore V3** — AES-256-GCM + scrypt KDF pour les clés au repos
 - **Moteur de politiques** — Limites par transaction et journalières, liste blanche d'adresses, file d'approbation
-- **Multi-chaîne EVM** — Base (par défaut, faible gas) et Ethereum mainnet, extensible à toute chaîne EVM
+- **8 chaînes EVM** — Ethereum, Base, Linea, Arbitrum, BNB Chain, Optimism, Polygon, Sei ; extensible à toute chaîne EVM
+- **Récupération de sous-comptes** — Scan automatique et récupération des comptes dérivés BIP-44 (m/44'/60'/0'/0/{n}) lors de la restauration du portefeuille
 - **Double mode opérationnel** — Supervisé (approbation humaine) ou Autonome (dans les limites)
 - **Contacts de l'Agent** — Carnet d'adresses P2P avec résolution de noms
 - **Surveillance des soldes** — Interrogation en arrière-plan pour les transferts entrants
@@ -404,10 +405,16 @@ wallet/
 
 ## Chaînes et jetons supportés
 
-| Chaîne | Chain ID | RPC par défaut | Jetons intégrés |
-|--------|----------|----------------|-----------------|
-| Base | 8453 | RPC public Base | USDC, USDT |
-| Ethereum | 1 | RPC public Ethereum | USDC, USDT |
+| Chaîne | Chain ID | Jetons intégrés |
+|--------|----------|----------------|
+| Ethereum | 1 | USDC, USDT |
+| Base | 8453 | USDC, USDT |
+| Linea | 59144 | USDC, USDT |
+| Arbitrum | 42161 | USDC, USDT |
+| BNB Chain | 56 | USDC, USDT |
+| Optimism | 10 | USDC, USDT |
+| Polygon | 137 | USDC, USDT |
+| Sei EVM | 1329 | USDC |
 
 Tout jeton ERC-20 peut être utilisé en passant son adresse de contrat. Les chaînes sont extensibles — ajoutez n'importe quelle chaîne compatible EVM via la configuration.
 

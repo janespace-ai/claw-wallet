@@ -246,7 +246,7 @@ Die Richtlinien-Engine wird **vor** jeder Signierung ausgeführt und kann nicht 
 |---------|-----------|
 | Adresse | Hex-Format, Länge=42, EIP-55-Prüfsumme via viem |
 | Betrag | Lehnt NaN, Infinity, negativ, Null, leer ab |
-| Chain | Strikte Whitelist (`base`, `ethereum`) |
+| Chain | Strikte Whitelist (`ethereum`, `base`, `linea`, `arbitrum`, `bsc`, `optimism`, `polygon`, `sei`) |
 | Token-Symbol | Maximal 20 Zeichen, lehnt Injektionszeichen ab |
 | Kontaktname | Maximal 100 Zeichen, lehnt Pfadtraversierung ab |
 
@@ -268,7 +268,8 @@ Die Richtlinien-Engine wird **vor** jeder Signierung ausgeführt und kann nicht 
 - **Drei-Stufen-Verifizierung** — Öffentlicher Schlüssel + Geräte-Fingerabdruck + IP-Richtlinie bei jeder Wiederverbindung
 - **Keystore V3-Verschlüsselung** — AES-256-GCM + scrypt KDF für Schlüssel im Ruhezustand
 - **Richtlinien-Engine** — Limits pro Transaktion und täglich, Adress-Whitelist, Genehmigungswarteschlange
-- **Multi-Chain EVM** — Base (Standard, niedrige Gas-Kosten) und Ethereum Mainnet, erweiterbar auf jede EVM-Chain
+- **8 EVM-Chains** — Ethereum, Base, Linea, Arbitrum, BNB Chain, Optimism, Polygon, Sei; erweiterbar auf jede EVM-Chain
+- **Unterkonto-Wiederherstellung** — Automatisches Scannen und Wiederherstellen von BIP-44-abgeleiteten Konten (m/44'/60'/0'/0/{n}) beim Wallet-Restore
 - **Dualer Betriebsmodus** — Überwacht (menschliche Genehmigung) oder Autonom (innerhalb der Limits)
 - **Agenten-Kontakte** — P2P-Adressbuch mit Namensauflösung
 - **Saldenüberwachung** — Hintergrund-Abfrage für eingehende Überweisungen
@@ -404,10 +405,16 @@ wallet/
 
 ## Unterstützte Chains und Token
 
-| Chain | Chain ID | Standard-RPC | Integrierte Token |
-|-------|----------|-------------|-------------------|
-| Base | 8453 | Öffentliches Base RPC | USDC, USDT |
-| Ethereum | 1 | Öffentliches Ethereum RPC | USDC, USDT |
+| Chain | Chain ID | Integrierte Token |
+|-------|----------|------------------|
+| Ethereum | 1 | USDC, USDT |
+| Base | 8453 | USDC, USDT |
+| Linea | 59144 | USDC, USDT |
+| Arbitrum | 42161 | USDC, USDT |
+| BNB Chain | 56 | USDC, USDT |
+| Optimism | 10 | USDC, USDT |
+| Polygon | 137 | USDC, USDT |
+| Sei EVM | 1329 | USDC |
 
 Jeder ERC-20-Token kann durch Angabe seiner Vertragsadresse verwendet werden. Chains sind erweiterbar — fügen Sie jede EVM-kompatible Chain über die Konfiguration hinzu.
 

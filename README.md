@@ -311,7 +311,7 @@ The policy engine runs **before** any signing and cannot be bypassed through pro
 |-------|-----------|
 | Address | Hex format, length=42, EIP-55 checksum via viem |
 | Amount | Rejects NaN, Infinity, negative, zero, empty |
-| Chain | Strict whitelist (`base`, `ethereum`) |
+| Chain | Strict whitelist (`ethereum`, `base`, `linea`, `arbitrum`, `bsc`, `optimism`, `polygon`, `sei`) |
 | Token symbol | Max 20 chars, rejects injection chars |
 | Contact name | Max 100 chars, rejects path traversal |
 
@@ -333,7 +333,8 @@ The policy engine runs **before** any signing and cannot be bypassed through pro
 - **Three-level verification** — Public key + device fingerprint + IP policy on every reconnect
 - **Keystore V3 encryption** — AES-256-GCM + scrypt KDF for keys at rest
 - **Policy engine** — Per-transaction and daily spending limits, address whitelist, approval queue
-- **Multi-chain EVM** — Base (default, low gas) and Ethereum mainnet, extensible to any EVM chain
+- **8 EVM chains** — Ethereum, Base, Linea, Arbitrum, BNB Chain, Optimism, Polygon, Sei; extensible to any EVM chain
+- **Sub-account recovery** — Scan and recover derived accounts (BIP-44 m/44'/60'/0'/0/{n}) during wallet restore
 - **Dual operating mode** — Supervised (human approves) or Autonomous (within limits)
 - **Agent contacts** — P2P address book with name resolution
 - **Balance monitoring** — Background polling for incoming transfers
@@ -476,10 +477,16 @@ wallet/
 
 ## Supported Chains & Tokens
 
-| Chain | Chain ID | Default RPC | Built-in Tokens |
-|-------|----------|-------------|-----------------|
-| Base | 8453 | Public Base RPC | USDC, USDT |
-| Ethereum | 1 | Public Ethereum RPC | USDC, USDT |
+| Chain | Chain ID | Built-in Tokens |
+|-------|----------|-----------------|
+| Ethereum | 1 | USDC, USDT |
+| Base | 8453 | USDC, USDT |
+| Linea | 59144 | USDC, USDT |
+| Arbitrum | 42161 | USDC, USDT |
+| BNB Chain | 56 | USDC, USDT |
+| Optimism | 10 | USDC, USDT |
+| Polygon | 137 | USDC, USDT |
+| Sei EVM | 1329 | USDC |
 
 Any ERC-20 token can be used by passing its contract address. Chains are extensible — add any EVM-compatible chain through configuration.
 
@@ -496,12 +503,14 @@ Create `config.json` with your preferred RPC providers:
   "relayUrl": "https://relay.your-domain.com",
   "defaultChain": "base",
   "chains": {
-    "ethereum": {
-      "rpcUrl": "https://ethereum.publicnode.com"
-    },
-    "base": {
-      "rpcUrl": "https://mainnet.base.org"
-    }
+    "ethereum":  { "rpcUrl": "https://ethereum.publicnode.com" },
+    "base":      { "rpcUrl": "https://mainnet.base.org" },
+    "linea":     { "rpcUrl": "https://rpc.linea.build" },
+    "arbitrum":  { "rpcUrl": "https://arb1.arbitrum.io/rpc" },
+    "bsc":       { "rpcUrl": "https://bsc.publicnode.com" },
+    "optimism":  { "rpcUrl": "https://optimism.publicnode.com" },
+    "polygon":   { "rpcUrl": "https://polygon-bor-rpc.publicnode.com" },
+    "sei":       { "rpcUrl": "https://evm-rpc.sei-apis.com" }
   }
 }
 ```
@@ -515,12 +524,8 @@ Use Hardhat or Anvil for local blockchain testing:
   "relayUrl": "http://localhost:8080",
   "defaultChain": "ethereum",
   "chains": {
-    "ethereum": {
-      "rpcUrl": "http://localhost:8545"
-    },
-    "base": {
-      "rpcUrl": "http://localhost:8546"
-    }
+    "ethereum": { "rpcUrl": "http://localhost:8545" },
+    "base":     { "rpcUrl": "http://localhost:8546" }
   }
 }
 ```

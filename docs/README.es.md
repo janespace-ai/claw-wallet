@@ -246,7 +246,7 @@ El motor de políticas se ejecuta **antes** de cualquier firma y no puede ser el
 |-------|-----------|
 | Dirección | Formato hexadecimal, longitud=42, checksum EIP-55 vía viem |
 | Monto | Rechaza NaN, Infinity, negativos, cero, vacío |
-| Cadena | Lista blanca estricta (`base`, `ethereum`) |
+| Cadena | Lista blanca estricta (`ethereum`, `base`, `linea`, `arbitrum`, `bsc`, `optimism`, `polygon`, `sei`) |
 | Símbolo de token | Máximo 20 caracteres, rechaza caracteres de inyección |
 | Nombre de contacto | Máximo 100 caracteres, rechaza traversal de ruta |
 
@@ -268,7 +268,8 @@ El motor de políticas se ejecuta **antes** de cualquier firma y no puede ser el
 - **Verificación de tres niveles** — Clave pública + huella del dispositivo + política de IP en cada reconexión
 - **Cifrado Keystore V3** — AES-256-GCM + scrypt KDF para claves en reposo
 - **Motor de políticas** — Límites de gasto por transacción y diarios, lista blanca de direcciones, cola de aprobación
-- **Multi-cadena EVM** — Base (por defecto, gas bajo) y mainnet de Ethereum, extensible a cualquier cadena EVM
+- **8 cadenas EVM** — Ethereum, Base, Linea, Arbitrum, BNB Chain, Optimism, Polygon, Sei; extensible a cualquier cadena EVM
+- **Recuperación de subcuentas** — Escanea y recupera automáticamente cuentas derivadas BIP-44 (m/44'/60'/0'/0/{n}) al restaurar la billetera
 - **Doble modo de operación** — Supervisado (aprobación humana) o Autónomo (dentro de los límites)
 - **Contactos del Agente** — Libreta de direcciones P2P con resolución de nombres
 - **Monitoreo de saldo** — Sondeo en segundo plano para transferencias entrantes
@@ -404,10 +405,16 @@ wallet/
 
 ## Cadenas y Tokens Soportados
 
-| Cadena | ID de Cadena | RPC Predeterminado | Tokens Integrados |
-|-------|----------|-------------|-----------------|
-| Base | 8453 | RPC público de Base | USDC, USDT |
-| Ethereum | 1 | RPC público de Ethereum | USDC, USDT |
+| Cadena | Chain ID | Tokens Integrados |
+|--------|----------|------------------|
+| Ethereum | 1 | USDC, USDT |
+| Base | 8453 | USDC, USDT |
+| Linea | 59144 | USDC, USDT |
+| Arbitrum | 42161 | USDC, USDT |
+| BNB Chain | 56 | USDC, USDT |
+| Optimism | 10 | USDC, USDT |
+| Polygon | 137 | USDC, USDT |
+| Sei EVM | 1329 | USDC |
 
 Cualquier token ERC-20 puede utilizarse pasando su dirección de contrato. Las cadenas son extensibles — agrega cualquier cadena compatible con EVM mediante configuración.
 

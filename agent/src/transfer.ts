@@ -94,19 +94,29 @@ export class TransferService {
       value: value.toString() 
     });
     
+    const gasFeeFields = gasEstimate.maxFeePerGas
+      ? {
+          type: 2,
+          maxFeePerGas: gasEstimate.maxFeePerGas.toString(),
+          maxPriorityFeePerGas: gasEstimate.maxPriorityFeePerGas!.toString(),
+        }
+      : {
+          type: 0,
+          gasPrice: gasEstimate.gasPrice.toString(),
+        };
+
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to,
       recipient: to,
       value: value.toString(),
       gas: gasEstimate.gas.toString(),
-      gasPrice: gasEstimate.gasPrice.toString(),
       nonce: nonce.toString(),
-      type: 0,
       chainId,
       /** Human-readable token amount for display / audit (desktop computes USD for limits). */
       amount_token: params.amount,
       token: nativeSymbol,
       chain: params.chain,
+      ...gasFeeFields,
     }) as { signedTx: Hex; requestId: string };
     
     logger.log("TransferService", "Transaction signed, broadcasting...");
@@ -166,7 +176,7 @@ export class TransferService {
 
     const transferData = this.chainAdapter.buildERC20TransferData(to, amount);
     const gasEstimate = await this.chainAdapter.estimateGas(
-      { to: tokenAddress, data: transferData },
+      { from: this.walletAddress, to: tokenAddress, data: transferData },
       params.chain
     );
 
@@ -184,18 +194,33 @@ export class TransferService {
       throw new PolicyBlockedError(policyResult.reason!, policyResult.approvalId);
     }
 
-    const chainId = await this.chainAdapter.getChainId(params.chain);
+    const [chainId, nonce] = await Promise.all([
+      this.chainAdapter.getChainId(params.chain),
+      this.chainAdapter.getNonce(this.walletAddress, params.chain),
+    ]);
+
+    const gasFeeFields = gasEstimate.maxFeePerGas
+      ? {
+          type: 2,
+          maxFeePerGas: gasEstimate.maxFeePerGas.toString(),
+          maxPriorityFeePerGas: gasEstimate.maxPriorityFeePerGas!.toString(),
+        }
+      : {
+          type: 0,
+          gasPrice: gasEstimate.gasPrice.toString(),
+        };
+
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to: tokenAddress,
       recipient: to,
       data: transferData,
       gas: gasEstimate.gas.toString(),
-      gasPrice: gasEstimate.gasPrice.toString(),
-      type: 0,
+      nonce: nonce.toString(),
       chainId,
       amount_token: params.amount,
       token: tokenInfo.symbol,
       chain: params.chain,
+      ...gasFeeFields,
     }) as { signedTx: Hex; requestId: string };
 
     const receipt = await this.chainAdapter.broadcastTransaction(result.signedTx, params.chain);

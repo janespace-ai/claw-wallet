@@ -25,6 +25,7 @@ import { ContactConflictError, type WalletAuthorityStore } from "./wallet-author
 import type { SigningHistory } from "./signing-history.js";
 import type { TxSyncService } from "./tx-sync-service.js";
 import { extractRecipientForTrust } from "./signing-engine.js";
+import type { BalanceService } from "./balance-service.js";
 
 /** One WebSocket + E2EE state per sub-account (isolated from other accounts). */
 export interface RelayAccountChannelOptions {
@@ -63,6 +64,8 @@ export interface RelayAccountChannelOptions {
     pendingPairExpiresAt: number | null;
     walletAddress: string;
   }) => Promise<void>;
+  /** Balance service for wallet_get_balances relay queries. */
+  balanceService?: BalanceService;
 }
 
 export interface TransactionRequestInfo {
@@ -137,6 +140,7 @@ const WALLET_RPC_METHODS = new Set([
   "wallet_contacts_remove",
   "wallet_contacts_resolve",
   "wallet_notify_tx_result",
+  "wallet_get_balances",
 ]);
 
 const ADDR_HEX40 = /^0x[a-fA-F0-9]{40}$/;
@@ -932,6 +936,23 @@ export class RelayAccountChannel {
             { requestId, result: { ok: true, ...(newContact ? { newContact } : {}) } },
             requestId,
           );
+          return;
+        }
+        case "wallet_get_balances": {
+          const address = params.address as string | undefined;
+          if (!address || !ADDR_HEX40.test(address)) {
+            err("address required and must be a valid 0x address", "INVALID_PARAMS");
+            return;
+          }
+          if (!this.options.balanceService) {
+            err("Balance service not available", "INTERNAL_ERROR");
+            return;
+          }
+          const tokenFilter = Array.isArray(params.tokens)
+            ? (params.tokens as string[]).map((t) => String(t).toUpperCase())
+            : undefined;
+          const balances = await this.options.balanceService.getCachedOrFetchBalances(address, tokenFilter);
+          this.sendEncrypted(session, { requestId, result: { balances } }, requestId);
           return;
         }
         default:

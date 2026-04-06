@@ -297,6 +297,22 @@ export class BalanceService {
   }
 
   /**
+   * Return cached balances if available (ignoring TTL), otherwise fetch from chain.
+   * Used by relay queries so the agent sees the same data already shown in the UI,
+   * without triggering redundant on-chain RPC calls.
+   */
+  async getCachedOrFetchBalances(address: string, tokenWhitelist?: string[]): Promise<TokenBalance[]> {
+    const cacheKey = `${address}-all`;
+    const cached = this.balanceCache.get(cacheKey);
+    if (cached && cached.balances.length > 0) {
+      console.log('[BalanceService] Relay query: returning cached balances (age: ' + Math.round((Date.now() - cached.timestamp) / 1000) + 's)');
+      return cached.balances;
+    }
+    // No cache yet — do a fresh fetch so the agent still gets an answer
+    return this.getWalletBalances(address, tokenWhitelist, false);
+  }
+
+  /**
    * Clear balance cache
    */
   clearCache(): void {

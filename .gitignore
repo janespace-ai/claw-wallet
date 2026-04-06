@@ -21,6 +21,9 @@ agent/skills/claw-wallet/wallet.local.json
 *.log
 npm-debug.log*
 
+
+agent/~
+
 # OS
 .DS_Store
 Thumbs.db

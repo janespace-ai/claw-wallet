@@ -884,9 +884,18 @@ function setupEventListeners() {
   // Agent status button
   document.getElementById("btn-agent-status")?.addEventListener("click", async () => {
     if (agentStatus.online) {
-      const confirmed = confirm(tKey("home.agent.repairConfirm"));
-      if (!confirmed) return;
+      showRepairConfirmModal();
+      return;
     }
+    await generateAndShowPairCode();
+  });
+
+  document.getElementById("btn-repair-cancel")?.addEventListener("click", () => {
+    hideRepairConfirmModal();
+  });
+
+  document.getElementById("btn-repair-confirm")?.addEventListener("click", async () => {
+    hideRepairConfirmModal();
     await generateAndShowPairCode();
   });
 
@@ -1514,6 +1523,11 @@ function setupRealtimeEvents() {
     if (typeof accountIndex === "number") {
       currentAccountIndex = accountIndex;
     }
+    // Immediately reset agent status — each account has its own relay session.
+    // The backend will emit wallet:agent-status with the new account's actual
+    // state shortly after; resetting here prevents stale UI from the previous account.
+    agentStatus = { paired: false, online: false };
+    renderAgentStatusBtn();
     const el = document.getElementById("main-address");
     if (el) el.textContent = address ?? "";
 
@@ -1789,6 +1803,14 @@ function renderAgentStatusBtn() {
     if (label) label.setAttribute("data-i18n", "home.agent.unpaired");
     if (label) label.textContent = tKey("home.agent.unpaired");
   }
+}
+
+function showRepairConfirmModal() {
+  document.getElementById("modal-repair-confirm")?.classList.add("active");
+}
+
+function hideRepairConfirmModal() {
+  document.getElementById("modal-repair-confirm")?.classList.remove("active");
 }
 
 async function generateAndShowPairCode() {

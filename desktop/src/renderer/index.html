@@ -537,6 +537,23 @@
     </div>
   </div>
 
+  <!-- Agent re-pair confirmation -->
+  <div id="modal-repair-confirm" class="modal">
+    <div class="modal-box modal-repair-box">
+      <div class="modal-repair-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+        </svg>
+      </div>
+      <p class="modal-repair-text" data-i18n="home.agent.repairConfirm">重新配对会断开当前 Agent 的连接，确认继续？</p>
+      <div class="modal-actions">
+        <button type="button" id="btn-repair-confirm" class="btn-primary" data-i18n="common.confirm">确认</button>
+        <button type="button" id="btn-repair-cancel" class="btn-outline" data-i18n="common.cancel">取消</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Contact delete confirmation -->
   <div id="modal-contact-delete" class="modal">
     <div class="modal-box">

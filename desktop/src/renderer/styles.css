@@ -1992,6 +1992,32 @@ input[type="number"] { -moz-appearance: textfield; }
   flex: 1;
 }
 
+/* Repair confirm modal */
+.modal-repair-box {
+  align-items: center;
+  text-align: center;
+}
+
+.modal-repair-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 32px;
+  background: var(--accent-light);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.modal-repair-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin-top: -4px !important;
+}
+
 /* Alert modal */
 .alert-modal-actions {
   display: flex;

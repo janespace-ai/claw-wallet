@@ -8,6 +8,7 @@ import type { PriceService } from "./price-service.js";
 import type { WalletAuthorityStore } from "./wallet-authority-store.js";
 import type { SigningHistory } from "./signing-history.js";
 import type { TxSyncService } from "./tx-sync-service.js";
+import type { BalanceService } from "./balance-service.js";
 import type { AccountManager } from "./account-manager.js";
 import { MessageRouter, MessageType } from "./message-router.js";
 import {
@@ -34,6 +35,7 @@ export interface RelayBridgeOptions {
   authorityStore: WalletAuthorityStore;
   signingHistory: SigningHistory;
   txSyncService: TxSyncService;
+  balanceService: BalanceService;
   relayUrl: string;
   reconnectBaseMs?: number;
   reconnectMaxMs?: number;
@@ -188,6 +190,7 @@ export class RelayBridge {
       authorityStore: this.options.authorityStore,
       signingHistory: this.options.signingHistory,
       txSyncService: this.options.txSyncService,
+      balanceService: this.options.balanceService,
       relayUrl: this.relayUrl,
       reconnectBaseMs: this.reconnectBaseMs,
       reconnectMaxMs: this.reconnectMaxMs,

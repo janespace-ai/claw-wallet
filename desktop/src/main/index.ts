@@ -545,6 +545,7 @@ function createRelayBridge(): RelayBridge {
     authorityStore,
     signingHistory,
     txSyncService,
+    balanceService,
     messageRouter: messageRouter!,
     relayUrl: config.relayUrl,
     reconnectBaseMs: config.relay.reconnectBaseMs,

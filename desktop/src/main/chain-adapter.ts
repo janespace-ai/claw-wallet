@@ -8,9 +8,15 @@ import { ethers } from "ethers";
 import type { ChainConfig } from "./config.js";
 import type { TxStatus } from "./signing-history.js";
 
-const CHAIN_CONFIGS = {
-  ethereum: { chainId: 1 },
-  base: { chainId: 8453 },
+const CHAIN_CONFIGS: Record<string, { chainId: number }> = {
+  ethereum:  { chainId: 1 },
+  base:      { chainId: 8453 },
+  arbitrum:  { chainId: 42161 },
+  optimism:  { chainId: 10 },
+  polygon:   { chainId: 137 },
+  linea:     { chainId: 59144 },
+  bsc:       { chainId: 56 },
+  sei:       { chainId: 1329 },
 };
 
 export class ChainAdapter {

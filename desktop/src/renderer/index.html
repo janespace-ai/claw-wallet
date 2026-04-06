@@ -161,6 +161,15 @@
         <div id="account-dropdown-list"></div>
       </div>
 
+      <!-- Pairing error card (shown on relay failure) -->
+      <div id="pair-code-error-card" class="pair-code-error-card" style="display:none">
+        <button type="button" id="btn-pair-code-error-close" class="pair-code-error-close-btn" aria-label="Close">×</button>
+        <div class="pair-code-error-icon">!</div>
+        <div class="pair-code-error-title" id="pair-code-error-title"></div>
+        <div class="pair-code-error-desc" id="pair-code-error-desc"></div>
+        <button type="button" id="btn-pair-code-retry" class="pair-code-retry-btn"></button>
+      </div>
+
       <!-- Pairing code card (shown on demand) -->
       <div id="pair-code-card" class="pair-code-card" style="display:none">
         <div class="pair-code-title">
@@ -324,7 +333,7 @@
             </div>
           </div>
           <div class="settings-row" id="biometric-card" style="display:none;">
-            <span class="settings-row-label" id="biometric-label" data-i18n="settings.biometric.label">Touch ID / Biometrics</span>
+            <span class="settings-row-label" id="biometric-label">Touch ID / Biometrics</span>
             <label class="ios-toggle">
               <input type="checkbox" id="toggle-biometric">
               <span class="ios-toggle-track"></span>

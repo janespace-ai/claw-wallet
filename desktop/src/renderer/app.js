@@ -859,10 +859,8 @@ function setupEventListeners() {
       if (tabEl) tabEl.classList.add("active");
 
       if (tab.dataset.tab === "home") {
-        const status = await wapi().getStatus();
-        if (status.address) {
-          void syncHomeNetworkFilterFromConfig().finally(() => loadWalletBalances(status.address));
-        }
+        // No refresh on tab switch — show cached data.
+        // Data loads on first entry and on manual refresh only.
       } else if (tab.dataset.tab === "activity") {
         loadActivityRecords(currentActivityFilter, true);
       } else if (tab.dataset.tab === "contacts") {
@@ -895,6 +893,12 @@ function setupEventListeners() {
   // Pair code close button
   document.getElementById("btn-pair-code-close")?.addEventListener("click", () => {
     hidePairCodeCard();
+  });
+
+  // Pair code error card close button
+  document.getElementById("btn-pair-code-error-close")?.addEventListener("click", () => {
+    const errCard = document.getElementById("pair-code-error-card");
+    if (errCard) errCard.style.display = "none";
   });
 
 
@@ -1814,13 +1818,44 @@ async function generateAndShowPairCode() {
     }, 10000);
   } catch (err) {
     console.error("generatePairCode failed:", err);
-    alert(err.message || String(err));
+    showPairCodeError(err);
   }
+}
+
+function showPairCodeError(err) {
+  const raw = err?.message || String(err);
+  let title = "连接失败";
+  let desc = "请检查网络连接后重试。";
+  if (/not valid JSON|<html|unexpected token/i.test(raw)) {
+    title = "无法连接到 Relay 服务器";
+    desc = "服务器返回了异常响应，请在设置中确认 Relay 地址已正确配置。";
+  } else if (/not initialized/i.test(raw)) {
+    title = "服务尚未就绪";
+    desc = "请解锁钱包后重试。";
+  } else if (/HTTP \d{3}/.test(raw)) {
+    title = "服务器连接失败";
+    desc = "Relay 服务器暂时无法访问，请稍后重试。";
+  } else if (/network|fetch|ECONNREFUSED|ENOTFOUND/i.test(raw)) {
+    title = "网络连接失败";
+    desc = "无法访问 Relay 服务器，请检查您的网络连接。";
+  }
+  const card = document.getElementById("pair-code-error-card");
+  document.getElementById("pair-code-error-title").textContent = title;
+  document.getElementById("pair-code-error-desc").textContent = desc;
+  const retryBtn = document.getElementById("btn-pair-code-retry");
+  retryBtn.textContent = "重试";
+  retryBtn.onclick = () => {
+    card.style.display = "none";
+    generateAndShowPairCode();
+  };
+  if (card) card.style.display = "flex";
 }
 
 function hidePairCodeCard() {
   const card = document.getElementById("pair-code-card");
   if (card) card.style.display = "none";
+  const errCard = document.getElementById("pair-code-error-card");
+  if (errCard) errCard.style.display = "none";
   if (pairingCountdownTimer != null) {
     clearInterval(pairingCountdownTimer);
     pairingCountdownTimer = null;
@@ -1914,7 +1949,18 @@ async function loadContactsTab() {
   try {
     const rows = await wapi().listDesktopContacts(currentAccountIndex);
     if (!rows || rows.length === 0) {
-      list.innerHTML = `<p style="padding:24px 20px 8px;color:var(--text-secondary);font-size:14px;">${escapeHtml(tKey("contactsPage.empty") || "暂无联系人")}</p>${agentHintHtml}`;
+      const infoSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>`;
+      const usersSvg = `<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`;
+      list.innerHTML = `
+        <div class="contacts-empty-state">
+          <div class="contacts-empty-icon">${usersSvg}</div>
+          <div class="contacts-empty-title">${escapeHtml(tKey("contactsPage.empty"))}</div>
+          <div class="contacts-empty-desc">${escapeHtml(tKey("contactsPage.emptyDesc"))}</div>
+          <div class="contacts-empty-hint">
+            <span class="contacts-empty-hint-icon">${infoSvg}</span>
+            <span>${escapeHtml(tKey("contactsPage.emptyHint"))}</span>
+          </div>
+        </div>`;
       return;
     }
 
@@ -2391,12 +2437,11 @@ async function refreshDynamicI18n() {
       } else if (tab === "activity") {
         await loadActivityRecords(currentActivityFilter, true);
       } else if (tab === "settings") {
+        const st = await wapi().getStatus();
+        await syncSettingsFromStatus(st);
         await loadSecurityEvents();
         await loadSigningHistory();
         await loadDesktopContacts();
-      } else if (tab === "home") {
-        const status = await wapi().getStatus();
-        if (status.address) await loadWalletBalances(status.address);
       }
     } catch (e) {
       console.error("refreshDynamicI18n:", e);

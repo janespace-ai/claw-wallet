@@ -1536,25 +1536,16 @@ function setupRealtimeEvents() {
     const el = document.getElementById("main-address");
     if (el) el.textContent = address ?? "";
 
-    // Fetch getStatus() in parallel with refreshAccountHeader() so we can update
-    // the agent connection badge as soon as possible without blocking the header.
+    // refreshAccountHeader and getStatus can run in parallel.
+    // The main process now emits wallet:agent-status immediately after
+    // wallet:account-changed with the new account's real status, so we
+    // no longer need to derive it here from the global connectedAgents count.
     const [, statusResult] = await Promise.allSettled([
       refreshAccountHeader(),
       wapi().getStatus(),
     ]);
-
-    // Derive per-account agent connection state from connectedAgents.
-    //   > 0  → this account's relay session is live → show Connected.
-    //   === 0 → no live session for this account    → show Connect Agent.
-    // The backend may also emit wallet:agent-status to refine paired-but-offline,
-    // but connectedAgents is immediately reliable for the live/not-live distinction.
     if (statusResult.status === "fulfilled") {
-      const st = statusResult.value;
-      await syncSettingsFromStatus(st).catch(() => {});
-      agentStatus = st.connectedAgents > 0
-        ? { paired: true, online: true }
-        : { paired: false, online: false };
-      renderAgentStatusBtn();
+      await syncSettingsFromStatus(statusResult.value).catch(() => {});
     }
 
     void syncHomeNetworkFilterFromConfig().finally(() => {

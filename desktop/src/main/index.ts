@@ -287,6 +287,12 @@ function registerIpcHandlers(): void {
       address: addr,
       accountIndex: index,
     });
+    // Push the new account's actual agent status immediately after the switch.
+    // The aggregated emitAgentStatus() only fires on relay events; without this
+    // the renderer keeps showing the previous account's stale connected badge.
+    if (relayBridge) {
+      sendToRenderer("wallet:agent-status", relayBridge.getAccountAgentStatus(index));
+    }
   });
 
   ipcMain.handle("wallet:create-sub-account", async (_, nickname?: string) => {

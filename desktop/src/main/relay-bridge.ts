@@ -340,6 +340,20 @@ export class RelayBridge {
     return n;
   }
 
+  /**
+   * Returns the agent status scoped to a single account index.
+   * Used after an account switch to push the correct per-account badge state
+   * to the renderer without relying on the aggregated global status.
+   */
+  getAccountAgentStatus(accountIndex: number): AgentStatusInfo {
+    const ch = this.channels.get(accountIndex);
+    if (!ch) return { paired: false, online: false };
+    return {
+      paired: ch.connectedDeviceCount() > 0,
+      online: ch.agentOnline(),
+    };
+  }
+
   getPairedDevices(): Array<PairedDevice & { accountIndex: number }> {
     const out: Array<PairedDevice & { accountIndex: number }> = [];
     for (const [idx, ch] of this.channels) {

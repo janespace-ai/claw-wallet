@@ -59,6 +59,9 @@ export interface WalletAPI {
   createWalletSubAccount: (nickname?: string) => Promise<WalletAccountSummary[]>;
   updateWalletAccountNickname: (index: number, nickname: string) => Promise<WalletAccountSummary[]>;
 
+  deregisterWallet: (password: string) => Promise<void>;
+  onDeregistered: (callback: () => void) => () => void;
+
   onTransactionRequest: (callback: (req: TransactionRequest) => void) => () => void;
   onContactAddRequest: (callback: (req: ContactAddRequest) => void) => () => void;
   onConnectionStatus: (callback: (status: ConnectionStatus) => void) => () => void;
@@ -301,6 +304,13 @@ const api: WalletAPI = {
   createWalletSubAccount: (nickname) => ipcRenderer.invoke("wallet:create-sub-account", nickname),
   updateWalletAccountNickname: (index, nickname) =>
     ipcRenderer.invoke("wallet:update-account-nickname", index, nickname),
+
+  deregisterWallet: (password) => ipcRenderer.invoke("wallet:deregister", password),
+  onDeregistered: (callback) => {
+    const handler = () => callback();
+    ipcRenderer.on("wallet:deregistered", handler);
+    return () => ipcRenderer.removeListener("wallet:deregistered", handler);
+  },
 
   onTransactionRequest: (callback) => {
     const handler = (_: unknown, req: TransactionRequest) => callback(req);

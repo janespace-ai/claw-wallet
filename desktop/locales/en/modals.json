@@ -25,7 +25,7 @@
   },
   "contactAdd": {
     "title": "Add contact",
-    "chainLine": "Chain: {chain}",
+    "summary": "Agent requests to add {name}'s address {addr} ({chain}) as a contact.",
     "normal": "Add as regular contact",
     "trusted": "Add as trusted contact",
     "reject": "Reject"
@@ -45,7 +45,7 @@
     "wrongPassword": "Incorrect password, please try again"
   },
   "alert": {
-    "title": "⚠ Security alert",
+    "title": "Security Alert",
     "freeze": "Freeze (30 min)",
     "allowOnce": "Allow once",
     "trustDevice": "Trust new device"

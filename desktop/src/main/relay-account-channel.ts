@@ -111,6 +111,10 @@ export interface SecurityAlertInfo {
   alertId: string;
   type: "ip_change" | "fingerprint_change" | "same_machine" | "key_mismatch" | "device_mismatch";
   message: string;
+  /** i18n key for renderer to translate (e.g. "security.alerts.sameMachine") */
+  messageKey?: string;
+  /** Interpolation params for the i18n key (e.g. { oldIP, newIP }) */
+  messageParams?: Record<string, string>;
   details: Record<string, string>;
   timestamp: number;
 }
@@ -429,6 +433,7 @@ export class RelayAccountChannel {
             alertId: `key-mismatch-${Date.now()}`,
             type: "key_mismatch",
             message: "Agent public key does not match stored key. Possible impersonation.",
+            messageKey: "security.alerts.keyMismatch",
             details: { deviceId },
             timestamp: Date.now(),
           });
@@ -442,6 +447,7 @@ export class RelayAccountChannel {
             alertId: `device-mismatch-${Date.now()}`,
             type: "device_mismatch",
             message: "Agent device fingerprint changed. Re-pairing required.",
+            messageKey: "security.alerts.deviceMismatch",
             details: { deviceId, expected: storedDevice.machineId, received: machineId },
             timestamp: Date.now(),
           });
@@ -457,6 +463,8 @@ export class RelayAccountChannel {
               alertId: `ip-block-${Date.now()}`,
               type: "ip_change",
               message: `Agent IP changed from ${storedDevice.lastIP} to ${sourceIP}. Blocked by policy.`,
+              messageKey: "security.alerts.ipBlocked",
+              messageParams: { oldIP: storedDevice.lastIP, newIP: sourceIP },
               details: { oldIP: storedDevice.lastIP, newIP: sourceIP, deviceId },
               timestamp: Date.now(),
             });
@@ -469,6 +477,8 @@ export class RelayAccountChannel {
               alertId: `ip-change-${Date.now()}`,
               type: "ip_change",
               message: `Agent IP changed from ${storedDevice.lastIP} to ${sourceIP}`,
+              messageKey: "security.alerts.ipChanged",
+              messageParams: { oldIP: storedDevice.lastIP, newIP: sourceIP },
               details: { oldIP: storedDevice.lastIP, newIP: sourceIP, deviceId },
               timestamp: Date.now(),
             });

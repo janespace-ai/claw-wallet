@@ -25,5 +25,12 @@
     "failed": "失败",
     "pending": "待处理",
     "signed": "已签名"
+  },
+  "alertMessages": {
+    "ip_change": "检测到来自新 IP 地址的访问请求，与上次登录位置不符。",
+    "fingerprint_change": "设备指纹已变更，可能是设备被更换或伪造。",
+    "same_machine": "Agent 与钱包应用运行在同一台机器上，这会显著降低安全性。",
+    "key_mismatch": "检测到密钥不匹配，此设备的身份验证可能已被篡改。",
+    "device_mismatch": "设备标识不匹配，请确认是否为可信设备。"
   }
 }

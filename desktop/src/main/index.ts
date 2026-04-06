@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage } from "electron";
-import { readFile } from "node:fs/promises";
+import { readFile, rm, mkdir } from "node:fs/promises";
 import { join } from "node:path";
 import type * as Electron from "electron";
 import { KeyManager } from "./key-manager.js";
@@ -477,6 +477,22 @@ function registerIpcHandlers(): void {
     if (!name?.trim() || !authorityStore.updateContactTrust(index, name, trusted)) {
       throw new Error("Contact not found");
     }
+  });
+
+  ipcMain.handle("wallet:deregister", async (_, password: string) => {
+    // Validate password — throws if wrong
+    await keyManager.exportMnemonic(password);
+    // Stop services
+    lockManager.lock();
+    relayBridge?.shutdown();
+    relayBridge = null;
+    // Delete all wallet data and recreate empty dir
+    await rm(dataDir, { recursive: true, force: true });
+    await mkdir(dataDir, { recursive: true });
+    // Reset key manager state (no keystore → hasWallet = false)
+    await keyManager.initialize();
+    // Notify renderer to return to welcome screen
+    sendToRenderer("wallet:deregistered");
   });
 }
 

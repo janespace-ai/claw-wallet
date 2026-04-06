@@ -509,6 +509,24 @@ function buildActivitySkeleton() {
     </div>`).join('');
 }
 
+function showCopyToast(anchorEl) {
+  const existing = document.getElementById("copy-toast");
+  if (existing) existing.remove();
+
+  const toast = document.createElement("div");
+  toast.id = "copy-toast";
+  toast.textContent = "已复制";
+  document.body.appendChild(toast);
+
+  const rect = anchorEl.getBoundingClientRect();
+  toast.style.left = `${rect.left + rect.width / 2 - toast.offsetWidth / 2}px`;
+  toast.style.top = `${rect.top - toast.offsetHeight - 8}px`;
+
+  toast.classList.add("copy-toast-show");
+  setTimeout(() => toast.classList.add("copy-toast-hide"), 1000);
+  setTimeout(() => toast.remove(), 1400);
+}
+
 function escapeHtml(s) {
   return s
     .replace(/&/g, "&amp;")
@@ -1151,6 +1169,50 @@ function setupEventListeners() {
     document.getElementById("btn-export-mnemonic").click();
   });
 
+  // Settings: deregister account
+  const modalDeregister = document.getElementById("modal-deregister");
+
+  document.getElementById("btn-deregister-row")?.addEventListener("click", () => {
+    document.getElementById("input-deregister-password").value = "";
+    const errEl = document.getElementById("deregister-error");
+    errEl.style.display = "none";
+    errEl.textContent = "";
+    modalDeregister.classList.add("active");
+    document.getElementById("input-deregister-password").focus();
+  });
+
+  document.getElementById("btn-deregister-cancel").onclick = () => {
+    modalDeregister.classList.remove("active");
+  };
+
+  document.getElementById("btn-deregister-confirm").onclick = async () => {
+    const password = document.getElementById("input-deregister-password").value;
+    if (!password) return;
+    const errEl = document.getElementById("deregister-error");
+    errEl.style.display = "none";
+    const btn = document.getElementById("btn-deregister-confirm");
+    btn.disabled = true;
+    try {
+      await wapi().deregisterWallet(password);
+      modalDeregister.classList.remove("active");
+      showScreen("setup");
+    } catch (err) {
+      const msg = err?.message || String(err);
+      const isWrongPwd = /password|incorrect|invalid|wrong|unauthorized/i.test(msg);
+      errEl.textContent = isWrongPwd
+        ? tKey("settings.deregister.wrongPassword")
+        : tKey("messages.saveFailed");
+      errEl.style.display = "block";
+    } finally {
+      btn.disabled = false;
+    }
+  };
+
+  wapi().onDeregistered(() => {
+    modalDeregister.classList.remove("active");
+    showScreen("setup");
+  });
+
   // Theme segmented control
   document.querySelectorAll(".theme-seg-btn").forEach(btn => {
     btn.addEventListener("click", () => setTheme(btn.dataset.themeVal));
@@ -1277,11 +1339,8 @@ function setupRealtimeEvents() {
   wapi().onContactAddRequest((req) => {
     currentContactAddRequest = req;
     const summary = document.getElementById("contact-add-summary");
-    summary.innerHTML = `
-      <strong>${escapeHtml(req.name)}</strong><br>
-      ${escapeHtml(tKey("modals.contactAdd.chainLine", { chain: req.chain }))}<br>
-      <span class="address">${escapeHtml(req.address)}</span>
-    `;
+    const shortAddr = req.address ? `${req.address.slice(0, 6)}…${req.address.slice(-4)}` : "";
+    summary.textContent = tKey("modals.contactAdd.summary", { name: req.name, chain: req.chain, addr: shortAddr });
     document.getElementById("modal-contact-add").classList.add("active");
   });
 
@@ -1311,7 +1370,8 @@ function setupRealtimeEvents() {
 
   wapi().onSecurityAlert((alert) => {
     currentAlert = alert;
-    document.getElementById("alert-message").textContent = alert.message;
+    const localizedMsg = tKey(`security.alertMessages.${alert.type}`);
+    document.getElementById("alert-message").textContent = localizedMsg || alert.message;
     document.getElementById("modal-alert").classList.add("active");
     loadSecurityEvents();
   });
@@ -2079,17 +2139,30 @@ function openTxDetailModal(record, contactLookup) {
     { label: tKey("activity.detail.labelChain"),  value: chainLabel, raw: true },
     { label: tKey("activity.detail.labelTime"),   value: escapeHtml(timeStr) },
     { label: tKey("activity.detail.labelType"),   value: escapeHtml(typeLabels[record.type] || record.type) },
-    { label: tKey("activity.detail.labelHash"),   value: escapeHtml(hashDisplay), cls: record.tx_hash ? "accent mono" : "" },
+    { label: tKey("activity.detail.labelHash"),   value: escapeHtml(hashDisplay), cls: record.tx_hash ? "accent mono" : "", copyHash: record.tx_hash || null },
     { label: tKey("activity.detail.labelStatus"), value: escapeHtml(tKey(`activity.status.${statusKey}`)), cls: statusValueClass },
   ];
   if (record.gas_used)    rows.push({ label: tKey("activity.detail.labelGas"),   value: escapeHtml(String(record.gas_used)) });
   if (record.block_number) rows.push({ label: tKey("activity.detail.labelBlock"), value: escapeHtml(String(record.block_number)) });
 
-  document.getElementById("tx-detail-info").innerHTML = rows.map(r => `
-    <div class="tx-detail-row">
-      <span class="tx-detail-label">${escapeHtml(r.label)}</span>
-      <span class="tx-detail-value ${r.cls || ""}">${r.raw ? r.value : r.value}</span>
-    </div>`).join("");
+  document.getElementById("tx-detail-info").innerHTML = rows.map(r => {
+    const valueHtml = r.copyHash
+      ? `<span class="tx-hash-value"><span class="${r.cls || ""}">${r.value}</span><button class="btn-copy-hash" data-hash="${r.copyHash}" title="复制"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></button></span>`
+      : `<span class="${r.cls || ""}">${r.raw ? r.value : r.value}</span>`;
+    return `<div class="tx-detail-row"><span class="tx-detail-label">${escapeHtml(r.label)}</span><span class="tx-detail-value">${valueHtml}</span></div>`;
+  }).join("");
+
+  document.getElementById("tx-detail-info").querySelectorAll(".btn-copy-hash").forEach(btn => {
+    btn.addEventListener("click", () => {
+      navigator.clipboard.writeText(btn.dataset.hash).then(() => {
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+        showCopyToast(btn);
+        setTimeout(() => {
+          btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>`;
+        }, 1500);
+      });
+    });
+  });
 
   // Explorer button
   const explorerUrl = getBlockExplorerUrl(record.tx_chain, record.tx_hash);

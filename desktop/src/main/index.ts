@@ -280,6 +280,10 @@ function registerIpcHandlers(): void {
     accountManager.switchAccount(index);
     keyManager.setActiveAccountIndex(index);
     messageRouter?.setActiveAccount(index);
+    // Tell the relay bridge which account is now active. This scopes future
+    // emitAgentStatus() calls to the new account and immediately pushes its
+    // real connection state to the renderer via the onAgentStatus callback.
+    relayBridge?.setActiveAccountIndex(index);
     await messageRouter?.processQueuedMessages(index);
     balanceService.clearCache();
     const addr = keyManager.getAddress();
@@ -287,12 +291,6 @@ function registerIpcHandlers(): void {
       address: addr,
       accountIndex: index,
     });
-    // Push the new account's actual agent status immediately after the switch.
-    // The aggregated emitAgentStatus() only fires on relay events; without this
-    // the renderer keeps showing the previous account's stale connected badge.
-    if (relayBridge) {
-      sendToRenderer("wallet:agent-status", relayBridge.getAccountAgentStatus(index));
-    }
   });
 
   ipcMain.handle("wallet:create-sub-account", async (_, nickname?: string) => {

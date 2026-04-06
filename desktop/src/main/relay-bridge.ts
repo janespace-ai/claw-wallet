@@ -88,6 +88,8 @@ export class RelayBridge {
   private ipChangePolicy: "block" | "warn" | "allow";
   private reconnectBaseMs: number;
   private reconnectMaxMs: number;
+  /** The account index that is currently active in the UI. */
+  private activeAccountIndex = 0;
 
   constructor(options: RelayBridgeOptions) {
     this.options = options;
@@ -242,14 +244,26 @@ export class RelayBridge {
     this.emitAgentStatus();
   }
 
+  /**
+   * Notify the UI of the active account's current agent connection state.
+   * We deliberately scope this to the active account so that a connected
+   * agent on account A does not pollute the badge shown while the user is
+   * viewing account B.
+   */
   private emitAgentStatus(): void {
-    let paired = false;
-    let online = false;
-    for (const ch of this.channels.values()) {
-      if (ch.connectedDeviceCount() > 0) paired = true;
-      if (ch.agentOnline()) online = true;
-    }
-    this.options.onAgentStatus?.({ paired, online });
+    const ch = this.channels.get(this.activeAccountIndex);
+    const status: AgentStatusInfo = ch
+      ? { paired: ch.connectedDeviceCount() > 0, online: ch.agentOnline() }
+      : { paired: false, online: false };
+    this.options.onAgentStatus?.(status);
+  }
+
+  /** Call this whenever the UI switches the active account. */
+  setActiveAccountIndex(index: number): void {
+    this.activeAccountIndex = index;
+    // Immediately push the new account's status so the UI badge updates
+    // without waiting for the next relay event.
+    this.emitAgentStatus();
   }
 
   private async ensureChannel(accountIndex: number): Promise<RelayAccountChannel> {

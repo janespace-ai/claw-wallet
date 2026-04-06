@@ -119,6 +119,11 @@ function setLockModeDisplay(mode) {
 let pairCodeAutoHideTimer = null;
 let agentStatus = { paired: false, online: false };
 let currentPairCode = null;
+// Set to true while the pair-code card is open because the user explicitly
+// requested it (clicked the Connect/Re-pair button). Prevents the onAgentStatus
+// handler from auto-hiding the card due to a stale status event arriving after
+// an account switch.
+let pairCodeUserInitiated = false;
 
 async function loadWalletBalances(address) {
   if (!address) return;
@@ -1495,7 +1500,12 @@ function setupRealtimeEvents() {
   wapi().onAgentStatus((status) => {
     agentStatus = status;
     renderAgentStatusBtn();
-    if (status.online) {
+    // Auto-hide the pair-code card when the agent comes online — but only if
+    // the card was not opened by the user. pairCodeUserInitiated prevents a
+    // stale status event (arriving after an account switch) from closing a card
+    // the user just opened; the card will still auto-hide when the countdown
+    // expires or when the user manually closes it.
+    if (status.online && !pairCodeUserInitiated) {
       hidePairCodeCard();
     }
   });
@@ -1523,26 +1533,33 @@ function setupRealtimeEvents() {
     if (typeof accountIndex === "number") {
       currentAccountIndex = accountIndex;
     }
-    // Immediately reset agent status — each account has its own relay session.
-    // The backend will emit wallet:agent-status with the new account's actual
-    // state shortly after; resetting here prevents stale UI from the previous account.
-    agentStatus = { paired: false, online: false };
-    renderAgentStatusBtn();
     const el = document.getElementById("main-address");
     if (el) el.textContent = address ?? "";
 
-    await refreshAccountHeader().catch((e) => console.error(e));
+    // Fetch getStatus() in parallel with refreshAccountHeader() so we can update
+    // the agent connection badge as soon as possible without blocking the header.
+    const [, statusResult] = await Promise.allSettled([
+      refreshAccountHeader(),
+      wapi().getStatus(),
+    ]);
+
+    // Derive per-account agent connection state from connectedAgents.
+    //   > 0  → this account's relay session is live → show Connected.
+    //   === 0 → no live session for this account    → show Connect Agent.
+    // The backend may also emit wallet:agent-status to refine paired-but-offline,
+    // but connectedAgents is immediately reliable for the live/not-live distinction.
+    if (statusResult.status === "fulfilled") {
+      const st = statusResult.value;
+      await syncSettingsFromStatus(st).catch(() => {});
+      agentStatus = st.connectedAgents > 0
+        ? { paired: true, online: true }
+        : { paired: false, online: false };
+      renderAgentStatusBtn();
+    }
 
     void syncHomeNetworkFilterFromConfig().finally(() => {
       if (address) loadWalletBalances(address);
     });
-
-    try {
-      const status = await wapi().getStatus();
-      await syncSettingsFromStatus(status);
-    } catch (_) {
-      /* ignore */
-    }
 
     // Re-load lists that are scoped by account (UI was stale after header switch)
     loadSecurityEvents().catch((e) => console.error(e));
@@ -1814,6 +1831,7 @@ function hideRepairConfirmModal() {
 }
 
 async function generateAndShowPairCode() {
+  pairCodeUserInitiated = true;
   try {
     const result = await wapi().generatePairCode();
     currentPairCode = result.code;
@@ -1874,6 +1892,7 @@ function showPairCodeError(err) {
 }
 
 function hidePairCodeCard() {
+  pairCodeUserInitiated = false;
   const card = document.getElementById("pair-code-card");
   if (card) card.style.display = "none";
   const errCard = document.getElementById("pair-code-error-card");

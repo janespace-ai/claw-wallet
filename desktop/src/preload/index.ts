@@ -58,6 +58,8 @@ export interface WalletAPI {
   switchWalletAccount: (index: number) => Promise<void>;
   createWalletSubAccount: (nickname?: string) => Promise<WalletAccountSummary[]>;
   updateWalletAccountNickname: (index: number, nickname: string) => Promise<WalletAccountSummary[]>;
+  recoverScanNext: (fromIndex: number) => Promise<RecoverScanResult>;
+  importRecoveredAccount: (index: number, nickname?: string) => Promise<WalletAccountSummary[]>;
 
   deregisterWallet: (password: string) => Promise<void>;
   onDeregistered: (callback: () => void) => () => void;
@@ -187,6 +189,12 @@ export interface TokenBalance {
   decimals: number;
 }
 
+export type RecoverScanResult =
+  | { status: "found"; index: number; address: string; balances: TokenBalance[] }
+  | { status: "empty"; nextIndex: number }
+  | { status: "already-registered"; nextIndex: number }
+  | { status: "done" };
+
 export interface CustomTokenInput {
   chainId: number;
   contractAddress: string;
@@ -304,6 +312,9 @@ const api: WalletAPI = {
   createWalletSubAccount: (nickname) => ipcRenderer.invoke("wallet:create-sub-account", nickname),
   updateWalletAccountNickname: (index, nickname) =>
     ipcRenderer.invoke("wallet:update-account-nickname", index, nickname),
+  recoverScanNext: (fromIndex) => ipcRenderer.invoke("wallet:recover-scan-next", fromIndex),
+  importRecoveredAccount: (index, nickname) =>
+    ipcRenderer.invoke("wallet:import-recovered-account", index, nickname),
 
   deregisterWallet: (password) => ipcRenderer.invoke("wallet:deregister", password),
   onDeregistered: (callback) => {

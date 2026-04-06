@@ -107,6 +107,7 @@ let currentPrices = {};
 let currentAddress = '';
 /** Cleared on account switch and when applying a new pairing countdown */
 let pairingCountdownTimer = null;
+let networkFilterInitialized = false;
 
 function setLockModeDisplay(mode) {
   const display = document.getElementById("lock-mode-display");
@@ -213,6 +214,8 @@ function updateHomeNetworkLabel() {
 }
 
 function initializeNetworkFilter() {
+  if (networkFilterInitialized) return;
+  networkFilterInitialized = true;
   const networkFilter = document.getElementById('network-filter');
   const hideZeroBalances = document.getElementById('hide-zero-balances');
   const btn = document.getElementById("home-network-btn");
@@ -384,12 +387,14 @@ function renderBalances(balances, prices) {
       const hasPrice = price != null;
       const totalUsd = hasPrice ? (totalAmount * price).toFixed(2) : null;
 
-      // Single network or multiple?
-      const isMultiNetwork = token.networks.length > 1;
+      // Only show chains where this token has a non-zero balance
+      const networksWithBalance = token.networks.filter(n => parseFloat(n.amount) > 0);
+      const labelNetworks = networksWithBalance.length > 0 ? networksWithBalance : token.networks;
+      const isMultiNetwork = labelNetworks.length > 1;
 
       const networkLabel = isMultiNetwork
-        ? token.networks.map(n => escapeHtml(n.chainName)).join(' · ')
-        : escapeHtml(token.networks[0].chainName);
+        ? labelNetworks.map(n => escapeHtml(n.chainName)).join(' · ')
+        : escapeHtml(labelNetworks[0].chainName);
 
       const iconText = escapeHtml(token.symbol.slice(0, 3));
 
@@ -1144,6 +1149,114 @@ function setupEventListeners() {
     const modal = document.getElementById("modal-new-account");
     if (modal) modal.classList.remove("active");
   };
+
+  // --- Account Recovery Flow ---
+
+  let recoveryCancelled = false;
+  let recoveryFoundResult = null;
+
+  function closeAllRecoveryModals() {
+    ["modal-recover-scanning", "modal-recover-found", "modal-recover-done"].forEach(id => {
+      document.getElementById(id)?.classList.remove("active");
+    });
+  }
+
+  function showScanningModal(currentIndex) {
+    closeAllRecoveryModals();
+    const pct = Math.round(((currentIndex - 1) / 9) * 100);
+    document.getElementById("recover-scan-label").textContent = `Scanning account #${currentIndex}`;
+    document.getElementById("recover-scan-count").textContent = `${currentIndex} / 9`;
+    document.getElementById("recover-scan-bar").style.width = `${Math.max(pct, 5)}%`;
+    document.getElementById("modal-recover-scanning").classList.add("active");
+  }
+
+  function showFoundAccountModal(result) {
+    recoveryFoundResult = result;
+    closeAllRecoveryModals();
+    document.getElementById("recover-found-index").textContent = `Account #${result.index} (index ${result.index})`;
+    document.getElementById("recover-found-address").textContent = result.address;
+    const balEl = document.getElementById("recover-found-balances");
+    balEl.innerHTML = "";
+    const nonZero = result.balances.filter(b => parseFloat(b.amount) > 0);
+    for (const b of nonZero) {
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+      row.innerHTML = `<span style="font-size:13px;color:var(--text-secondary);">${b.chain}</span>`
+        + `<span style="font-size:13px;font-weight:500;">${b.amount} ${b.symbol}</span>`;
+      balEl.appendChild(row);
+    }
+    document.getElementById("modal-recover-found").classList.add("active");
+  }
+
+  function showRecoveryDone(imported) {
+    closeAllRecoveryModals();
+    const msg = imported
+      ? "Account imported successfully."
+      : "No more sub-accounts with balance were found (scanned indices 1–9).";
+    document.getElementById("recover-done-msg").textContent = msg;
+    document.getElementById("modal-recover-done").classList.add("active");
+  }
+
+  async function startRecovery(fromIndex) {
+    recoveryCancelled = false;
+    let idx = fromIndex;
+    while (idx <= 9 && !recoveryCancelled) {
+      showScanningModal(idx);
+      let result;
+      try {
+        result = await wapi().recoverScanNext(idx);
+      } catch (e) {
+        closeAllRecoveryModals();
+        alert(e.message || String(e));
+        return;
+      }
+      if (recoveryCancelled) break;
+      if (result.status === "done") { showRecoveryDone(false); return; }
+      if (result.status === "found") { showFoundAccountModal(result); return; }
+      // empty or already-registered: advance
+      idx = result.nextIndex;
+    }
+    if (!recoveryCancelled) showRecoveryDone(false);
+  }
+
+  document.getElementById("btn-open-recover").onclick = (e) => {
+    e.preventDefault();
+    document.getElementById("modal-new-account").classList.remove("active");
+    startRecovery(1);
+  };
+
+  document.getElementById("btn-recover-cancel").onclick = () => {
+    recoveryCancelled = true;
+    closeAllRecoveryModals();
+  };
+
+  document.getElementById("btn-recover-import").onclick = async () => {
+    if (!recoveryFoundResult) return;
+    const { index } = recoveryFoundResult;
+    try {
+      await wapi().importRecoveredAccount(index);
+      closeAllRecoveryModals();
+      await refreshAccountHeader();
+      const st = await wapi().getStatus();
+      if (st.address) loadWalletBalances(st.address);
+      showRecoveryDone(true);
+    } catch (e) {
+      alert(e.message || String(e));
+    }
+  };
+
+  document.getElementById("btn-recover-skip").onclick = () => {
+    if (!recoveryFoundResult) return;
+    const nextIdx = recoveryFoundResult.index + 1;
+    recoveryFoundResult = null;
+    startRecovery(nextIdx);
+  };
+
+  document.getElementById("btn-recover-done-close").onclick = () => {
+    closeAllRecoveryModals();
+  };
+
+  // --- End Account Recovery Flow ---
 
   document.getElementById("btn-new-account-confirm").onclick = async () => {
     const modal = document.getElementById("modal-new-account");

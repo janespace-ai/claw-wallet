@@ -166,7 +166,7 @@ export class TransferService {
 
     const transferData = this.chainAdapter.buildERC20TransferData(to, amount);
     const gasEstimate = await this.chainAdapter.estimateGas(
-      { to: tokenAddress, data: transferData },
+      { from: this.walletAddress, to: tokenAddress, data: transferData },
       params.chain
     );
 
@@ -184,13 +184,17 @@ export class TransferService {
       throw new PolicyBlockedError(policyResult.reason!, policyResult.approvalId);
     }
 
-    const chainId = await this.chainAdapter.getChainId(params.chain);
+    const [chainId, nonce] = await Promise.all([
+      this.chainAdapter.getChainId(params.chain),
+      this.chainAdapter.getNonce(this.walletAddress, params.chain),
+    ]);
     const result = await this.walletConnection.sendToWallet("sign_transaction", {
       to: tokenAddress,
       recipient: to,
       data: transferData,
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
+      nonce: nonce.toString(),
       type: 0,
       chainId,
       amount_token: params.amount,

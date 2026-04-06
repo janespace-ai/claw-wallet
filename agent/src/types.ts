@@ -154,6 +154,7 @@ export interface TxRecord {
 
 export interface TransactionRequest {
   to: Address;
+  from?: Address;
   value?: bigint;
   data?: Hex;
   gas?: bigint;

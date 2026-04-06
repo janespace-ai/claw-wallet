@@ -20,7 +20,7 @@
           "custom": false
         },
         {
-          "url": "https://rpc.payload.de",
+          "url": "https://rpc.mevblocker.io",
           "priority": 3,
           "custom": false
         }
@@ -66,17 +66,17 @@
       },
       "rpcs": [
         {
-          "url": "https://mainnet.optimism.io",
+          "url": "https://optimism.publicnode.com",
           "priority": 1,
           "custom": false
         },
         {
-          "url": "https://optimism.publicnode.com",
+          "url": "https://1rpc.io/op",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://1rpc.io/op",
+          "url": "https://mainnet.optimism.io",
           "priority": 3,
           "custom": false
         }
@@ -122,17 +122,17 @@
       },
       "rpcs": [
         {
-          "url": "https://polygon-rpc.com",
+          "url": "https://polygon-bor-rpc.publicnode.com",
           "priority": 1,
           "custom": false
         },
         {
-          "url": "https://polygon-bor-rpc.publicnode.com",
+          "url": "https://1rpc.io/matic",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://1rpc.io/matic",
+          "url": "https://rpc-mainnet.matic.network",
           "priority": 3,
           "custom": false
         }
@@ -178,17 +178,17 @@
       },
       "rpcs": [
         {
-          "url": "https://bsc-dataseed1.binance.org",
+          "url": "https://bsc.publicnode.com",
           "priority": 1,
           "custom": false
         },
         {
-          "url": "https://bsc-dataseed2.binance.org",
+          "url": "https://1rpc.io/bnb",
           "priority": 2,
           "custom": false
         },
         {
-          "url": "https://bsc.publicnode.com",
+          "url": "https://bsc-dataseed1.binance.org",
           "priority": 3,
           "custom": false
         }

@@ -10,7 +10,7 @@ export function createWalletBalanceTool(
 ): ToolDefinition {
   return {
     name: "wallet_balance",
-    description: "Query ETH or ERC-20 token balance. Specify token (ETH, USDC, USDT) and chain (base, ethereum). If chain is omitted, checks all supported chains. Always check balance before calling wallet_send.",
+    description: "Query ETH or ERC-20 token balance. Specify token (ETH, USDC, USDT) and chain (base, ethereum, arbitrum, optimism, polygon, linea, bsc, sei). If chain is omitted, checks all supported chains. Always check balance before calling wallet_send.",
     parameters: {
       type: "object",
       properties: {
@@ -20,7 +20,7 @@ export function createWalletBalanceTool(
         },
         chain: {
           type: "string",
-          description: "Chain to query (base, ethereum). If omitted, queries all supported chains.",
+          description: "Chain to query (base, ethereum, arbitrum, optimism, polygon, linea, bsc, sei). If omitted, queries all supported chains.",
         },
       },
     },
@@ -52,7 +52,7 @@ export function createWalletBalanceTool(
       }
 
       // Multi-chain query: query all supported chains
-      const supportedChains: SupportedChain[] = ["base", "ethereum"];
+      const supportedChains: SupportedChain[] = ["ethereum", "base", "arbitrum", "optimism", "polygon", "linea", "bsc", "sei"];
       const results: Array<{ chain: string; balance: string; token: string }> = [];
       const errors: Array<{ chain: string; error: string }> = [];
 

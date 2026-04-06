@@ -18,6 +18,9 @@ export interface SigningRecord {
   tx_value: string | null;
   tx_token: string;
   tx_chain: string;
+  /** Human-readable token amount (e.g. "10" for 10 USDC). Populated for ERC-20 transfers
+   *  where tx_value is 0 (ETH value of the tx) but the token amount is non-zero. */
+  tx_amount_human: string | null;
   estimated_usd: number;
   tx_hash: string | null;
   tx_status: "pending" | "success" | "failed" | null;
@@ -55,6 +58,8 @@ export class SigningHistory {
     chain: string;
     estimatedUSD: number;
     accountIndex: number;
+    /** Human-readable token amount for ERC-20 transfers (e.g. "10" for 10 USDC). */
+    amountToken?: string;
   }): number {
     // Defensive check: Ensure account_index is present
     if (record.accountIndex === undefined || record.accountIndex === null) {
@@ -65,9 +70,9 @@ export class SigningHistory {
     }
 
     const stmt = this.db.prepare(`
-      INSERT INTO signing_history 
-      (request_id, timestamp, type, method, tx_to, tx_value, tx_token, tx_chain, estimated_usd, account_index)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO signing_history
+      (request_id, timestamp, type, method, tx_to, tx_value, tx_token, tx_chain, estimated_usd, account_index, tx_amount_human)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
     const result = stmt.run(
@@ -80,7 +85,8 @@ export class SigningHistory {
       record.token,
       record.chain,
       record.estimatedUSD,
-      record.accountIndex
+      record.accountIndex,
+      record.amountToken ?? null
     );
 
     console.log(`[SigningHistory] Added record: ${record.requestId} (${record.type}) for account ${record.accountIndex}`);

@@ -259,6 +259,7 @@ export class SigningEngine {
         chain: (pending.params.chain as string) || "unknown",
         estimatedUSD: pending.estimatedUSD,
         accountIndex: pending.signingAccountIndex ?? 0,
+        amountToken: (pending.params.amount_token as string) || undefined,
       });
     }
 
@@ -366,6 +367,7 @@ export class SigningEngine {
           chain: (params.chain as string) || "unknown",
           estimatedUSD,
           accountIndex: signingAccountIndex ?? 0,
+          amountToken: (params.amount_token as string) || undefined,
         });
       }
 

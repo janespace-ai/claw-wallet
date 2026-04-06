@@ -140,6 +140,26 @@ export class DatabaseService {
       this.db.pragma("user_version = 5");
       console.log("[DatabaseService] Migration v5 complete");
     }
+
+    const versionAfterV5 = this.db.pragma("user_version", { simple: true }) as number;
+    if (versionAfterV5 < 6) {
+      console.log("[DatabaseService] Running migration v6 (add tx_amount_human to signing_history)...");
+      this.migrateToV6();
+      this.db.pragma("user_version = 6");
+      console.log("[DatabaseService] Migration v6 complete");
+    }
+  }
+
+  /**
+   * Migration v6: Add tx_amount_human for human-readable token amount (ERC-20 transfers).
+   * tx_value stores the raw ETH value (0 for ERC-20), so token amount was lost.
+   */
+  private migrateToV6(): void {
+    const cols = this.db.pragma("table_info(signing_history)") as Array<{ name: string }>;
+    if (!cols.some((c) => c.name === "tx_amount_human")) {
+      this.db.exec(`ALTER TABLE signing_history ADD COLUMN tx_amount_human TEXT`);
+      console.log("[DatabaseService] Added tx_amount_human to signing_history");
+    }
   }
 
   /**

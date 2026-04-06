@@ -91,6 +91,7 @@ function enterMainScreen(status) {
   const ag = document.getElementById("account-header-group");
   if (ag) ag.style.display = "";
   document.getElementById("main-address").textContent = status.address;
+  updatePortfolioAddress(status.address);
   if (status.sameMachineWarning) {
     document.getElementById("same-machine-warning").style.display = "block";
   }
@@ -107,6 +108,43 @@ let currentPrices = {};
 let currentAddress = '';
 /** Cleared on account switch and when applying a new pairing countdown */
 let pairingCountdownTimer = null;
+
+function updatePortfolioAddress(address) {
+  const container = document.getElementById("portfolio-address");
+  const textEl = document.getElementById("portfolio-address-text");
+  const copyBtn = document.getElementById("portfolio-copy-btn");
+  if (!container || !textEl || !copyBtn) return;
+
+  if (!address) {
+    container.style.display = "none";
+    return;
+  }
+
+  // Show truncated address: 0x1234...5678
+  const truncated = address.length > 12
+    ? `${address.slice(0, 6)}...${address.slice(-4)}`
+    : address;
+  textEl.textContent = truncated;
+  container.style.display = "flex";
+
+  // Remove any previous listener clone trick to avoid duplicate handlers
+  const newCopyBtn = copyBtn.cloneNode(true);
+  copyBtn.parentNode.replaceChild(newCopyBtn, copyBtn);
+
+  newCopyBtn.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(address);
+      newCopyBtn.classList.add("copied");
+      newCopyBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+      setTimeout(() => {
+        newCopyBtn.classList.remove("copied");
+        newCopyBtn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>`;
+      }, 1500);
+    } catch (e) {
+      console.error("Failed to copy address:", e);
+    }
+  });
+}
 let networkFilterInitialized = false;
 
 function setLockModeDisplay(mode) {
@@ -1129,6 +1167,7 @@ function setupEventListeners() {
       const st = await wapi().getStatus();
       const addrEl = document.getElementById("main-address");
       if (addrEl && st.address) addrEl.textContent = st.address;
+      if (st.address) updatePortfolioAddress(st.address);
       await refreshAccountHeader();
       if (st.address) loadWalletBalances(st.address);
     } catch (e) {
@@ -1516,6 +1555,7 @@ function setupRealtimeEvents() {
     }
     const el = document.getElementById("main-address");
     if (el) el.textContent = address ?? "";
+    updatePortfolioAddress(address ?? "");
 
     await refreshAccountHeader().catch((e) => console.error(e));
 

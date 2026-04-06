@@ -22,7 +22,7 @@ Uma carteira cripto sem custódia para Agentes de IA [OpenClaw](https://getclaw.
 │ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
 │ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
 │ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
-│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+│ 17 tools     │                               │ Rate limiter │                               │ Lock manager     │
 └──────────────┘                               └──────────────┘                               └──────────────────┘
        │                                                                                              │
        │  Agent never sees:                                                        Desktop holds:     │
@@ -275,7 +275,7 @@ O motor de políticas é executado **antes** de qualquer assinatura e não pode 
 - **Monitoramento de saldo** — Verificação em segundo plano para transferências recebidas
 - **Histórico de transações** — Cache local com registros completos
 - **Relay Containerizado** — Servidor de Retransmissão Go com suporte a Docker (framework Hertz)
-- **17 ferramentas MCP** — Definições de ferramentas prontas para registro na integração com Agente de IA
+- **17 ferramentas de wallet** — Definições de ferramentas prontas para uso na integração com Agente de IA
 
 ---
 
@@ -374,7 +374,7 @@ wallet/
 │   │   ├── relay-client.ts    # Conexão relay, pairId determinístico, reparo
 │   │   ├── ipc-server.ts     # Servidor IPC via Unix domain socket
 │   │   └── ipc-client.ts     # Cliente IPC para comunicação ferramenta → assinador
-│   ├── tools/             # 17 definições de ferramentas MCP
+│   ├── tools/             # 17 definições de ferramentas
 │   └── *.ts               # Política, contatos, histórico, monitor, validação
 │
 ├── desktop/               # Carteira Desktop Electron — guarda todos os segredos

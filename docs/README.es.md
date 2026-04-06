@@ -22,7 +22,7 @@ Una billetera cripto sin custodia para Agentes de IA de [OpenClaw](https://getcl
 │ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
 │ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
 │ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
-│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+│ 17 tools     │                               │ Rate limiter │                               │ Lock manager     │
 └──────────────┘                               └──────────────┘                               └──────────────────┘
        │                                                                                              │
        │  Agent never sees:                                                        Desktop holds:     │
@@ -275,7 +275,7 @@ El motor de políticas se ejecuta **antes** de cualquier firma y no puede ser el
 - **Monitoreo de saldo** — Sondeo en segundo plano para transferencias entrantes
 - **Historial de transacciones** — Caché local con registros completos
 - **Relay containerizado** — Servidor Relay en Go con soporte Docker (framework Hertz)
-- **17 herramientas MCP** — Definiciones de herramientas listas para registrar para la integración de Agentes de IA
+- **17 herramientas de wallet** — Definiciones de herramientas listas para usar en la integración de Agentes de IA
 
 ---
 
@@ -374,7 +374,7 @@ wallet/
 │   │   ├── relay-client.ts    # Conexión Relay, pairId determinístico, reparación
 │   │   ├── ipc-server.ts     # Servidor IPC con socket de dominio Unix
 │   │   └── ipc-client.ts     # Cliente IPC para comunicación herramienta → firmante
-│   ├── tools/             # 17 definiciones de herramientas MCP
+│   ├── tools/             # 17 definiciones de herramientas
 │   └── *.ts               # Política, contactos, historial, monitor, validación
 │
 ├── desktop/               # Billetera de Escritorio Electron — contiene todos los secretos

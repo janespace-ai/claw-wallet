@@ -22,7 +22,7 @@ Eine nicht-verwahrende Krypto-Wallet für [OpenClaw](https://getclaw.sh) KI-Agen
 │ Zero secrets │                               │ Stateless    │                               │ Holds all keys   │
 │ Tool APIs    │                               │ WS forwarder │                               │ Signs locally    │
 │ JSON-RPC IPC │                               │ IP binding   │                               │ Security monitor │
-│ 17 MCP tools │                               │ Rate limiter │                               │ Lock manager     │
+│ 17 tools     │                               │ Rate limiter │                               │ Lock manager     │
 └──────────────┘                               └──────────────┘                               └──────────────────┘
        │                                                                                              │
        │  Agent never sees:                                                        Desktop holds:     │
@@ -275,7 +275,7 @@ Die Richtlinien-Engine wird **vor** jeder Signierung ausgeführt und kann nicht 
 - **Saldenüberwachung** — Hintergrund-Abfrage für eingehende Überweisungen
 - **Transaktionsverlauf** — Lokaler Cache mit vollständigen Aufzeichnungen
 - **Containerisierter Relay** — Go-Relay-Server mit Docker-Unterstützung (Hertz-Framework)
-- **17 MCP-Tools** — Einsatzbereite Tool-Definitionen für die Integration von KI-Agenten
+- **17 Wallet-Tools** — Einsatzbereite Tool-Definitionen für die Integration von KI-Agenten
 
 ---
 
@@ -374,7 +374,7 @@ wallet/
 │   │   ├── relay-client.ts    # Relay connection, deterministic pairId, repair
 │   │   ├── ipc-server.ts     # Unix domain socket IPC server
 │   │   └── ipc-client.ts     # IPC client for tool → signer communication
-│   ├── tools/             # 17 MCP tool definitions
+│   ├── tools/             # 17 tool definitions
 │   └── *.ts               # Policy, contacts, history, monitor, validation
 │
 ├── desktop/               # Electron Desktop Wallet — holds all secrets

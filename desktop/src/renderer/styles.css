@@ -1994,7 +1994,6 @@ input[type="number"] { -moz-appearance: textfield; }
 
 /* Repair confirm modal */
 .modal-repair-box {
-  align-items: center;
   text-align: center;
 }
 
@@ -2008,6 +2007,7 @@ input[type="number"] { -moz-appearance: textfield; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin: 0 auto;
 }
 
 .modal-repair-text {

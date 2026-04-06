@@ -10,17 +10,17 @@ export function createWalletBalanceTool(
 ): ToolDefinition {
   return {
     name: "wallet_balance",
-    description: "Query ETH or ERC-20 token balance. Specify token (ETH, USDC, USDT) and chain (base, ethereum). If chain is omitted, checks all supported chains. Always check balance before calling wallet_send.",
+    description: "Query wallet balances. If token is omitted, queries ETH + USDC + USDT across all chains in parallel — use this for a quick portfolio overview. If token is specified (ETH, USDC, USDT, or a 0x contract address), queries only that token. If chain is also specified, queries only that chain. Always check balance before calling wallet_send.",
     parameters: {
       type: "object",
       properties: {
         token: {
           type: "string",
-          description: "Token symbol (e.g., ETH, USDC, USDT) or contract address. Defaults to ETH.",
+          description: "Token symbol (ETH, USDC, USDT) or 0x contract address. If omitted, queries ETH + USDC + USDT across all chains.",
         },
         chain: {
           type: "string",
-          description: "Chain to query (base, ethereum). If omitted, queries all supported chains.",
+          description: "Chain to query: ethereum, base, arbitrum, optimism, polygon, linea, bsc, sei. If omitted, queries all supported chains.",
         },
       },
     },
@@ -28,73 +28,94 @@ export function createWalletBalanceTool(
       const address = getAddress();
       if (!address) return { error: "Wallet not paired. Ask the user to open Claw Wallet desktop app → Pairing tab → generate a code, then call wallet_pair with that code." };
 
-      const token = (args.token as string) || "ETH";
+      const token = args.token as string | undefined;
       const specifiedChain = args.chain as SupportedChain | undefined;
+      const supportedChains: SupportedChain[] = ["ethereum", "base", "arbitrum", "optimism", "polygon", "linea", "bsc", "sei"];
+      const chains = specifiedChain ? [specifiedChain] : supportedChains;
 
-      // If chain is specified, query single chain (original behavior)
-      if (specifiedChain) {
-        if (token.toUpperCase() === "ETH") {
-          const { formatted } = await chainAdapter.getBalance(address, specifiedChain);
-          return { balance: formatted, token: "ETH", chain: specifiedChain };
-        }
+      // --- Single known token (or contract address) across one or all chains ---
+      if (token) {
+        const tokenKey = token.toUpperCase();
+        const results: Array<{ chain: string; balance: string; token: string }> = [];
+        const errors: Array<{ chain: string; error: string }> = [];
 
-        let tokenAddress: Address;
-        if (token.startsWith("0x") && token.length === 42) {
-          tokenAddress = token as Address;
-        } else {
-          const known = KNOWN_TOKENS[specifiedChain]?.[token.toUpperCase()];
-          if (!known) return { error: `Unknown token "${token}" on ${specifiedChain}` };
-          tokenAddress = known;
-        }
-
-        const info = await chainAdapter.getTokenBalance(address, tokenAddress, specifiedChain);
-        return { balance: info.formatted, token: info.symbol, chain: specifiedChain };
-      }
-
-      // Multi-chain query: query all supported chains
-      const supportedChains: SupportedChain[] = ["base", "ethereum"];
-      const results: Array<{ chain: string; balance: string; token: string }> = [];
-      const errors: Array<{ chain: string; error: string }> = [];
-
-      for (const chain of supportedChains) {
-        try {
-          if (token.toUpperCase() === "ETH") {
-            const { formatted } = await chainAdapter.getBalance(address, chain);
-            if (parseFloat(formatted) > 0) {
-              results.push({ chain, balance: formatted, token: "ETH" });
-            }
-          } else {
-            let tokenAddress: Address | undefined;
-            if (token.startsWith("0x") && token.length === 42) {
-              tokenAddress = token as Address;
+        for (const chain of chains) {
+          try {
+            if (tokenKey === "ETH") {
+              const { formatted } = await chainAdapter.getBalance(address, chain);
+              if (parseFloat(formatted) > 0 || specifiedChain) {
+                results.push({ chain, balance: formatted, token: "ETH" });
+              }
             } else {
-              tokenAddress = KNOWN_TOKENS[chain]?.[token.toUpperCase()];
-            }
-
-            if (tokenAddress) {
+              let tokenAddress: Address | undefined;
+              if (token.startsWith("0x") && token.length === 42) {
+                tokenAddress = token as Address;
+              } else {
+                tokenAddress = KNOWN_TOKENS[chain]?.[tokenKey];
+              }
+              if (!tokenAddress) {
+                if (specifiedChain) return { error: `Unknown token "${token}" on ${chain}` };
+                continue; // token not available on this chain, skip silently
+              }
               const info = await chainAdapter.getTokenBalance(address, tokenAddress, chain);
-              if (parseFloat(info.formatted) > 0) {
+              if (parseFloat(info.formatted) > 0 || specifiedChain) {
                 results.push({ chain, balance: info.formatted, token: info.symbol });
               }
             }
+          } catch (err) {
+            errors.push({ chain, error: (err as Error).message });
           }
-        } catch (err) {
-          errors.push({ chain, error: (err as Error).message });
         }
+
+        if (results.length === 0 && errors.length === 0) {
+          return { message: `No ${token} balance found across queried chains`, chains };
+        }
+        return { token, balances: results, ...(errors.length > 0 && { errors }) };
       }
+
+      // --- No token specified: query ETH + common ERC-20s (USDC, USDT) in parallel ---
+      // Only check the most common tokens to keep latency low.
+      const COMMON_TOKENS = ["USDC", "USDT"];
+      const results: Array<{ chain: string; balance: string; token: string }> = [];
+      const errors: Array<{ chain: string; error: string }> = [];
+
+      const tasks = chains.flatMap((chain) => {
+        const jobs: Promise<void>[] = [];
+
+        // ETH
+        jobs.push(
+          chainAdapter.getBalance(address, chain)
+            .then(({ formatted }) => {
+              if (parseFloat(formatted) > 0) results.push({ chain, balance: formatted, token: "ETH" });
+            })
+            .catch((err) => errors.push({ chain, error: `ETH: ${(err as Error).message}` }))
+        );
+
+        // USDC + USDT
+        for (const symbol of COMMON_TOKENS) {
+          const tokenAddress = KNOWN_TOKENS[chain]?.[symbol];
+          if (!tokenAddress) continue;
+          jobs.push(
+            chainAdapter.getTokenBalance(address, tokenAddress as Address, chain)
+              .then((info) => {
+                if (parseFloat(info.formatted) > 0) results.push({ chain, balance: info.formatted, token: symbol });
+              })
+              .catch(() => { /* token not available on this chain — skip */ })
+          );
+        }
+
+        return jobs;
+      });
+
+      await Promise.all(tasks);
 
       if (results.length === 0 && errors.length === 0) {
-        return { 
-          message: `No balance found for ${token} across any supported chains`,
-          chains: supportedChains 
-        };
+        return { message: "No non-zero balances found across all chains and tokens", chains };
       }
-
       return {
-        token,
         balances: results,
         ...(errors.length > 0 && { errors }),
-        message: `Found ${token} balances on ${results.length} chain(s)`
+        message: `Found balances: ${results.map(r => `${r.balance} ${r.token} on ${r.chain}`).join(", ")}`,
       };
     },
   };

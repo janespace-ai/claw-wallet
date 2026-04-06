@@ -2403,21 +2403,6 @@ input[type="number"] { -moz-appearance: textfield; }
   color: var(--text-secondary);
 }
 
-.deregister-pwd-input {
-  width: 100%;
-  height: 46px;
-  background: var(--bg);
-  border: 1.5px solid var(--border);
-  border-radius: 10px;
-  padding: 0 14px;
-  font-size: 15px;
-  font-family: inherit;
-  color: var(--text-primary);
-  outline: none;
-  transition: border-color 0.15s;
-}
-.deregister-pwd-input::placeholder { color: var(--text-secondary); }
-.deregister-pwd-input:focus { border-color: var(--accent); }
 
 .deregister-btns {
   display: flex;

@@ -742,6 +742,9 @@ function setupEventListeners() {
     document.getElementById("password-desc").textContent = tKey("setup.password.description");
     document.getElementById("mnemonic-input-area").style.display = "none";
     document.getElementById("btn-password-submit").dataset.action = "create";
+    document.getElementById("input-password").value = "";
+    document.getElementById("input-password-confirm").value = "";
+    document.getElementById("password-error").textContent = "";
     showScreen("password");
   };
 
@@ -750,6 +753,9 @@ function setupEventListeners() {
     document.getElementById("password-desc").textContent = tKey("setup.password.importDescription");
     document.getElementById("mnemonic-input-area").style.display = "block";
     document.getElementById("btn-password-submit").dataset.action = "import";
+    document.getElementById("input-password").value = "";
+    document.getElementById("input-password-confirm").value = "";
+    document.getElementById("password-error").textContent = "";
     showScreen("password");
   };
 

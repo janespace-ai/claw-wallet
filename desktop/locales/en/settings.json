@@ -52,9 +52,9 @@
     "warningBody": "Deregistering permanently deletes all wallet data on this device. Back up your mnemonic phrase before proceeding.",
     "button": "Deregister Account",
     "modalTitle": "Deregister Account?",
-    "modalBody": "This will permanently delete your keys, transaction history, and all wallet data on this device. This action cannot be undone.",
+    "modalBody": "This will permanently delete your keys, transaction history, and all wallet data on this device. This action cannot be undone. Make sure you have backed up your mnemonic phrase.",
     "passwordLabel": "Enter wallet password to confirm",
-    "passwordPlaceholder": "••••••••",
+    "passwordPlaceholder": "Wallet password",
     "confirmButton": "Permanently Deregister",
     "cancelButton": "Cancel",
     "wrongPassword": "Incorrect password, please try again"

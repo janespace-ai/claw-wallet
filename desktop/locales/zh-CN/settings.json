@@ -52,9 +52,9 @@
     "warningBody": "注销账户将永久删除本设备上的所有钱包数据。操作前请确保已备份好助记词。",
     "button": "注销账户",
     "modalTitle": "注销账户？",
-    "modalBody": "此操作将永久删除您的密钥、交易记录及本设备上的所有钱包数据，且无法恢复。",
+    "modalBody": "此操作将永久删除您的密钥、交易记录及本设备上的所有钱包数据，且无法恢复。请务必提前备份助记词。",
     "passwordLabel": "输入钱包密码确认",
-    "passwordPlaceholder": "••••••••",
+    "passwordPlaceholder": "钱包密码",
     "confirmButton": "永久注销",
     "cancelButton": "取消",
     "wrongPassword": "密码错误，请重试"

@@ -33,13 +33,30 @@ function contactRecipientKey(chain, addr) {
   return `${normChainKey(chain)}:${normAddrKey(addr)}`;
 }
 
+// EVM chains share the same address space — a contact on ethereum is the same on arbitrum/base/etc.
+const EVM_CHAINS_FOR_LOOKUP = ["ethereum","base","arbitrum","optimism","polygon","linea","bsc","sei"];
+
 function buildContactLookup(contacts) {
   const m = new Map();
   for (const c of contacts || []) {
     if (!c?.address || !c?.chain) continue;
-    m.set(contactRecipientKey(c.chain, c.address), { name: c.name, trusted: !!c.trusted });
+    const info = { name: c.name, trusted: !!c.trusted };
+    m.set(contactRecipientKey(c.chain, c.address), info);
+    // Add cross-chain entries for EVM chains so arbitrum tx matches an ethereum contact
+    if (EVM_CHAINS_FOR_LOOKUP.includes(normChainKey(c.chain))) {
+      for (const evmChain of EVM_CHAINS_FOR_LOOKUP) {
+        const key = contactRecipientKey(evmChain, c.address);
+        if (!m.has(key)) m.set(key, info);
+      }
+    }
   }
   return m;
+}
+
+/** Prefer stored human-readable amount (ERC-20 transfers) over raw wei-based formatting. */
+function displayActivityAmount(record) {
+  if (record.tx_amount_human && record.tx_amount_human !== "0") return record.tx_amount_human;
+  return formatTokenAmount(record.tx_value || "0", record.tx_token);
 }
 
 function trustedContactBadgeHtml() {
@@ -1717,7 +1734,7 @@ async function loadSigningHistory() {
     const typeLabel = escapeHtml(tKey(`activity.types.${type}`));
     const chain = escapeHtml(record.tx_chain || "");
     const token = escapeHtml(record.tx_token || "");
-    const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
+    const amount = displayActivityAmount(record);
     const toAddr = record.tx_to;
     const match = toAddr && record.tx_chain ? lookup.get(contactRecipientKey(record.tx_chain, toAddr)) : null;
     const recipientLabel = match
@@ -1725,17 +1742,20 @@ async function loadSigningHistory() {
       : (toAddr ? `${escapeHtml(toAddr.slice(0, 10))}...${escapeHtml(toAddr.slice(-8))}` : escapeHtml(tKey("activity.details.noRecipient")));
     const est = typeof record.estimated_usd === "number" ? record.estimated_usd : null;
     const isRejected = type === "rejected";
+    const isFailed = record.tx_status === "failed";
+    const failedBadge = isFailed ? `<span class="activity-failed-badge">${escapeHtml(tKey("activity.status.failed"))}</span>` : "";
 
     return `
       <div class="signing-row">
         <div class="signing-type-icon ${type}">${iconChar}</div>
         <div class="signing-info">
-          <div class="signing-label${isRejected ? " rejected" : ""}">${typeLabel}${chain ? ` · ${chain}` : ""}</div>
+          <div class="signing-label${isRejected ? " rejected" : ""}${isFailed ? " failed" : ""}">${typeLabel}${chain ? ` · ${chain}` : ""}</div>
           <div class="signing-meta">${escapeHtml(tKey("activity.details.to"))}: ${recipientLabel}</div>
         </div>
         <div class="signing-amounts">
-          <div class="signing-amount${isRejected ? " rejected" : ""}">${amount} ${token}</div>
-          ${est !== null ? `<div class="signing-usd${isRejected ? " rejected" : ""}">$${est.toFixed(2)}</div>` : ""}
+          <div class="signing-amount${isRejected || isFailed ? " rejected" : ""}">${amount} ${token}</div>
+          ${failedBadge}
+          ${!isFailed && est !== null ? `<div class="signing-usd${isRejected ? " rejected" : ""}">$${est.toFixed(2)}</div>` : ""}
         </div>
       </div>`;
   }).join("");
@@ -2273,7 +2293,7 @@ function renderActivityRecord(record, contactLookup) {
 
   const typeLabel = escapeHtml(tKey(`activity.types.${record.type}`));
   const timestamp = formatRelativeTime(record.timestamp);
-  const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
+  const amount = displayActivityAmount(record);
 
   const signedPolicyUsd = record.estimated_usd || 0;
   const match = record.tx_to && record.tx_chain && contactLookup
@@ -2289,9 +2309,11 @@ function renderActivityRecord(record, contactLookup) {
   const chainName = record.tx_chain ? escapeHtml(record.tx_chain) : "";
   const metaText = [chainName, timestamp].filter(Boolean).join(" · ");
 
-  const amountClass = record.type === "rejected" ? "rejected" : "";
+  const isFailed = record.tx_status === "failed";
+  const amountClass = (record.type === "rejected" || isFailed) ? "rejected" : "";
   const amountText = `${amount} ${escapeHtml(record.tx_token || "")}`.trim();
-  const usdText = signedPolicyUsd > 0 ? `$${signedPolicyUsd.toFixed(2)}` : "";
+  const usdText = !isFailed && signedPolicyUsd > 0 ? `$${signedPolicyUsd.toFixed(2)}` : "";
+  const failedBadge = isFailed ? `<div class="activity-failed-badge">${escapeHtml(tKey("activity.status.failed"))}</div>` : "";
 
   div.innerHTML = `
     <div class="activity-type-icon ${typeClass}">${typeIconChar}</div>
@@ -2301,6 +2323,7 @@ function renderActivityRecord(record, contactLookup) {
     </div>
     <div class="activity-amounts">
       <div class="activity-amount ${amountClass}">${escapeHtml(amountText)}</div>
+      ${failedBadge}
       ${usdText ? `<div class="activity-usd">${escapeHtml(usdText)}</div>` : ""}
     </div>
   `;
@@ -2334,7 +2357,7 @@ function openTxDetailModal(record, contactLookup) {
   statusBadge.className = `tx-badge ${statusClass}`;
 
   // Amount
-  const amount = formatTokenAmount(record.tx_value || "0", record.tx_token);
+  const amount = displayActivityAmount(record);
   const amountText = `${amount} ${record.tx_token || ""}`.trim();
   document.getElementById("tx-detail-amount").textContent = amountText;
   const usdEl = document.getElementById("tx-detail-usd");

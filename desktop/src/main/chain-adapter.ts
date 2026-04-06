@@ -5,20 +5,15 @@
  */
 
 import { ethers } from "ethers";
-import type { ChainConfig } from "./config.js";
 import type { TxStatus } from "./signing-history.js";
-
-const CHAIN_CONFIGS = {
-  ethereum: { chainId: 1 },
-  base: { chainId: 8453 },
-};
+import type { NetworkConfigService } from "./network-config-service.js";
 
 export class ChainAdapter {
   private providers: Map<string, ethers.JsonRpcProvider> = new Map();
-  private chainsConfig: Partial<Record<string, ChainConfig>>;
+  private networkConfig: NetworkConfigService;
 
-  constructor(chainsConfig?: Partial<Record<string, ChainConfig>>) {
-    this.chainsConfig = chainsConfig || {};
+  constructor(networkConfig: NetworkConfigService) {
+    this.networkConfig = networkConfig;
   }
 
   /**
@@ -60,18 +55,35 @@ export class ChainAdapter {
     let provider = this.providers.get(chainName);
     if (provider) return provider;
 
-    const chainConfig = CHAIN_CONFIGS[chainName as keyof typeof CHAIN_CONFIGS];
-    if (!chainConfig) {
+    // Resolve chain by name — look up chainId from NetworkConfigService
+    const chainIds = this.networkConfig.getSupportedChainIds();
+    let chainId: number | undefined;
+    for (const id of chainIds) {
+      const network = this.networkConfig.getNetwork(id);
+      if (network && network.name.toLowerCase().replace(/\s+/g, "") === chainName.toLowerCase().replace(/\s+/g, "")) {
+        chainId = id;
+        break;
+      }
+    }
+    // Fallback: match by common short name (e.g. "arbitrum" → "Arbitrum One")
+    if (!chainId) {
+      for (const id of chainIds) {
+        const network = this.networkConfig.getNetwork(id);
+        if (network && network.name.toLowerCase().includes(chainName.toLowerCase())) {
+          chainId = id;
+          break;
+        }
+      }
+    }
+    if (!chainId) {
       throw new Error(`Unsupported chain: ${chainName}`);
     }
 
-    const userChainConfig = this.chainsConfig[chainName];
-    const rpcUrl = userChainConfig?.rpcUrl;
+    // Use the first (highest-priority) RPC from NetworkConfigService
+    const rpcs = this.networkConfig.getRPCProviders(chainId);
+    const rpcUrl = rpcs[0]?.url;
 
-    provider = new ethers.JsonRpcProvider(rpcUrl, chainConfig.chainId, {
-      staticNetwork: true,
-    });
-
+    provider = new ethers.JsonRpcProvider(rpcUrl, chainId, { staticNetwork: true });
     this.providers.set(chainName, provider);
     return provider;
   }

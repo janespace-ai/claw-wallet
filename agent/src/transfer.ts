@@ -37,35 +37,37 @@ export class TransferService {
 
   async sendETH(params: SendParams): Promise<SendResult> {
     logger.log("TransferService", "sendETH START", { params });
-    
+
+    const nativeSymbol = this.chainAdapter.getChain(params.chain).nativeCurrency.symbol;
+
     validateAmount(params.amount);
     logger.debug("TransferService", "Amount validated");
-    
+
     const to = await this.resolveRecipient(params.to, params.chain);
     logger.log("TransferService", "Recipient resolved", { to });
-    
+
     const value = parseEther(params.amount);
     logger.debug("TransferService", "Parsed amount", { value: value.toString() });
 
     logger.log("TransferService", "Fetching balance...");
     const { wei: balance } = await this.chainAdapter.getBalance(this.walletAddress, params.chain);
     logger.log("TransferService", "Balance fetched", { balance: balance.toString() });
-    
+
     logger.log("TransferService", "Estimating gas...");
     const gasEstimate = await this.chainAdapter.estimateGas(
       { to, value },
       params.chain
     );
-    logger.log("TransferService", "Gas estimated", { 
+    logger.log("TransferService", "Gas estimated", {
       gas: gasEstimate.gas.toString(),
       gasPrice: gasEstimate.gasPrice.toString(),
-      totalCost: gasEstimate.totalCostFormatted 
+      totalCost: gasEstimate.totalCostFormatted
     });
 
     if (balance < value + gasEstimate.totalCostWei) {
       const available = Number(balance) / 1e18;
-      const error = `Insufficient ETH balance on ${params.chain}. Available: ${available.toFixed(6)} ETH, ` +
-        `needed: ${params.amount} ETH + ~${gasEstimate.totalCostFormatted} ETH gas. ` +
+      const error = `Insufficient ${nativeSymbol} balance on ${params.chain}. Available: ${available.toFixed(6)} ${nativeSymbol}, ` +
+        `needed: ${params.amount} ${nativeSymbol} + ~${gasEstimate.totalCostFormatted} ${nativeSymbol} gas. ` +
         `Tip: Check balances on other chains with wallet_balance (no chain parameter) and consider bridging funds.`;
       logger.error("TransferService", error);
       throw new Error(error);
@@ -73,7 +75,7 @@ export class TransferService {
 
     logger.log("TransferService", "Checking policy...");
     const amountUsd = parseFloat(params.amount);
-    const policyResult = this.policy.checkTransaction(to, amountUsd, "ETH", params.chain);
+    const policyResult = this.policy.checkTransaction(to, amountUsd, nativeSymbol, params.chain);
     if (!policyResult.allowed) {
       logger.warn("TransferService", "Policy blocked transaction", { reason: policyResult.reason });
       throw new PolicyBlockedError(policyResult.reason!, policyResult.approvalId);
@@ -103,7 +105,7 @@ export class TransferService {
       chainId,
       /** Human-readable token amount for display / audit (desktop computes USD for limits). */
       amount_token: params.amount,
-      token: "ETH",
+      token: nativeSymbol,
       chain: params.chain,
     }) as { signedTx: Hex; requestId: string };
     
@@ -121,7 +123,7 @@ export class TransferService {
       from: this.walletAddress,
       to,
       amount: params.amount,
-      token: "ETH",
+      token: nativeSymbol,
       chain: params.chain,
       status: receipt.status === "success" ? "confirmed" : "failed",
       blockNumber: receipt.blockNumber,
@@ -170,8 +172,9 @@ export class TransferService {
 
     const { wei: ethBalance } = await this.chainAdapter.getBalance(this.walletAddress, params.chain);
     if (ethBalance < gasEstimate.totalCostWei) {
+      const nativeSymbol = this.chainAdapter.getChain(params.chain).nativeCurrency.symbol;
       throw new Error(
-        `Insufficient ETH for gas. Need ~${gasEstimate.totalCostFormatted} ETH`
+        `Insufficient ${nativeSymbol} for gas. Need ~${gasEstimate.totalCostFormatted} ${nativeSymbol}`
       );
     }
 
@@ -228,7 +231,8 @@ export class TransferService {
   }
 
   async send(params: SendParams): Promise<SendResult> {
-    if (!params.token || params.token.toUpperCase() === "ETH") {
+    const nativeSymbol = this.chainAdapter.getChain(params.chain).nativeCurrency.symbol.toUpperCase();
+    if (!params.token || params.token.toUpperCase() === "ETH" || params.token.toUpperCase() === nativeSymbol) {
       return this.sendETH(params);
     }
     return this.sendERC20(params);

@@ -26,11 +26,11 @@ export function createWalletSendTool(
         },
         token: {
           type: "string",
-          description: "Token to send (ETH, USDC, USDT, or contract address). Defaults to ETH.",
+          description: "Token to send (ETH/BNB/POL/SEI for native, USDC, USDT, or contract address). Defaults to ETH.",
         },
         chain: {
           type: "string",
-          description: "Chain to use (base, ethereum). Defaults to configured default.",
+          description: "Chain to use (ethereum, base, linea, arbitrum, bsc, optimism, polygon, sei). Defaults to configured default.",
         },
       },
       required: ["to", "amount"],

@@ -1,5 +1,5 @@
 {
-  "relayUrl": "ws://localhost:8080",
+  "relayUrl": "wss://relay.your-domain.com",
   "ipChangePolicy": "warn",
   "lockMode": "convenience",
   "chains": {
@@ -8,6 +8,24 @@
     },
     "base": {
       "rpcUrl": "https://mainnet.base.org"
+    },
+    "linea": {
+      "rpcUrl": "https://rpc.linea.build"
+    },
+    "arbitrum": {
+      "rpcUrl": "https://arb1.arbitrum.io/rpc"
+    },
+    "bsc": {
+      "rpcUrl": "https://bsc-dataseed1.binance.org"
+    },
+    "optimism": {
+      "rpcUrl": "https://mainnet.optimism.io"
+    },
+    "polygon": {
+      "rpcUrl": "https://polygon-rpc.com"
+    },
+    "sei": {
+      "rpcUrl": "https://evm-rpc.sei-apis.com"
     }
   },
   "relay": {

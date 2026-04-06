@@ -10,7 +10,7 @@ export function createWalletBalanceTool(
 ): ToolDefinition {
   return {
     name: "wallet_balance",
-    description: "Query wallet balances. If token is omitted, queries ETH + all known ERC-20 tokens (USDC, USDT) across all chains in one call — use this for a full portfolio overview. If token is specified (ETH, USDC, USDT, or a 0x contract address), queries only that token. If chain is also specified, queries only that chain. Always check balance before calling wallet_send.",
+    description: "Query wallet balances. If token is omitted, queries ETH + USDC + USDT across all chains in parallel — use this for a quick portfolio overview. If token is specified (ETH, USDC, USDT, or a 0x contract address), queries only that token. If chain is also specified, queries only that chain. Always check balance before calling wallet_send.",
     parameters: {
       type: "object",
       properties: {
@@ -73,33 +73,41 @@ export function createWalletBalanceTool(
         return { token, balances: results, ...(errors.length > 0 && { errors }) };
       }
 
-      // --- No token specified: query ETH + all known ERC-20s for a full overview ---
+      // --- No token specified: query ETH + common ERC-20s (USDC, USDT) in parallel ---
+      // Only check the most common tokens to keep latency low.
+      const COMMON_TOKENS = ["USDC", "USDT"];
       const results: Array<{ chain: string; balance: string; token: string }> = [];
       const errors: Array<{ chain: string; error: string }> = [];
 
-      for (const chain of chains) {
-        try {
-          // ETH
-          const { formatted: ethBal } = await chainAdapter.getBalance(address, chain);
-          if (parseFloat(ethBal) > 0) {
-            results.push({ chain, balance: ethBal, token: "ETH" });
-          }
-          // All known ERC-20s for this chain (USDC, USDT, …)
-          const chainTokens = KNOWN_TOKENS[chain] ?? {};
-          for (const [symbol, tokenAddress] of Object.entries(chainTokens)) {
-            try {
-              const info = await chainAdapter.getTokenBalance(address, tokenAddress as Address, chain);
-              if (parseFloat(info.formatted) > 0) {
-                results.push({ chain, balance: info.formatted, token: symbol });
-              }
-            } catch {
-              // individual token failure — skip silently
-            }
-          }
-        } catch (err) {
-          errors.push({ chain, error: (err as Error).message });
+      const tasks = chains.flatMap((chain) => {
+        const jobs: Promise<void>[] = [];
+
+        // ETH
+        jobs.push(
+          chainAdapter.getBalance(address, chain)
+            .then(({ formatted }) => {
+              if (parseFloat(formatted) > 0) results.push({ chain, balance: formatted, token: "ETH" });
+            })
+            .catch((err) => errors.push({ chain, error: `ETH: ${(err as Error).message}` }))
+        );
+
+        // USDC + USDT
+        for (const symbol of COMMON_TOKENS) {
+          const tokenAddress = KNOWN_TOKENS[chain]?.[symbol];
+          if (!tokenAddress) continue;
+          jobs.push(
+            chainAdapter.getTokenBalance(address, tokenAddress as Address, chain)
+              .then((info) => {
+                if (parseFloat(info.formatted) > 0) results.push({ chain, balance: info.formatted, token: symbol });
+              })
+              .catch(() => { /* token not available on this chain — skip */ })
+          );
         }
-      }
+
+        return jobs;
+      });
+
+      await Promise.all(tasks);
 
       if (results.length === 0 && errors.length === 0) {
         return { message: "No non-zero balances found across all chains and tokens", chains };

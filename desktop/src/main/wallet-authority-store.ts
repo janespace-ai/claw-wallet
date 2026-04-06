@@ -24,7 +24,7 @@ export class ContactConflictError extends Error {
 }
 
 export type ResolveContactResult =
-  | { ok: true; address: string; chain: string; exactMatch: true; trusted: boolean }
+  | { ok: true; address: string; chain: string; exactMatch: boolean; trusted: boolean }
   | { ok: false; reason: "not_found" }
   | {
       ok: false;
@@ -33,6 +33,23 @@ export type ResolveContactResult =
       address: string;
       trusted: boolean;
     };
+
+/**
+ * All EVM-compatible chains supported by the wallet.
+ * Contacts created on any of these chains share the same 0x address
+ * and can be used for transfers on any other chain in this set.
+ */
+const EVM_CHAINS = new Set([
+  "ethereum",
+  "base",
+  "arbitrum",
+  "optimism",
+  "polygon",
+  "linea",
+  "bsc",
+  "bnb chain", // network-config.json uses "BNB Chain" → normalises to "bnb chain"
+  "sei",
+]);
 
 const ADDR_RE = /^0x[a-fA-F0-9]{40}$/;
 
@@ -234,7 +251,20 @@ export class WalletAuthorityStore {
       .prepare(`SELECT chain, address, trusted FROM desktop_contacts WHERE account_index = ? AND name = ? COLLATE NOCASE`)
       .get(accountIndex, n) as { chain: string; address: string; trusted: number } | undefined;
     if (!row) return { ok: false, reason: "not_found" };
-    if (normChain(row.chain) !== c) {
+    const storedNorm = normChain(row.chain);
+    if (storedNorm !== c) {
+      // Allow cross-chain resolution within the EVM-compatible set: all
+      // supported EVM chains share the same 0x address, so a contact saved
+      // on ethereum is valid for a transfer on arbitrum, base, etc.
+      if (EVM_CHAINS.has(storedNorm) && EVM_CHAINS.has(c)) {
+        return {
+          ok: true,
+          address: row.address,
+          chain: c, // return the requested chain so the caller uses the right network
+          exactMatch: false,
+          trusted: row.trusted === 1,
+        };
+      }
       return {
         ok: false,
         reason: "chain_mismatch",

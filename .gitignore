@@ -8,7 +8,7 @@ dist/
 .env
 .env.local
 .env.*.local
-
+.claude
 # Local config (keep config.example.json in repo)
 desktop/config.json
 desktop/config.local.json

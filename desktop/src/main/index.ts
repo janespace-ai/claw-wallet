@@ -205,14 +205,16 @@ function registerIpcHandlers(): void {
   ipcMain.handle("wallet:create", async (_, password: string) => {
     const result = await keyManager.createWallet(password);
     syncWalletAccountsAfterUnlock();
-    await relayBridge?.refreshChannels();
+    if (!relayBridge) relayBridge = createRelayBridge();
+    await relayBridge.refreshChannels();
     return { address: result.address, mnemonic: result.mnemonic };
   });
 
   ipcMain.handle("wallet:import", async (_, mnemonic: string, password: string) => {
     const result = await keyManager.importWallet(mnemonic, password);
     syncWalletAccountsAfterUnlock();
-    await relayBridge?.refreshChannels();
+    if (!relayBridge) relayBridge = createRelayBridge();
+    await relayBridge.refreshChannels();
     return { address: result.address };
   });
 
@@ -496,6 +498,53 @@ function registerIpcHandlers(): void {
   });
 }
 
+function createRelayBridge(): RelayBridge {
+  return new RelayBridge({
+    dataDir,
+    keyManager,
+    accountManager,
+    signingEngine,
+    securityMonitor,
+    priceService,
+    authorityStore,
+    signingHistory,
+    txSyncService,
+    messageRouter: messageRouter!,
+    relayUrl: config.relayUrl,
+    reconnectBaseMs: config.relay.reconnectBaseMs,
+    reconnectMaxMs: config.relay.reconnectMaxMs,
+    ipChangePolicy: config.ipChangePolicy,
+    getMultiAccountTxContext: () => {
+      const mnemonic = keyManager.getMnemonicIfUnlocked();
+      const activeAccountIndex = accountManager.getActiveAccountIndex();
+      const signingAccountIndex = activeAccountIndex;
+      const activeAddress = keyManager.getAddress() ?? "";
+      let signingNickname = `Account ${signingAccountIndex}`;
+      if (mnemonic) {
+        try {
+          const acc = accountManager.getAccount(signingAccountIndex);
+          if (acc) signingNickname = acc.nickname;
+        } catch {
+          /* ignore */
+        }
+      }
+      return {
+        activeAccountIndex,
+        signingAccountIndex,
+        signingAddress: activeAddress,
+        activeAddress,
+        signingNickname,
+      };
+    },
+    onConnectionStatus: (status) => {
+      sendToRenderer("wallet:connection-status", status);
+    },
+    onAgentStatus: (status) => {
+      sendToRenderer("wallet:agent-status", status);
+    },
+  });
+}
+
 app.whenReady().then(async () => {
   await keyManager.initialize();
   await securityMonitor.initialize();
@@ -558,50 +607,7 @@ app.whenReady().then(async () => {
     createTray();
   }
 
-  relayBridge = new RelayBridge({
-    dataDir,
-    keyManager,
-    accountManager,
-    signingEngine,
-    securityMonitor,
-    priceService,
-    authorityStore,
-    signingHistory,
-    txSyncService,
-    messageRouter,
-    relayUrl: config.relayUrl,
-    reconnectBaseMs: config.relay.reconnectBaseMs,
-    reconnectMaxMs: config.relay.reconnectMaxMs,
-    ipChangePolicy: config.ipChangePolicy,
-    getMultiAccountTxContext: () => {
-      const mnemonic = keyManager.getMnemonicIfUnlocked();
-      const activeAccountIndex = accountManager.getActiveAccountIndex();
-      const signingAccountIndex = activeAccountIndex;
-      const activeAddress = keyManager.getAddress() ?? "";
-      let signingNickname = `Account ${signingAccountIndex}`;
-      if (mnemonic) {
-        try {
-          const acc = accountManager.getAccount(signingAccountIndex);
-          if (acc) signingNickname = acc.nickname;
-        } catch {
-          /* ignore */
-        }
-      }
-      return {
-        activeAccountIndex,
-        signingAccountIndex,
-        signingAddress: activeAddress,
-        activeAddress,
-        signingNickname,
-      };
-    },
-    onConnectionStatus: (status) => {
-      sendToRenderer("wallet:connection-status", status);
-    },
-    onAgentStatus: (status) => {
-      sendToRenderer("wallet:agent-status", status);
-    },
-  });
+  relayBridge = createRelayBridge();
 
   syncMessageRouterActiveAccount();
 

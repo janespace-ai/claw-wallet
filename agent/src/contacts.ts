@@ -4,6 +4,14 @@ import type { Address } from "viem";
 import type { Contact, ContactsStore, SupportedChain } from "./types.js";
 import { validateContactName, validateAddress, secureWriteFile } from "./validation.js";
 
+/**
+ * All supported chains are EVM-compatible and share the same 0x address.
+ * A contact saved on any of these chains can be used for transfers on any other.
+ */
+const EVM_CHAINS = new Set<SupportedChain>([
+  "ethereum", "base", "arbitrum", "optimism", "polygon", "linea", "bsc", "sei",
+]);
+
 export class ContactsManager {
   private store: ContactsStore = { contacts: [] };
   private filePath: string;
@@ -60,6 +68,17 @@ export class ContactsManager {
     const address = contact.addresses[chain];
     if (address) {
       return { address, chain, exact: true };
+    }
+
+    // All supported chains are EVM-compatible (same 0x address across chains).
+    // Fall back to any stored EVM address when the exact chain isn't recorded.
+    if (EVM_CHAINS.has(chain)) {
+      for (const evmChain of EVM_CHAINS) {
+        const fallback = contact.addresses[evmChain];
+        if (fallback) {
+          return { address: fallback, chain, exact: false };
+        }
+      }
     }
 
     return null;

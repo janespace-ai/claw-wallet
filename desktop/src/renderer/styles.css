@@ -840,6 +840,48 @@ input[type="number"] { -moz-appearance: textfield; }
 .portfolio-change.positive { color: var(--success); }
 .portfolio-change.negative { color: var(--danger); }
 
+.portfolio-address {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.portfolio-address-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.01em;
+}
+
+.portfolio-copy-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface2);
+  color: var(--accent);
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+}
+
+.portfolio-copy-btn:hover {
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+.portfolio-copy-btn.copied {
+  color: var(--success);
+  border-color: var(--success);
+}
+
 /* Network chips */
 .chips-row {
   display: flex;

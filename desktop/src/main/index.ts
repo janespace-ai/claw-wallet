@@ -74,7 +74,7 @@ const rpcProviderManager = new RPCProviderManager(networkConfigService);
 const keyManager = new KeyManager(dataDir, { scryptN: config.keyring.scryptN });
 const signingHistory = new SigningHistory(dbService);
 const authorityStore = new WalletAuthorityStore(dbService);
-const chainAdapter = new ChainAdapter(config.chains);
+const chainAdapter = new ChainAdapter(networkConfigService);
 const txSyncService = new TxSyncService(signingHistory, chainAdapter);
 const signingEngine = new SigningEngine(keyManager, {
   dailyLimitUsd: config.signing.dailyLimitUsd,

@@ -951,7 +951,7 @@ export class RelayAccountChannel {
           const tokenFilter = Array.isArray(params.tokens)
             ? (params.tokens as string[]).map((t) => String(t).toUpperCase())
             : undefined;
-          const balances = await this.options.balanceService.getWalletBalances(address, tokenFilter, true);
+          const balances = await this.options.balanceService.getCachedOrFetchBalances(address, tokenFilter);
           this.sendEncrypted(session, { requestId, result: { balances } }, requestId);
           return;
         }

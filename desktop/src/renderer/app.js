@@ -157,6 +157,11 @@ function setLockModeDisplay(mode) {
 let pairCodeAutoHideTimer = null;
 let agentStatus = { paired: false, online: false };
 let currentPairCode = null;
+// Set to true while the pair-code card is open because the user explicitly
+// requested it (clicked the Connect/Re-pair button). Prevents the onAgentStatus
+// handler from auto-hiding the card due to a stale status event arriving after
+// an account switch.
+let pairCodeUserInitiated = false;
 
 async function loadWalletBalances(address) {
   if (!address) return;
@@ -922,9 +927,18 @@ function setupEventListeners() {
   // Agent status button
   document.getElementById("btn-agent-status")?.addEventListener("click", async () => {
     if (agentStatus.online) {
-      const confirmed = confirm(tKey("home.agent.repairConfirm"));
-      if (!confirmed) return;
+      showRepairConfirmModal();
+      return;
     }
+    await generateAndShowPairCode();
+  });
+
+  document.getElementById("btn-repair-cancel")?.addEventListener("click", () => {
+    hideRepairConfirmModal();
+  });
+
+  document.getElementById("btn-repair-confirm")?.addEventListener("click", async () => {
+    hideRepairConfirmModal();
     await generateAndShowPairCode();
   });
 
@@ -1525,7 +1539,12 @@ function setupRealtimeEvents() {
   wapi().onAgentStatus((status) => {
     agentStatus = status;
     renderAgentStatusBtn();
-    if (status.online) {
+    // Auto-hide the pair-code card when the agent comes online — but only if
+    // the card was not opened by the user. pairCodeUserInitiated prevents a
+    // stale status event (arriving after an account switch) from closing a card
+    // the user just opened; the card will still auto-hide when the countdown
+    // expires or when the user manually closes it.
+    if (status.online && !pairCodeUserInitiated) {
       hidePairCodeCard();
     }
   });
@@ -1557,18 +1576,21 @@ function setupRealtimeEvents() {
     if (el) el.textContent = address ?? "";
     updatePortfolioAddress(address ?? "");
 
-    await refreshAccountHeader().catch((e) => console.error(e));
+    // refreshAccountHeader and getStatus can run in parallel.
+    // The main process now emits wallet:agent-status immediately after
+    // wallet:account-changed with the new account's real status, so we
+    // no longer need to derive it here from the global connectedAgents count.
+    const [, statusResult] = await Promise.allSettled([
+      refreshAccountHeader(),
+      wapi().getStatus(),
+    ]);
+    if (statusResult.status === "fulfilled") {
+      await syncSettingsFromStatus(statusResult.value).catch(() => {});
+    }
 
     void syncHomeNetworkFilterFromConfig().finally(() => {
       if (address) loadWalletBalances(address);
     });
-
-    try {
-      const status = await wapi().getStatus();
-      await syncSettingsFromStatus(status);
-    } catch (_) {
-      /* ignore */
-    }
 
     // Re-load lists that are scoped by account (UI was stale after header switch)
     loadSecurityEvents().catch((e) => console.error(e));
@@ -1831,7 +1853,16 @@ function renderAgentStatusBtn() {
   }
 }
 
+function showRepairConfirmModal() {
+  document.getElementById("modal-repair-confirm")?.classList.add("active");
+}
+
+function hideRepairConfirmModal() {
+  document.getElementById("modal-repair-confirm")?.classList.remove("active");
+}
+
 async function generateAndShowPairCode() {
+  pairCodeUserInitiated = true;
   try {
     const result = await wapi().generatePairCode();
     currentPairCode = result.code;
@@ -1892,6 +1923,7 @@ function showPairCodeError(err) {
 }
 
 function hidePairCodeCard() {
+  pairCodeUserInitiated = false;
   const card = document.getElementById("pair-code-card");
   if (card) card.style.display = "none";
   const errCard = document.getElementById("pair-code-error-card");

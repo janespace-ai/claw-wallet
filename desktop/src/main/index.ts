@@ -280,6 +280,10 @@ function registerIpcHandlers(): void {
     accountManager.switchAccount(index);
     keyManager.setActiveAccountIndex(index);
     messageRouter?.setActiveAccount(index);
+    // Tell the relay bridge which account is now active. This scopes future
+    // emitAgentStatus() calls to the new account and immediately pushes its
+    // real connection state to the renderer via the onAgentStatus callback.
+    relayBridge?.setActiveAccountIndex(index);
     await messageRouter?.processQueuedMessages(index);
     balanceService.clearCache();
     const addr = keyManager.getAddress();

@@ -20,7 +20,7 @@ A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Priv
 
 Download and launch the Claw Wallet desktop app. Create a wallet, set a password, and back up your mnemonic.
 
-<img src="https://janespace-ai.github.io/assets/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
+<img src="docs/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
 
 **Step 2 — Install the Skill**
 
@@ -36,13 +36,13 @@ Works with OpenClaw, Claude Code, Cline, Cursor, and any `npx skills`-compatible
 
 In the desktop app, click **"Generate Pairing Code"** and copy the 8-character code.
 
-<img src="https://janespace-ai.github.io/assets/screenshots/pair-code-dark.png" width="320" alt="Pairing code screen" />
+<img src="docs/screenshots/pair-code-dark.png" width="320" alt="Pairing code screen" />
 
 **Step 4 — Start Using**
 
 Paste the pairing code into your agent once. After that, the agent and desktop reconnect automatically — no user action needed.
 
-<img src="https://janespace-ai.github.io/assets/screenshots/tx-approval-dark.png" width="320" alt="Transaction approval screen" />
+<img src="docs/screenshots/tx-approval-dark.png" width="320" alt="Transaction approval screen" />
 
 ```
 You:   "Send 10 USDC to Bob on Base"

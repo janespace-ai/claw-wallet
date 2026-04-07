@@ -4,11 +4,51 @@
 
 # claw-wallet
 
+> 👤 **Not a developer?** Visit **[janespace-ai.github.io](https://janespace-ai.github.io)** for the user guide — installation, pairing, and getting started in minutes.
+
 **Let your AI Agent hold a real wallet — securely.**
 
 A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Private keys live in a separate **Electron Desktop Wallet**, completely isolated from the AI model. The Agent and Desktop communicate through an **E2EE (End-to-End Encrypted)** channel via a **Go Relay Server** — the relay only forwards ciphertext and can never read or tamper with messages.
 
 > Private keys never touch the AI model. Not on the same machine, not in the same process, not in memory. The Agent only sees wallet addresses and transaction hashes.
+
+---
+
+## Get Started in 4 Steps
+
+**Step 1 — Install the Desktop Wallet**
+
+Download and launch the Claw Wallet desktop app. Create a wallet, set a password, and back up your mnemonic.
+
+<img src="docs/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
+
+**Step 2 — Install the Skill**
+
+One command gives your AI agent full wallet capabilities:
+
+```bash
+npx skills add janespace-ai/claw-wallet
+```
+
+Works with OpenClaw, Claude Code, Cline, Cursor, and any `npx skills`-compatible agent.
+
+**Step 3 — Generate a Pairing Code**
+
+In the desktop app, click **"Generate Pairing Code"** and copy the 8-character code.
+
+<img src="docs/screenshots/pair-code-dark.png" width="320" alt="Pairing code screen" />
+
+**Step 4 — Start Using**
+
+Paste the pairing code into your agent once. After that, the agent and desktop reconnect automatically — no user action needed.
+
+<img src="docs/screenshots/tx-approval-dark.png" width="320" alt="Transaction approval screen" />
+
+```
+You:   "Send 10 USDC to Bob on Base"
+Agent: → resolves contact → builds tx → E2EE → Desktop signs → broadcast
+       "Sent 10 USDC to Bob. tx: 0xab3f..."
+```
 
 ---
 

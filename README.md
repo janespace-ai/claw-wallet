@@ -14,11 +14,41 @@ A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Priv
 
 ---
 
-## Screenshots
+## Get Started in 4 Steps
 
-| Setup & Welcome | Generate Pairing Code | Transaction Approval |
-|:-:|:-:|:-:|
-| [![Welcome](https://janespace-ai.github.io/assets/screenshots/welcome-dark.png)](https://janespace-ai.github.io/assets/screenshots/welcome-dark.png) | [![Pair Code](https://janespace-ai.github.io/assets/screenshots/pair-code-dark.png)](https://janespace-ai.github.io/assets/screenshots/pair-code-dark.png) | [![Tx Approval](https://janespace-ai.github.io/assets/screenshots/tx-approval-dark.png)](https://janespace-ai.github.io/assets/screenshots/tx-approval-dark.png) |
+**Step 1 — Install the Desktop Wallet**
+
+Download and launch the Claw Wallet desktop app. Create a wallet, set a password, and back up your mnemonic.
+
+<img src="https://janespace-ai.github.io/assets/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
+
+**Step 2 — Install the Skill**
+
+One command gives your AI agent full wallet capabilities:
+
+```bash
+npx skills add janespace-ai/claw-wallet
+```
+
+Works with OpenClaw, Claude Code, Cline, Cursor, and any `npx skills`-compatible agent.
+
+**Step 3 — Generate a Pairing Code**
+
+In the desktop app, click **"Generate Pairing Code"** and copy the 8-character code.
+
+<img src="https://janespace-ai.github.io/assets/screenshots/pair-code-dark.png" width="320" alt="Pairing code screen" />
+
+**Step 4 — Start Using**
+
+Paste the pairing code into your agent once. After that, the agent and desktop reconnect automatically — no user action needed.
+
+<img src="https://janespace-ai.github.io/assets/screenshots/tx-approval-dark.png" width="320" alt="Transaction approval screen" />
+
+```
+You:   "Send 10 USDC to Bob on Base"
+Agent: → resolves contact → builds tx → E2EE → Desktop signs → broadcast
+       "Sent 10 USDC to Bob. tx: 0xab3f..."
+```
 
 ---
 

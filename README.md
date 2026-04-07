@@ -4,6 +4,8 @@
 
 # claw-wallet
 
+> 👤 **Not a developer?** Visit **[janespace-ai.github.io](https://janespace-ai.github.io)** for the user guide — installation, pairing, and getting started in minutes.
+
 **Let your AI Agent hold a real wallet — securely.**
 
 A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Private keys live in a separate **Electron Desktop Wallet**, completely isolated from the AI model. The Agent and Desktop communicate through an **E2EE (End-to-End Encrypted)** channel via a **Go Relay Server** — the relay only forwards ciphertext and can never read or tamper with messages.

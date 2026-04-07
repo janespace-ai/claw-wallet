@@ -2615,3 +2615,75 @@ input[type="number"] { -moz-appearance: textfield; }
   transition: opacity 0.15s;
 }
 .deregister-btn-cancel:hover { opacity: 0.8; }
+
+/* ── EIP-712 Signature Request ──────────────────────────────── */
+.btn-sign-typed-data { background: #7C3AED !important; }
+.btn-sign-typed-data:hover { background: #6D28D9 !important; }
+
+.tx-domain-card {
+  background: var(--surface2, var(--surface));
+  border-radius: 16px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tx-domain-row { display: flex; align-items: center; gap: 10px; }
+.tx-domain-icon {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: #6D28D9; color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.tx-domain-info { display: flex; flex-direction: column; gap: 2px; }
+.tx-domain-name { font-size: 15px; font-weight: 600; color: var(--text-primary); }
+.tx-domain-sub { font-size: 11px; color: var(--text-secondary); font-family: "Geist Mono", monospace; word-break: break-all; }
+.tx-domain-divider { height: 1px; background: var(--border); }
+.tx-domain-type-row { display: flex; justify-content: space-between; align-items: center; }
+.tx-detail-label { font-size: 12px; color: var(--text-secondary); }
+.tx-detail-mono { font-family: "Geist Mono", monospace; font-size: 12px; font-weight: 600; color: var(--text-primary); }
+
+.typed-data-section { margin-bottom: 10px; }
+.typed-data-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 0.8px;
+  color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;
+}
+.typed-data-preview {
+  background: var(--surface2, var(--surface));
+  border-radius: 12px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.typed-data-field { display: flex; gap: 8px; font-family: "Geist Mono", monospace; font-size: 11px; color: var(--text-secondary); }
+.typed-data-key { flex-shrink: 0; }
+.typed-data-val { color: var(--text-primary); word-break: break-all; }
+.typed-data-more { font-size: 11px; color: var(--text-secondary); font-style: italic; margin-top: 2px; }
+
+.tx-note-banner {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #2D1B69; border-radius: 10px; padding: 10px 12px;
+  font-size: 12px; color: #C4B5FD; margin-bottom: 10px;
+}
+.tx-note-icon { flex-shrink: 0; font-weight: 600; }
+
+/* ── ERC-20 Authorization Request ───────────────────────────── */
+.btn-authorize { background: #EA580C !important; }
+.btn-authorize:hover { background: #C2410C !important; }
+
+.tx-auth-card {
+  background: var(--surface2, var(--surface));
+  border-radius: 16px; padding: 18px 16px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; margin-bottom: 10px; text-align: center;
+}
+.tx-auth-icon { font-size: 28px; }
+.tx-auth-label { font-size: 12px; color: var(--text-secondary); }
+.tx-auth-amount { font-size: 26px; font-weight: 700; color: var(--text-primary); }
+.tx-auth-sub { font-size: 13px; color: #FB923C; font-weight: 500; }
+
+.tx-warning-banner {
+  display: flex; align-items: flex-start; gap: 8px;
+  background: #3D1A00; border-radius: 10px; padding: 10px 12px;
+  font-size: 12px; color: #FED7AA; margin-bottom: 10px;
+}
+.tx-warning-icon { flex-shrink: 0; font-weight: 600; }

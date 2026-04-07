@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import { readFile, writeFile } from "node:fs/promises";
-import { ethers } from "ethers";
+import { ethers, type TypedDataDomain, type TypedDataField } from "ethers";
 import { KeyManager } from "./key-manager.js";
 import type { SigningHistory } from "./signing-history.js";
 import type { WalletAuthorityStore } from "./wallet-authority-store.js";
@@ -153,7 +153,7 @@ export class SigningEngine {
     this.resetDailyIfNeeded();
 
     const withinBudget =
-      priceKnown && this.checkBudget(estimatedUSD, params, options?.signingAccountIndex ?? 0);
+      priceKnown && this.checkBudget(estimatedUSD, params, options?.signingAccountIndex ?? 0, method);
     const canSilentSign =
       method === "sign_transaction"
         ? withinBudget && this.autoApproveWithinBudget
@@ -303,7 +303,10 @@ export class SigningEngine {
     await this.saveAllowance();
   }
 
-  private checkBudget(estimatedUSD: number, params: Record<string, unknown>, accountIndex: number): boolean {
+  private checkBudget(estimatedUSD: number, params: Record<string, unknown>, accountIndex: number, method?: string): boolean {
+    // EIP-712 typed data always requires manual approval — value cannot be reliably estimated
+    if (method === "sign_typed_data") return false;
+
     if (estimatedUSD > this.allowance.perTxLimitUSD) return false;
     if (this.dailyUsage.spentUSD + estimatedUSD > this.allowance.dailyLimitUSD) return false;
 
@@ -380,7 +383,70 @@ export class SigningEngine {
       return { signature, address: wallet.address };
     }
 
+    if (method === "sign_typed_data") {
+      const { domain, types, value } = this.sanitizeTypedDataParams(params);
+      const signature = await wallet.signTypedData(domain, types, value);
+
+      if (this.signingHistory && requestId) {
+        this.signingHistory.addRecord({
+          requestId,
+          type: isAutoApproved ? "auto" : "manual",
+          method,
+          to: (domain.verifyingContract as string) ?? "",
+          value: "0",
+          token: "N/A",
+          chain: String(domain.chainId ?? "unknown"),
+          estimatedUSD: 0,
+          accountIndex: signingAccountIndex ?? 0,
+        });
+      }
+
+      return { signature, address: wallet.address };
+    }
+
     throw new Error(`Unsupported signing method: ${method}`);
+  }
+
+  /**
+   * Validate and sanitize EIP-712 typed data params.
+   * Strips EIP712Domain from types (ethers derives it from domain).
+   */
+  private sanitizeTypedDataParams(params: Record<string, unknown>): {
+    domain: TypedDataDomain;
+    types: Record<string, TypedDataField[]>;
+    value: Record<string, unknown>;
+  } {
+    const domain = params.domain as Record<string, unknown>;
+    const types = params.types as Record<string, unknown>;
+    const value = params.value as Record<string, unknown>;
+
+    if (!domain || typeof domain !== "object" || Array.isArray(domain)) {
+      throw new Error("Invalid typed data: domain must be a plain object");
+    }
+    if (Object.keys(domain).length === 0) {
+      throw new Error("Invalid typed data: domain must have at least one field");
+    }
+    if (!types || typeof types !== "object" || Array.isArray(types)) {
+      throw new Error("Invalid typed data: types must be a plain object");
+    }
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      throw new Error("Invalid typed data: value must be a plain object");
+    }
+    if (domain.chainId !== undefined) {
+      const id = Number(domain.chainId);
+      if (!Number.isInteger(id) || id <= 0) {
+        throw new Error(`Invalid typed data: domain.chainId must be a positive integer, got ${domain.chainId}`);
+      }
+    }
+
+    // Strip EIP712Domain — ethers derives it automatically from domain fields
+    const { EIP712Domain: _, ...cleanTypes } = types as Record<string, TypedDataField[]>;
+
+    return {
+      domain: domain as TypedDataDomain,
+      types: cleanTypes,
+      value,
+    };
   }
 
   private resetDailyIfNeeded(): void {

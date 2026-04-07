@@ -30,6 +30,12 @@ One command gives your AI agent full wallet capabilities:
 npx skills add janespace-ai/claw-wallet
 ```
 
+Or paste directly into your agent chat (OpenClaw, Claude Code, etc.):
+
+```
+Install Claw Wallet: https://github.com/janespace-ai/claw-wallet
+```
+
 Works with OpenClaw, Claude Code, Cline, Cursor, and any `npx skills`-compatible agent.
 
 **Step 3 — Generate a Pairing Code**
@@ -73,71 +79,6 @@ Agent: → resolves contact → builds tx → E2EE → Desktop signs → broadca
 ```
 
 **Three-component design**: Each component has a single responsibility. Even if the Agent's host is fully compromised, the attacker gains zero key material.
-
----
-
-## 📦 Two Ways to Use
-
-### 🤖 Option 1: Skills (for AI agents — recommended)
-
-One command gives your AI agent full wallet capabilities. Works with OpenClaw, Claude Code, Cline, Cursor, and any `npx skills`-compatible agent.
-
-**Install via CLI:**
-```bash
-npx skills add janespace-ai/claw-wallet
-```
-
-**Or paste directly into your agent chat (OpenClaw):**
-```
-Install Claw Wallet: https://github.com/janespace-ai/claw-wallet
-```
-
-After install, set `RELAY_URL=http://localhost:8080` (default — Claw Wallet desktop app starts the relay automatically on launch).
-
-Then pair once:
-```
-"Please pair my wallet, the pairing code is XXXXXXXX"
-```
-
-**Advantages:**
-- ✅ Zero code required
-- ✅ One command setup
-- ✅ Works with any skills-compatible agent
-- ✅ Natural language interaction
-
-See [skills/claw-wallet/SKILL.md](./skills/claw-wallet/SKILL.md) for full tool reference.
-
-### 🔧 Option 2: Direct SDK Integration (for your code)
-
-Install and use directly in your Node.js application:
-
-```bash
-npm install claw-wallet
-```
-
-```typescript
-import { ClawWallet } from 'claw-wallet';
-
-const wallet = new ClawWallet({
-  relayUrl: 'http://localhost:8080',
-  dataDir: '~/.claw-wallet',
-  defaultChain: 'base',
-});
-
-await wallet.initialize();
-const tools = wallet.getTools();
-
-// Directly call any tool
-const pairTool = tools.find(t => t.name === 'wallet_pair');
-await pairTool.execute({ shortCode: 'ABC12345' });
-```
-
-**Advantages:**
-- ✅ Full control over tool calls
-- ✅ Direct integration into Node.js apps, scripts, automation
-- ✅ Embed in any custom agent framework
-
-See [agent/examples/](./agent/examples/README.md) for complete examples.
 
 ---
 

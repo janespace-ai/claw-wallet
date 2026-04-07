@@ -42,7 +42,7 @@ In the desktop app, click **"Generate Pairing Code"** and copy the 8-character c
 
 Paste the pairing code into your agent once. After that, the agent and desktop reconnect automatically — no user action needed.
 
-<img src="https://janespace-ai.github.io/assets/screenshots/approve-dark.png" width="320" alt="Transaction approval screen" />
+<img src="https://janespace-ai.github.io/assets/screenshots/tx-approval-dark.png" width="320" alt="Transaction approval screen" />
 
 ```
 You:   "Send 10 USDC to Bob on Base"

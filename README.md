@@ -14,6 +14,14 @@ A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Priv
 
 ---
 
+## Screenshots
+
+| Setup & Welcome | Generate Pairing Code | Transaction Approval |
+|:-:|:-:|:-:|
+| [![Welcome](https://janespace-ai.github.io/assets/screenshots/welcome-dark.png)](https://janespace-ai.github.io/assets/screenshots/welcome-dark.png) | [![Pair Code](https://janespace-ai.github.io/assets/screenshots/pair-code-dark.png)](https://janespace-ai.github.io/assets/screenshots/pair-code-dark.png) | [![Tx Approval](https://janespace-ai.github.io/assets/screenshots/tx-approval-dark.png)](https://janespace-ai.github.io/assets/screenshots/tx-approval-dark.png) |
+
+---
+
 ## Architecture
 
 ```

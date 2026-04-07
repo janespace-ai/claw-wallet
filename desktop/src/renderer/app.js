@@ -688,36 +688,130 @@ function closeAccountDropdown() {
 function showTxApprovalModal(req) {
   currentTxRequest = req;
   const details = document.getElementById("tx-details");
-  const cc = req.counterpartyContact;
-  const bookLine =
-    cc && cc.name
-      ? `<p><strong>${escapeHtml(tKey("modals.tx.addressBook"))}:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
-      : "";
-  const transferText =
-    req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
-      ? escapeHtml(req.transferDisplay)
-      : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
-  const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
-  const canValuate = req.priceAvailable === true;
-  const usdtLine = canValuate
-    ? `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></p>`
-    : `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(tKey("modals.tx.noUsdt"))}</span></p>`;
-  
-  // Network badge with icon and styling
+  const titleEl = document.querySelector("#modal-tx .sheet-title");
+  const approveBtn = document.getElementById("btn-approve-tx");
+
   const networkIcon = getNetworkIcon(req.chain);
   const networkClass = getNetworkClass(req.chain);
   const networkBadge = `<span class="network-badge ${networkClass}">${networkIcon} ${escapeHtml(req.chain)}</span>`;
-  
-  details.innerHTML = `
-      <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
+
+  if (req.requestType === "signature") {
+    // ── EIP-712 Signature Request (Pencil screen 09) ──────────────────────
+    if (titleEl) titleEl.textContent = "Signature Request";
+    if (approveBtn) {
+      approveBtn.textContent = "Sign";
+      approveBtn.className = "btn-primary btn-sign-typed-data";
+    }
+
+    // Parse message fields for preview (up to 5 fields)
+    let msgPreview = "";
+    try {
+      const val = typeof req.rawData === "string" ? JSON.parse(req.rawData) : {};
+      const entries = Object.entries(val).slice(0, 5);
+      const fieldLines = entries
+        .map(([k, v]) => `<div class="typed-data-field"><span class="typed-data-key">${escapeHtml(k)}</span><span class="typed-data-val">${escapeHtml(String(v))}</span></div>`)
+        .join("");
+      const remaining = Object.keys(val).length - entries.length;
+      const moreHint = remaining > 0 ? `<div class="typed-data-more">⋯ ${remaining} more fields</div>` : "";
+      msgPreview = `<div class="typed-data-preview">${fieldLines}${moreHint}</div>`;
+    } catch (_) {
+      msgPreview = `<div class="typed-data-preview"><div class="typed-data-field">${escapeHtml(String(req.rawData ?? ""))}</div></div>`;
+    }
+
+    details.innerHTML = `
+      <div class="tx-domain-card">
+        <div class="tx-domain-row">
+          <div class="tx-domain-icon">⚡</div>
+          <div class="tx-domain-info">
+            <div class="tx-domain-name">${escapeHtml(req.displayLabel ?? "Unknown Protocol")}</div>
+            <div class="tx-domain-sub">${escapeHtml(req.to)}</div>
+          </div>
+        </div>
+        <div class="tx-domain-divider"></div>
+        <div class="tx-domain-type-row">
+          <span class="tx-detail-label">Primary Type</span>
+          <span class="tx-detail-mono">${escapeHtml(req.token !== "N/A" ? req.token : "—")}</span>
+        </div>
+      </div>
+      <div class="typed-data-section">
+        <div class="typed-data-label">MESSAGE</div>
+        ${msgPreview}
+      </div>
+      <div class="tx-note-banner">
+        <span class="tx-note-icon">ℹ</span>
+        <span>No gas required. This signature authorizes an off-chain action on ${escapeHtml(req.displayLabel ?? "the protocol")}.</span>
+      </div>
+      <p style="margin-top:8px"><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>
+      <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
+    `;
+
+  } else if (req.requestType === "approval") {
+    // ── ERC-20 Authorization Request (Pencil screen 08) ───────────────────
+    if (titleEl) titleEl.textContent = "Authorization Request";
+    if (approveBtn) {
+      approveBtn.textContent = "Authorize";
+      approveBtn.className = "btn-primary btn-authorize";
+    }
+
+    const cc = req.counterpartyContact;
+    const bookLine = cc?.name
+      ? `<p><strong>Contract:</strong> ${escapeHtml(cc.name)}</p>`
+      : `<p><strong>Contract:</strong> <span class="address">${escapeHtml(req.to)}</span></p>`;
+    const transferText =
+      req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
+        ? escapeHtml(req.transferDisplay)
+        : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+
+    details.innerHTML = `
+      <div class="tx-auth-card">
+        <div class="tx-auth-icon">🛡</div>
+        <div class="tx-auth-label">You are authorizing access to</div>
+        <div class="tx-auth-amount">${transferText}</div>
+        <div class="tx-auth-sub">No spending limit</div>
+      </div>
+      <div class="tx-warning-banner">
+        <span class="tx-warning-icon">⚠</span>
+        <span>This contract can spend all your tokens at any time. Only approve if you trust this contract.</span>
+      </div>
       ${bookLine}
-      <p><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
-      <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
-      ${usdtLine}
       <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>
       <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
-      <p><strong>${escapeHtml(tKey("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
     `;
+
+  } else {
+    // ── Regular Transaction Request (Pencil screen 07, existing) ─────────
+    if (titleEl) titleEl.textContent = "Transaction Request";
+    if (approveBtn) {
+      approveBtn.textContent = "Approve";
+      approveBtn.className = "btn-primary";
+    }
+
+    const cc = req.counterpartyContact;
+    const bookLine =
+      cc && cc.name
+        ? `<p><strong>${escapeHtml(tKey("modals.tx.addressBook"))}:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
+        : "";
+    const transferText =
+      req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
+        ? escapeHtml(req.transferDisplay)
+        : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+    const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
+    const canValuate = req.priceAvailable === true;
+    const usdtLine = canValuate
+      ? `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></p>`
+      : `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(tKey("modals.tx.noUsdt"))}</span></p>`;
+
+    details.innerHTML = `
+        <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
+        ${bookLine}
+        <p><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
+        <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
+        ${usdtLine}
+        <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>
+        <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
+        <p><strong>${escapeHtml(tKey("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
+      `;
+  }
   const trustWrap = document.getElementById("tx-trust-wrap");
   const trustChk = document.getElementById("chk-trust-after-success");
   const nameWrap = document.getElementById("tx-trust-name-wrap");

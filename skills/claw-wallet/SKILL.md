@@ -81,6 +81,8 @@ On success: confirm pairing and show the wallet address.
 | `wallet_approval_list` | List pending approvals | — |
 | `wallet_approval_approve` | Approve a queued tx | `id` |
 | `wallet_approval_reject` | Reject a queued tx | `id` |
+| `wallet_call_contract` | Call any smart contract function | `to`, `functionSignature`, `args`, `value?`, `chain?` |
+| `wallet_sign_typed_data` | Sign EIP-712 typed data for DeFi protocol interactions | `domain`, `types`, `value`, `chain?` |
 
 ---
 
@@ -112,6 +114,88 @@ If a send is blocked by policy, show the limit and the approval ID. The user can
 
 ---
 
+## DeFi & Contract Interactions
+
+Use `wallet_call_contract` when you need to interact with any smart contract beyond simple token transfers — DEX swaps, staking, governance voting, protocol deposits.
+
+### Two-step approve + swap (Uniswap example)
+
+Most DeFi protocols require approving token spending before calling the protocol:
+
+**Step 1 — Approve Uniswap Router to spend USDC:**
+```
+wallet_call_contract {
+  to: "0xaf88d065e77c8cC2239327C5EDb3A432268e5831",   // USDC on Arbitrum
+  functionSignature: "approve(address,uint256)",
+  args: ["0xE592427A0AEce92De3Edee1F18E0157C05861564", "10000000"],  // 10 USDC (6 decimals)
+  chain: "arbitrum"
+}
+```
+
+**Step 2 — Swap 10 USDC → ETH via Uniswap V3:**
+```
+wallet_call_contract {
+  to: "0xE592427A0AEce92De3Edee1F18E0157C05861564",   // Uniswap V3 SwapRouter
+  functionSignature: "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))",
+  args: [["0xaf88d065e77c8cC2239327C5EDb3A432268e5831","0x82aF49447D8a07e3bd95BD0d56f35241523fBab1",500,"<wallet_address>","10000000","0","0"]],
+  chain: "arbitrum"
+}
+```
+
+### Known contract addresses (Arbitrum)
+
+| Protocol | Contract | Address |
+|----------|----------|---------|
+| USDC | Token | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
+| WETH | Token | `0x82aF49447D8a07e3bd95BD0d56f35241523fBab1` |
+| Uniswap V3 | SwapRouter | `0xE592427A0AEce92De3Edee1F18E0157C05861564` |
+| Uniswap V3 | SwapRouter02 | `0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45` |
+| Aave V3 | Pool | `0x794a61358D6845594F94dc1DB02A252b5b4814aD` |
+
+---
+
+## EIP-712 Typed Data Signing
+
+Use `wallet_sign_typed_data` when a protocol requires a **signed message** rather than an on-chain transaction. Common use cases:
+
+- **Hyperliquid**: order placement sends signed typed data to an HTTP API — no gas required
+- **Permit2**: gasless ERC-20 approvals bundled into a single signed message
+- **CoW Protocol / 1inch Fusion**: off-chain order intents signed and submitted to solvers
+
+### Hyperliquid limit order flow
+
+```
+1. wallet_sign_typed_data {
+     domain: { name: "Exchange", chainId: 42161, verifyingContract: "0x..." },
+     types:  { Order: [
+       { name: "asset", type: "uint32" },
+       { name: "isBuy", type: "bool" },
+       { name: "limitPx", type: "uint64" },
+       { name: "sz", type: "uint64" },
+       { name: "reduceOnly", type: "bool" },
+       { name: "cloid", type: "bytes16" }
+     ]},
+     value: { asset: 0, isBuy: true, limitPx: 96420, sz: 4000, reduceOnly: false, cloid: "0x..." }
+   }
+   → get signature
+
+2. POST https://api.hyperliquid.xyz/exchange
+   { action: { type: "order", ... }, signature: { r, s, v }, nonce: ... }
+```
+
+### Known EIP-712 domains
+
+| Protocol | domain.name | chainId | verifyingContract |
+|----------|-------------|---------|-------------------|
+| Hyperliquid | `"Exchange"` | 42161 | see HL docs |
+| Permit2 (Arbitrum) | `"Permit2"` | 42161 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
+| Permit2 (Base) | `"Permit2"` | 8453 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
+
+⚠️ Always verify `domain.chainId` matches the chain where the protocol operates.
+⚠️ Do NOT include `EIP712Domain` in the `types` object — it is derived automatically.
+
+---
+
 ## Safety Rules
 
 - **Confirm before sending** — always ask the user to confirm address + amount first.
@@ -133,3 +217,6 @@ If a send is blocked by policy, show the limit and the approval ID. The user can
 | `SESSION_FROZEN` | "会话已冻结（安全策略触发），需要重新配对。" |
 | Relay unreachable | "无法连接中继服务器，请检查 RELAY_URL 是否正确，默认值为 http://localhost:8080。" |
 | Policy limit exceeded | "超出限额，交易已进入审批队列（ID: `<id>`）。可用 wallet_approval_approve 审批。" |
+| `ABI_ENCODE_ERROR` | "合约参数编码失败，请检查 functionSignature 和 args 格式。" |
+| `CALL_EXCEPTION` | "合约调用失败（交易 reverted），请检查参数是否正确。" |
+| `INVALID_TYPED_DATA` | "EIP-712 数据结构无效，请检查 domain/types/value 格式。" |

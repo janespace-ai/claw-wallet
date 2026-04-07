@@ -22,6 +22,8 @@ import { createWalletPolicyTools } from "./tools/wallet-policy.js";
 import { createWalletApprovalTools } from "./tools/wallet-approval.js";
 import { createWalletHistoryTool } from "./tools/wallet-history.js";
 import { createWalletPairTool } from "./tools/wallet-pair.js";
+import { createWalletSignTypedDataTool } from "./tools/wallet-sign-typed-data.js";
+import { createWalletCallContractTool } from "./tools/wallet-call-contract.js";
 
 export interface ToolDependencies {
   walletConnection: WalletConnection;
@@ -47,6 +49,8 @@ export function createAllTools(deps: ToolDependencies): ToolDefinition[] {
     ...createWalletPolicyTools(deps.policy),
     ...createWalletApprovalTools(deps.policy),
     createWalletHistoryTool(deps.history),
+    createWalletSignTypedDataTool(deps.walletConnection, deps.getAddress),
+    createWalletCallContractTool(deps.walletConnection, deps.getAddress, deps.defaultChain),
   ];
 
   // Wrap all tools with logging

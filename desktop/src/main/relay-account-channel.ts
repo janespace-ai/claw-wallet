@@ -88,6 +88,12 @@ export interface TransactionRequestInfo {
   estimatedUsd: number;
   /** False when calldata/price cannot support a reliable estimate */
   priceAvailable: boolean;
+  /** Differentiates the approval dialog style: transfer | approval | signature */
+  requestType?: "transfer" | "approval" | "signature";
+  /** Protocol or dApp display name for non-transfer requests (e.g. "Hyperliquid") */
+  displayLabel?: string;
+  /** Truncated raw typed-data value JSON for signature request preview */
+  rawData?: string;
   /** Signing account (same as active until multi-connection relay lands). */
   fromAccountIndex?: number;
   fromAccountNickname?: string;
@@ -671,6 +677,10 @@ export class RelayAccountChannel {
       const est = await estimateSignTransactionUsd(params, this.options.priceService);
       estimatedUSD = est.usd;
       priceAvailable = est.priceAvailable;
+    } else if (method === "sign_typed_data") {
+      // EIP-712: no ETH transfer, no reliable USD value
+      estimatedUSD = 0;
+      priceAvailable = false;
     } else {
       estimatedUSD = parseEstimatedUsd(data, params);
       priceAvailable = true;
@@ -712,21 +722,50 @@ export class RelayAccountChannel {
           const transferDisplay = transferParts
             ? `${transferParts.amount} ${transferParts.symbol}`
             : null;
+          // Determine request type and typed-data fields
+          const isTypedData = pendingReq.method === "sign_typed_data";
+          const isApproval =
+            pendingReq.method === "sign_transaction" &&
+            typeof params.data === "string" &&
+            params.data.toLowerCase().startsWith("0x095ea7b3"); // ERC-20 approve selector
+
+          const domain = isTypedData
+            ? ((params.domain ?? {}) as Record<string, unknown>)
+            : null;
+          const requestType: TransactionRequestInfo["requestType"] = isTypedData
+            ? "signature"
+            : isApproval
+            ? "approval"
+            : "transfer";
+          const displayLabel = isTypedData
+            ? ((domain?.name as string) ?? "Unknown Protocol")
+            : undefined;
+          const rawData = isTypedData
+            ? JSON.stringify(params.value).slice(0, 500)
+            : undefined;
+
           const txInfo: TransactionRequestInfo = {
             requestId: pendingReq.requestId,
             method: pendingReq.method,
-            to: toAddr,
+            to: isTypedData
+              ? ((domain?.verifyingContract as string) ?? "unknown")
+              : toAddr,
             value: (params.value as string) ?? "0",
             token: (params.token as string) ?? "ETH",
-            chain,
+            chain: isTypedData
+              ? String((domain?.chainId as number | string) ?? chain ?? "unknown")
+              : chain,
             fromDevice: deviceId,
             sourceIP,
             withinBudget: false,
-            allowSaveTrustedContact,
-            counterpartyContact,
-            transferDisplay,
+            allowSaveTrustedContact: isTypedData ? false : allowSaveTrustedContact,
+            counterpartyContact: isTypedData ? null : counterpartyContact,
+            transferDisplay: isTypedData ? null : transferDisplay,
             estimatedUsd: pendingReq.estimatedUSD,
             priceAvailable,
+            requestType,
+            displayLabel,
+            rawData,
             fromAccountIndex: signingAccountIndex,
             fromAccountNickname: signingNick,
             fromAccountAddress: signingAddr,

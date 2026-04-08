@@ -1860,14 +1860,22 @@ input[type="number"] { -moz-appearance: textfield; }
   width: 100%;
   background: var(--surface);
   border-radius: 24px 24px 0 0;
-  padding: 20px 24px 32px;
+  padding: 20px 24px 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 85vh;
+}
+
+.sheet-body {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  max-height: 85vh;
   overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding-bottom: 16px;
 }
-.bottom-sheet::-webkit-scrollbar { display: none; }
+.sheet-body::-webkit-scrollbar { display: none; }
 
 .sheet-drag-handle {
   width: 36px;
@@ -1952,7 +1960,9 @@ input[type="number"] { -moz-appearance: textfield; }
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-top: 4px;
+  flex-shrink: 0;
+  padding: 8px 0 32px;
+  background: var(--surface);
 }
 
 /* ============================================================

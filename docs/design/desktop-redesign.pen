@@ -11622,11 +11622,10 @@
                         "fill": "$col-border"
                       },
                       "padding": [
-                        10,
+                        14,
                         0
                       ],
                       "justifyContent": "space_between",
-                      "alignItems": "center",
                       "children": [
                         {
                           "type": "text",
@@ -11638,13 +11637,64 @@
                           "fontWeight": "normal"
                         },
                         {
-                          "type": "text",
-                          "id": "r8z2S",
-                          "fill": "$text-primary",
-                          "content": "0x1234...5678",
-                          "fontFamily": "Geist Mono",
-                          "fontSize": 13,
-                          "fontWeight": "500"
+                          "type": "frame",
+                          "id": "FeIdY",
+                          "name": "contactCol",
+                          "layout": "vertical",
+                          "gap": 5,
+                          "alignItems": "end",
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "1IgMn",
+                              "name": "nameRow",
+                              "gap": 6,
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "tzVJT",
+                                  "name": "avatar",
+                                  "width": 22,
+                                  "height": 22,
+                                  "fill": "$accent",
+                                  "cornerRadius": 11,
+                                  "layout": "vertical",
+                                  "justifyContent": "center",
+                                  "alignItems": "center",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "SRBOf",
+                                      "fill": "$text-on-accent",
+                                      "content": "A",
+                                      "fontFamily": "Inter",
+                                      "fontSize": 10,
+                                      "fontWeight": "700"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "text",
+                                  "id": "SS2CW",
+                                  "fill": "$text-primary",
+                                  "content": "Alice",
+                                  "fontFamily": "Inter",
+                                  "fontSize": 13,
+                                  "fontWeight": "600"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "DLaIp",
+                              "fill": "$text-secondary",
+                              "content": "0x1234 ... 5678",
+                              "fontFamily": "Geist Mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
                         }
                       ]
                     },

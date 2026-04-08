@@ -697,9 +697,9 @@ function showTxApprovalModal(req) {
 
   if (req.requestType === "signature") {
     // ── EIP-712 Signature Request (Pencil screen 09) ──────────────────────
-    if (titleEl) titleEl.textContent = "Signature Request";
+    if (titleEl) titleEl.textContent = tKey("modals.tx.signatureTitle");
     if (approveBtn) {
-      approveBtn.textContent = "Sign";
+      approveBtn.textContent = tKey("modals.tx.sign");
       approveBtn.className = "btn-primary btn-sign-typed-data";
     }
 
@@ -747,9 +747,9 @@ function showTxApprovalModal(req) {
 
   } else if (req.requestType === "approval") {
     // ── ERC-20 Authorization Request (Pencil screen 08) ───────────────────
-    if (titleEl) titleEl.textContent = "Authorization Request";
+    if (titleEl) titleEl.textContent = tKey("modals.tx.authTitle");
     if (approveBtn) {
-      approveBtn.textContent = "Authorize";
+      approveBtn.textContent = tKey("modals.tx.authorize");
       approveBtn.className = "btn-primary btn-authorize";
     }
 
@@ -780,41 +780,61 @@ function showTxApprovalModal(req) {
 
   } else {
     // ── Regular Transaction Request (Pencil screen 07, existing) ─────────
-    if (titleEl) titleEl.textContent = "Transaction Request";
+    if (titleEl) titleEl.textContent = tKey("modals.tx.title");
     if (approveBtn) {
-      approveBtn.textContent = "Approve";
+      approveBtn.textContent = tKey("modals.tx.approve");
       approveBtn.className = "btn-primary";
     }
 
     const cc = req.counterpartyContact;
     const toContent = cc && cc.name
-      ? `<span class="tx-to-contact-wrap">
-           <span class="tx-to-name-row">
+      ? `<div class="tx-to-contact-wrap">
+           <div class="tx-to-name-row">
              <span class="tx-contact-avatar-sm">${escapeHtml(cc.name.charAt(0).toUpperCase())}</span>
-             ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}
-           </span>
+             <span>${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</span>
+           </div>
            <span class="address tx-to-addr-sm">${escapeHtml(req.to)}</span>
-         </span>`
-      : `<span class="address">${escapeHtml(req.to)}</span>`;
+         </div>`
+      : `<span class="address tx-approval-addr">${escapeHtml(req.to)}</span>`;
     const transferText =
       req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
         ? escapeHtml(req.transferDisplay)
         : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
     const estUsd = typeof req.estimatedUsd === "number" ? req.estimatedUsd : 0;
     const canValuate = req.priceAvailable === true;
-    const usdtLine = canValuate
-      ? `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> ≈ ${estUsd.toFixed(2)} USDT <span style="color:var(--text-secondary);font-size:12px">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></p>`
-      : `<p><strong>${escapeHtml(tKey("modals.tx.estimatedUsd"))}:</strong> <span style="color:var(--text-secondary)">${escapeHtml(tKey("modals.tx.noUsdt"))}</span></p>`;
+    const estRow = canValuate
+      ? `<div class="tx-approval-row">
+           <span class="tx-approval-label">${escapeHtml(tKey("modals.tx.estimatedUsd"))}</span>
+           <span class="tx-approval-value">≈ ${estUsd.toFixed(2)} USDT <span class="tx-approval-hint">${escapeHtml(tKey("modals.tx.estimatedHint"))}</span></span>
+         </div>`
+      : "";
 
     details.innerHTML = `
-        <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
-        <p class="tx-row-to"><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> ${toContent}</p>
-        <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
-        ${usdtLine}
-        <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>
-        <p><strong>${escapeHtml(tKey("modals.tx.fromDevice"))}:</strong> ${escapeHtml(req.fromDevice)}</p>
-        <p><strong>${escapeHtml(tKey("modals.tx.sourceIp"))}:</strong> ${escapeHtml(req.sourceIP)}</p>
-      `;
+      <div class="tx-approval-amount-card">
+        <div class="tx-approval-you-are-sending">${escapeHtml(tKey("modals.tx.youAreSending"))}</div>
+        <div class="tx-approval-amount">${transferText}</div>
+        ${canValuate ? `<div class="tx-approval-usd">≈ $${estUsd.toFixed(2)}</div>` : ""}
+      </div>
+      <div class="tx-approval-info-rows">
+        <div class="tx-approval-row">
+          <span class="tx-approval-label">${escapeHtml(tKey("modals.tx.to"))}</span>
+          <div class="tx-approval-value">${toContent}</div>
+        </div>
+        <div class="tx-approval-row">
+          <span class="tx-approval-label">${escapeHtml(tKey("modals.tx.chain"))}</span>
+          <div class="tx-approval-value">${networkBadge}</div>
+        </div>
+        ${estRow}
+        <div class="tx-approval-row tx-approval-row-last">
+          <span class="tx-approval-label">${escapeHtml(tKey("modals.tx.method"))}</span>
+          <span class="tx-approval-value">${escapeHtml(req.method)}</span>
+        </div>
+      </div>
+      <div class="tx-approval-meta">
+        <span>${escapeHtml(tKey("modals.tx.fromDevice"))}: ${escapeHtml(req.fromDevice)}</span>
+        <span>${escapeHtml(tKey("modals.tx.sourceIp"))}: ${escapeHtml(req.sourceIP)}</span>
+      </div>
+    `;
   }
   const trustWrap = document.getElementById("tx-trust-wrap");
   const trustChk = document.getElementById("chk-trust-after-success");

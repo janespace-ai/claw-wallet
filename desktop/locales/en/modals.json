@@ -17,8 +17,13 @@
     "trustCheckbox": "After the transaction succeeds, add this recipient as a trusted contact (on-chain success required).",
     "trustNameLabel": "Contact display name (required)",
     "trustNamePlaceholder": "e.g. Exchange withdrawal",
+    "youAreSending": "You are sending",
     "approve": "Approve",
     "reject": "Reject",
+    "signatureTitle": "Signature Request",
+    "sign": "Sign",
+    "authTitle": "Authorization Request",
+    "authorize": "Authorize",
     "fromAccountLabel": "Signing account",
     "fromAccountFallback": "Account {index}",
     "switchAndView": "Switch & View"

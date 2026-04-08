@@ -17,8 +17,13 @@
     "trustCheckbox": "成功后将该收款地址加入可信任联系人（需链上成功）。",
     "trustNameLabel": "联系人显示名称（必填）",
     "trustNamePlaceholder": "例如：交易所提币",
+    "youAreSending": "您正在发送",
     "approve": "批准",
     "reject": "拒绝",
+    "signatureTitle": "签名请求",
+    "sign": "签名",
+    "authTitle": "授权请求",
+    "authorize": "授权",
     "fromAccountLabel": "签名账户",
     "fromAccountFallback": "账户 {index}",
     "switchAndView": "切换并查看"

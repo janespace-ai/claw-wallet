@@ -9,6 +9,7 @@ import { ethers } from "ethers";
 import type { ChainConfig } from "./config.js";
 import { NetworkConfigService } from "./network-config-service.js";
 import { RPCProviderManager } from "./rpc-provider-manager.js";
+import type { AssetCacheService, CachedAssetEntry } from "./asset-cache-service.js";
 
 export interface TokenBalance {
   token: string;
@@ -49,15 +50,18 @@ function isEmptyContractCallResult(err: unknown): boolean {
 export class BalanceService {
   private networkConfig: NetworkConfigService;
   private rpcManager: RPCProviderManager;
+  private assetCache?: AssetCacheService;
   private balanceCache: Map<string, { balances: TokenBalance[]; timestamp: number }> = new Map();
   private readonly CACHE_TTL_MS = 10000; // 10 seconds
 
   constructor(
     networkConfig: NetworkConfigService,
-    rpcManager: RPCProviderManager
+    rpcManager: RPCProviderManager,
+    assetCache?: AssetCacheService,
   ) {
     this.networkConfig = networkConfig;
     this.rpcManager = rpcManager;
+    this.assetCache = assetCache;
   }
 
   /**
@@ -93,6 +97,31 @@ export class BalanceService {
     this.balanceCache.set(cacheKey, { balances, timestamp: Date.now() });
 
     return balances;
+  }
+
+  /**
+   * Write balances + prices to the persistent SQLite cache.
+   * Called by the IPC layer after fetching prices so each entry carries its USD value.
+   */
+  persistToCache(address: string, balances: TokenBalance[], prices: Record<string, number>): void {
+    if (!this.assetCache || balances.length === 0) return;
+    const now = Date.now();
+    const entries: CachedAssetEntry[] = balances.map((b) => ({
+      symbol: b.symbol,
+      token: b.token,
+      chain_id: b.chainId,
+      chain_name: b.chainName,
+      decimals: b.decimals,
+      amount: b.amount,
+      raw_amount: b.rawAmount,
+      price_usd: prices[b.symbol] ?? 0,
+      updated_at: now,
+    }));
+    try {
+      this.assetCache.upsertMany(address, entries);
+    } catch (err) {
+      console.error("[BalanceService] Failed to persist cache:", err);
+    }
   }
 
   /**
@@ -298,30 +327,48 @@ export class BalanceService {
 
   /**
    * Return cached balances if available (ignoring TTL), otherwise fetch from chain.
-   * Used by relay queries so the agent sees the same data already shown in the UI,
-   * without triggering redundant on-chain RPC calls.
+   * Priority: in-memory map → SQLite persistent cache → on-chain fetch.
+   * Used by relay queries so the agent sees the same data shown in the UI.
    */
   async getCachedOrFetchBalances(address: string, tokenWhitelist?: string[]): Promise<TokenBalance[]> {
     const cacheKey = `${address}-all`;
     const cached = this.balanceCache.get(cacheKey);
     if (cached && cached.balances.length > 0) {
-      console.log('[BalanceService] Relay query: returning cached balances (age: ' + Math.round((Date.now() - cached.timestamp) / 1000) + 's)');
+      console.log('[BalanceService] Relay query: returning in-memory cached balances (age: ' + Math.round((Date.now() - cached.timestamp) / 1000) + 's)');
       return cached.balances;
     }
-    // No cache yet — do a fresh fetch so the agent still gets an answer
+
+    // Try SQLite persistent cache before hitting the chain
+    if (this.assetCache) {
+      const persistent = this.assetCache.getByAddress(address);
+      if (persistent.length > 0) {
+        console.log(`[BalanceService] Relay query: returning ${persistent.length} SQLite-cached entries`);
+        return persistent.map((e) => ({
+          token: e.token,
+          symbol: e.symbol,
+          amount: e.amount,
+          rawAmount: e.raw_amount,
+          chainId: e.chain_id,
+          chainName: e.chain_name,
+          decimals: e.decimals,
+        }));
+      }
+    }
+
+    // No cache at all — fresh fetch
     return this.getWalletBalances(address, tokenWhitelist, false);
   }
 
   /**
-   * Clear balance cache
+   * Clear in-memory balance cache (does NOT wipe SQLite — use clearCacheForAddress for that).
    */
   clearCache(): void {
     this.balanceCache.clear();
-    console.log('[BalanceService] Cache cleared');
+    console.log('[BalanceService] In-memory cache cleared');
   }
 
   /**
-   * Clear cache for specific address
+   * Clear in-memory and SQLite cache for a specific address.
    */
   clearCacheForAddress(address: string): void {
     const keysToDelete: string[] = [];
@@ -332,6 +379,11 @@ export class BalanceService {
     }
     for (const key of keysToDelete) {
       this.balanceCache.delete(key);
+    }
+    try {
+      this.assetCache?.clearByAddress(address);
+    } catch (err) {
+      console.error("[BalanceService] Failed to clear SQLite cache:", err);
     }
   }
 }

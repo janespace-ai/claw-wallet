@@ -18,6 +18,7 @@ import { NetworkConfigService } from "./network-config-service.js";
 import { RPCProviderManager } from "./rpc-provider-manager.js";
 import { AccountManager } from "./account-manager.js";
 import { MessageRouter } from "./message-router.js";
+import { AssetCacheService } from "./asset-cache-service.js";
 import { config } from "./config.js";
 
 /**
@@ -90,7 +91,8 @@ const lockManager = new LockManager(keyManager, {
   strictIdleTimeoutMs: config.lock.strictIdleTimeoutMs,
 });
 const priceService = new PriceService();
-const balanceService = new BalanceService(networkConfigService, rpcProviderManager);
+const assetCacheService = new AssetCacheService(dbService);
+const balanceService = new BalanceService(networkConfigService, rpcProviderManager, assetCacheService);
 let relayBridge: RelayBridge | null = null;
 /** Unified routing for Relay-driven UI events (all `RelayAccountChannel`s). */
 let messageRouter: MessageRouter | null = null;
@@ -457,6 +459,17 @@ function registerIpcHandlers(): void {
     return balanceService.getWalletBalances(address, config.signing.tokenWhitelist);
   });
 
+  ipcMain.handle("cache:get-cached-assets", async (_, address: string) => {
+    return assetCacheService.getByAddress(address);
+  });
+
+  ipcMain.handle("cache:start-background-refresh", async (_, address: string) => {
+    // Fire-and-forget — renderer doesn't wait for this
+    startBackgroundRefresh(address).catch((err) => {
+      console.error("[BackgroundRefresh] Uncaught error:", err);
+    });
+  });
+
   ipcMain.handle(
     "wallet:add-custom-token",
     async (
@@ -534,6 +547,106 @@ function registerIpcHandlers(): void {
   });
 }
 
+/**
+ * Two-phase background refresh for the persistent asset cache.
+ *
+ * Phase 1: Re-fetch on-chain balances + prices for assets already in SQLite cache.
+ *          Upserts results and pushes `cache:assets-refreshed` to the renderer.
+ *
+ * Phase 2: Scan the common-token whitelist for tokens NOT yet in the cache.
+ *          Any with non-zero balance are upserted and pushed to the renderer.
+ */
+async function startBackgroundRefresh(address: string): Promise<void> {
+  const win = mainWindow;
+  if (!win || win.isDestroyed()) return;
+
+  console.log(`[BackgroundRefresh] Starting for ${address}`);
+
+  // ── Phase 1: refresh existing cached assets ──────────────────────────────
+  const existing = assetCacheService.getByAddress(address);
+  if (existing.length > 0) {
+    // Group by chain_id to minimise RPC calls
+    const byChain = new Map<number, string[]>();
+    for (const e of existing) {
+      const syms = byChain.get(e.chain_id) ?? [];
+      if (!syms.includes(e.symbol)) syms.push(e.symbol);
+      byChain.set(e.chain_id, syms);
+    }
+
+    const refreshed: import("./balance-service.js").TokenBalance[] = [];
+    await Promise.all(
+      Array.from(byChain.entries()).map(async ([chainId, symbols]) => {
+        try {
+          const chainBalances = await balanceService.getBalancesForNetwork(address, chainId, symbols);
+          refreshed.push(...chainBalances);
+        } catch (err) {
+          console.error(`[BackgroundRefresh] Phase 1 failed for chain ${chainId}:`, err);
+        }
+      }),
+    );
+
+    if (refreshed.length > 0) {
+      const symbols = [...new Set(refreshed.map((b) => b.symbol))];
+      const prices = await priceService.getTokenPrices(symbols).catch(() => ({} as Record<string, number>));
+      balanceService.persistToCache(address, refreshed, prices);
+      if (!win.isDestroyed()) {
+        win.webContents.send("cache:assets-refreshed", { address, assets: assetCacheService.getByAddress(address) });
+      }
+    }
+  }
+
+  // ── Phase 2: discover new assets from common whitelist ───────────────────
+  const cachedKeys = new Set(
+    assetCacheService.getByAddress(address).map((e) => `${e.symbol}:${e.chain_id}`),
+  );
+
+  const supportedChainIds = networkConfigService.getSupportedChainIds();
+  const newBalances: import("./balance-service.js").TokenBalance[] = [];
+
+  await Promise.all(
+    supportedChainIds.map(async (chainId) => {
+      // Only scan tokens not yet in cache for this chain
+      const allTokens = networkConfigService.getAllTokens();
+      const newSymbols = allTokens
+        .filter((t) => t.contracts[chainId.toString()] && !cachedKeys.has(`${t.symbol}:${chainId}`))
+        .map((t) => t.symbol);
+
+      // Also check native currency
+      const network = networkConfigService.getNetwork(chainId);
+      const nativeMissing = network && !cachedKeys.has(`${network.nativeCurrency.symbol}:${chainId}`);
+
+      if (newSymbols.length === 0 && !nativeMissing) return;
+
+      try {
+        const chainBalances = await balanceService.getBalancesForNetwork(
+          address,
+          chainId,
+          nativeMissing ? undefined : newSymbols,
+        );
+        // Keep only non-zero balances not already cached
+        const truly_new = chainBalances.filter(
+          (b) => parseFloat(b.amount) > 0 && !cachedKeys.has(`${b.symbol}:${b.chainId}`),
+        );
+        newBalances.push(...truly_new);
+      } catch (err) {
+        console.error(`[BackgroundRefresh] Phase 2 failed for chain ${chainId}:`, err);
+      }
+    }),
+  );
+
+  if (newBalances.length > 0) {
+    const symbols = [...new Set(newBalances.map((b) => b.symbol))];
+    const prices = await priceService.getTokenPrices(symbols).catch(() => ({} as Record<string, number>));
+    balanceService.persistToCache(address, newBalances, prices);
+    if (!win.isDestroyed()) {
+      win.webContents.send("cache:assets-refreshed", { address, assets: assetCacheService.getByAddress(address) });
+    }
+    console.log(`[BackgroundRefresh] Phase 2 found ${newBalances.length} new asset(s) for ${address}`);
+  }
+
+  console.log(`[BackgroundRefresh] Complete for ${address}`);
+}
+
 function createRelayBridge(): RelayBridge {
   return new RelayBridge({
     dataDir,
@@ -546,6 +659,7 @@ function createRelayBridge(): RelayBridge {
     signingHistory,
     txSyncService,
     balanceService,
+    assetCacheService,
     messageRouter: messageRouter!,
     relayUrl: config.relayUrl,
     reconnectBaseMs: config.relay.reconnectBaseMs,

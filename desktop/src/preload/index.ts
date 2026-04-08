@@ -34,6 +34,12 @@ export interface WalletAPI {
   exportMnemonic: (password: string) => Promise<{ mnemonic: string }>;
   getTokenPrices: (tokens: string[]) => Promise<Record<string, number>>;
   getWalletBalances: (address: string) => Promise<TokenBalance[]>;
+  /** Read persistent asset cache for an address (instant, no RPC). */
+  getCachedAssets: (address: string) => Promise<CachedAssetEntry[]>;
+  /** Trigger two-phase background cache refresh (fire-and-forget). */
+  startBackgroundRefresh: (address: string) => Promise<void>;
+  /** Subscribe to background refresh completion events. */
+  onAssetsRefreshed: (callback: (payload: { address: string; assets: CachedAssetEntry[] }) => void) => () => void;
   /** Add user ERC-20 on a supported chain (saved to user config, clears balance cache). */
   addCustomToken: (input: CustomTokenInput) => Promise<CustomTokenConfig>;
   listCustomTokens: () => Promise<CustomTokenConfig[]>;
@@ -189,6 +195,18 @@ export interface TokenBalance {
   decimals: number;
 }
 
+export interface CachedAssetEntry {
+  symbol: string;
+  token: string;
+  chain_id: number;
+  chain_name: string;
+  decimals: number;
+  amount: string;
+  raw_amount: string;
+  price_usd: number;
+  updated_at: number;
+}
+
 export type RecoverScanResult =
   | { status: "found"; index: number; address: string; balances: TokenBalance[] }
   | { status: "empty"; nextIndex: number }
@@ -290,6 +308,13 @@ const api: WalletAPI = {
   exportMnemonic: (password) => ipcRenderer.invoke("wallet:export-mnemonic", password),
   getTokenPrices: (tokens) => ipcRenderer.invoke("wallet:get-token-prices", tokens),
   getWalletBalances: (address) => ipcRenderer.invoke("wallet:get-wallet-balances", address),
+  getCachedAssets: (address) => ipcRenderer.invoke("cache:get-cached-assets", address),
+  startBackgroundRefresh: (address) => ipcRenderer.invoke("cache:start-background-refresh", address),
+  onAssetsRefreshed: (callback) => {
+    const handler = (_: unknown, payload: { address: string; assets: CachedAssetEntry[] }) => callback(payload);
+    ipcRenderer.on("cache:assets-refreshed", handler);
+    return () => ipcRenderer.removeListener("cache:assets-refreshed", handler);
+  },
   addCustomToken: (input) => ipcRenderer.invoke("wallet:add-custom-token", input),
   listCustomTokens: () => ipcRenderer.invoke("wallet:list-custom-tokens"),
   removeCustomToken: (symbol, chainId) => ipcRenderer.invoke("wallet:remove-custom-token", symbol, chainId),

@@ -25,7 +25,8 @@ import { ContactConflictError, type WalletAuthorityStore } from "./wallet-author
 import type { SigningHistory } from "./signing-history.js";
 import type { TxSyncService } from "./tx-sync-service.js";
 import { extractRecipientForTrust } from "./signing-engine.js";
-import type { BalanceService } from "./balance-service.js";
+import type { BalanceService, TokenBalance } from "./balance-service.js";
+import type { AssetCacheService } from "./asset-cache-service.js";
 
 /** One WebSocket + E2EE state per sub-account (isolated from other accounts). */
 export interface RelayAccountChannelOptions {
@@ -66,6 +67,8 @@ export interface RelayAccountChannelOptions {
   }) => Promise<void>;
   /** Balance service for wallet_get_balances relay queries. */
   balanceService?: BalanceService;
+  /** Persistent asset cache — allows agent unfiltered queries to skip RPC. */
+  assetCacheService?: AssetCacheService;
 }
 
 export interface TransactionRequestInfo {
@@ -987,10 +990,58 @@ export class RelayAccountChannel {
             err("Balance service not available", "INTERNAL_ERROR");
             return;
           }
+
           const tokenFilter = Array.isArray(params.tokens)
             ? (params.tokens as string[]).map((t) => String(t).toUpperCase())
             : undefined;
-          const balances = await this.options.balanceService.getCachedOrFetchBalances(address, tokenFilter);
+          const chainFilter = typeof params.chain === "string" ? params.chain : undefined;
+          const hasFilter = !!(tokenFilter || chainFilter);
+
+          let balances: TokenBalance[];
+
+          if (!hasFilter && this.options.assetCacheService) {
+            // No filter: serve from persistent SQLite cache without touching the chain
+            const cached = this.options.assetCacheService.getByAddress(address);
+            if (cached.length > 0) {
+              console.log(`[RelayChannel] wallet_get_balances: returning ${cached.length} cached entries for ${address}`);
+              balances = cached.map((e) => ({
+                token: e.token,
+                symbol: e.symbol,
+                amount: e.amount,
+                rawAmount: e.raw_amount,
+                chainId: e.chain_id,
+                chainName: e.chain_name,
+                decimals: e.decimals,
+              }));
+              this.sendEncrypted(session, { requestId, result: { balances } }, requestId);
+              return;
+            }
+            // Cache empty — fall through to on-chain fetch then populate cache
+          }
+
+          // Filtered query OR no cache: fetch on-chain, then upsert into persistent cache
+          balances = await this.options.balanceService.getCachedOrFetchBalances(address, tokenFilter);
+
+          if (this.options.assetCacheService && balances.length > 0) {
+            const now = Date.now();
+            const entries = balances.map((b) => ({
+              symbol: b.symbol,
+              token: b.token,
+              chain_id: b.chainId,
+              chain_name: b.chainName,
+              decimals: b.decimals,
+              amount: b.amount,
+              raw_amount: b.rawAmount,
+              price_usd: 0, // price not available in this path; background refresh will update
+              updated_at: now,
+            }));
+            try {
+              this.options.assetCacheService.upsertMany(address, entries);
+            } catch (cacheErr) {
+              console.error("[RelayChannel] Failed to upsert asset cache:", cacheErr);
+            }
+          }
+
           this.sendEncrypted(session, { requestId, result: { balances } }, requestId);
           return;
         }

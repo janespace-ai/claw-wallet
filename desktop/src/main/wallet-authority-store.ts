@@ -102,7 +102,15 @@ export class WalletAuthorityStore {
       .prepare(`SELECT chain, address FROM desktop_contacts WHERE account_index = ? AND trusted = 1`)
       .all(accountIndex) as { chain: string; address: string }[];
     for (const r of rows) {
-      keys.add(`${normChain(r.chain)}:${normAddr(r.address)}`);
+      const chain = normChain(r.chain);
+      const addr = normAddr(r.address);
+      keys.add(`${chain}:${addr}`);
+      // A trusted contact on any EVM chain is trusted on all EVM chains (same 0x address namespace).
+      if (EVM_CHAINS.has(chain)) {
+        for (const evmChain of EVM_CHAINS) {
+          keys.add(`${evmChain}:${addr}`);
+        }
+      }
     }
     return keys;
   }
@@ -128,13 +136,24 @@ export class WalletAuthorityStore {
     const a = normAddr(address);
     const c = normChain(chain);
     if (!ADDR_RE.test(a)) return null;
+    // Exact match first
     const row = this.db
       .prepare(
         `SELECT name, trusted FROM desktop_contacts WHERE account_index = ? AND address = ? AND chain = ? COLLATE NOCASE`,
       )
       .get(accountIndex, a, c) as { name: string; trusted: number } | undefined;
-    if (!row) return null;
-    return { name: row.name, trusted: row.trusted === 1 };
+    if (row) return { name: row.name, trusted: row.trusted === 1 };
+    // Cross-chain EVM fallback: a contact saved on any EVM chain is valid
+    // for transfers on any other EVM chain (same 0x address namespace).
+    if (EVM_CHAINS.has(c)) {
+      const evmRow = this.db
+        .prepare(
+          `SELECT name, trusted FROM desktop_contacts WHERE account_index = ? AND address = ? AND chain IN (${[...EVM_CHAINS].map(() => "?").join(",")}) COLLATE NOCASE LIMIT 1`,
+        )
+        .get(accountIndex, a, ...[...EVM_CHAINS]) as { name: string; trusted: number } | undefined;
+      if (evmRow) return { name: evmRow.name, trusted: evmRow.trusted === 1 };
+    }
+    return null;
   }
 
   listContacts(accountIndex: number): DesktopContactRow[] {

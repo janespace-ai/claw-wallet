@@ -479,34 +479,36 @@
     <div class="bottom-sheet">
       <div class="sheet-drag-handle"></div>
 
-      <div id="tx-agent-chip" class="sheet-agent-chip" style="display:none;"></div>
+      <div class="sheet-body">
+        <div id="tx-agent-chip" class="sheet-agent-chip" style="display:none;"></div>
 
-      <div class="sheet-title-row">
-        <h3 class="sheet-title" data-i18n="modals.tx.title">Transaction Request</h3>
-        <button type="button" id="btn-reject-tx" class="sheet-close">×</button>
-      </div>
+        <div class="sheet-title-row">
+          <h3 class="sheet-title" data-i18n="modals.tx.title">Transaction Request</h3>
+          <button type="button" id="btn-reject-tx" class="sheet-close">×</button>
+        </div>
 
-      <div id="tx-from-account-row" class="tx-from-account-badge" style="display:none;">
-        <span class="sheet-agent-chip">
-          <span class="tx-from-label" data-i18n="modals.tx.fromAccountLabel">Signing account: </span>
-          <span id="tx-from-account-text"></span>
-        </span>
-      </div>
+        <div id="tx-from-account-row" class="tx-from-account-badge" style="display:none;">
+          <span class="sheet-agent-chip">
+            <span class="tx-from-label" data-i18n="modals.tx.fromAccountLabel">Signing account: </span>
+            <span id="tx-from-account-text"></span>
+          </span>
+        </div>
 
-      <div id="tx-details"></div>
+        <div id="tx-details"></div>
 
-      <label id="tx-trust-wrap" style="display:none;flex-direction:column;gap:8px;font-size:14px;color:var(--text-primary);">
-        <span style="display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="chk-trust-after-success">
-          <span data-i18n="modals.tx.trustCheckbox">After success, add recipient as trusted contact</span>
-        </span>
-        <label id="tx-trust-name-wrap" style="display:none;">
-          <span data-i18n="modals.tx.trustNameLabel">Contact display name</span>
-          <input type="text" id="input-trust-contact-name" class="input-field"
-                 data-i18n-placeholder="modals.tx.trustNamePlaceholder"
-                 placeholder="e.g. Exchange withdrawal" style="margin-top:6px;">
+        <label id="tx-trust-wrap" style="display:none;flex-direction:column;gap:8px;font-size:14px;color:var(--text-primary);">
+          <span style="display:flex;align-items:center;gap:8px;">
+            <input type="checkbox" id="chk-trust-after-success">
+            <span data-i18n="modals.tx.trustCheckbox">After success, add recipient as trusted contact</span>
+          </span>
+          <label id="tx-trust-name-wrap" style="display:none;">
+            <span data-i18n="modals.tx.trustNameLabel">Contact display name</span>
+            <input type="text" id="input-trust-contact-name" class="input-field"
+                   data-i18n-placeholder="modals.tx.trustNamePlaceholder"
+                   placeholder="e.g. Exchange withdrawal" style="margin-top:6px;">
+          </label>
         </label>
-      </label>
+      </div>
 
       <div class="sheet-actions">
         <button type="button" id="btn-tx-switch-view" class="btn-outline" style="display:none;height:44px;" data-i18n="modals.tx.switchAndView">Switch &amp; View</button>

@@ -787,10 +787,15 @@ function showTxApprovalModal(req) {
     }
 
     const cc = req.counterpartyContact;
-    const bookLine =
-      cc && cc.name
-        ? `<p><strong>${escapeHtml(tKey("modals.tx.addressBook"))}:</strong> ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}</p>`
-        : "";
+    const toContent = cc && cc.name
+      ? `<span class="tx-to-contact-wrap">
+           <span class="tx-to-name-row">
+             <span class="tx-contact-avatar-sm">${escapeHtml(cc.name.charAt(0).toUpperCase())}</span>
+             ${escapeHtml(cc.name)}${cc.trusted ? trustedContactBadgeHtml() : ""}
+           </span>
+           <span class="address tx-to-addr-sm">${escapeHtml(req.to)}</span>
+         </span>`
+      : `<span class="address">${escapeHtml(req.to)}</span>`;
     const transferText =
       req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
         ? escapeHtml(req.transferDisplay)
@@ -803,8 +808,7 @@ function showTxApprovalModal(req) {
 
     details.innerHTML = `
         <p><strong>${escapeHtml(tKey("modals.tx.method"))}:</strong> ${escapeHtml(req.method)}</p>
-        ${bookLine}
-        <p><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>
+        <p class="tx-row-to"><strong>${escapeHtml(tKey("modals.tx.to"))}:</strong> ${toContent}</p>
         <p><strong>${escapeHtml(tKey("modals.tx.transfer"))}:</strong> ${transferText}</p>
         ${usdtLine}
         <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>

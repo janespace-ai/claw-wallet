@@ -11405,11 +11405,13 @@
       "width": 390,
       "height": 700,
       "fill": "$bg",
-      "layout": "vertical",
+      "layout": "none",
       "children": [
         {
           "type": "frame",
           "id": "GYEbI",
+          "x": 0,
+          "y": 0,
           "name": "Overlay",
           "width": 390,
           "height": 700,
@@ -11433,9 +11435,11 @@
         {
           "type": "frame",
           "id": "fs820",
+          "x": 0,
+          "y": 140,
           "name": "Bottom Sheet",
           "width": 390,
-          "height": 480,
+          "height": 560,
           "fill": "$surface",
           "cornerRadius": [
             24,
@@ -11475,6 +11479,7 @@
               "name": "sheetContent",
               "width": "fill_container",
               "layout": "vertical",
+              "gap": 12,
               "padding": [
                 8,
                 24,

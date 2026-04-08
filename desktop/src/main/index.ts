@@ -463,6 +463,10 @@ function registerIpcHandlers(): void {
     return assetCacheService.getByAddress(address);
   });
 
+  ipcMain.handle("cache:persist-assets", async (_, address: string, balances: import("./balance-service.js").TokenBalance[], prices: Record<string, number>) => {
+    balanceService.persistToCache(address, balances, prices);
+  });
+
   ipcMain.handle("cache:start-background-refresh", async (_, address: string) => {
     // Fire-and-forget — renderer doesn't wait for this
     startBackgroundRefresh(address).catch((err) => {

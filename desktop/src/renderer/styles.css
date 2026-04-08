@@ -820,12 +820,42 @@ input[type="number"] { -moz-appearance: textfield; }
   font-weight: 600;
 }
 
+.portfolio-value-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
 .portfolio-value {
   font-size: 32px;
   font-weight: 700;
   color: var(--text-primary);
-  margin-top: 4px;
   letter-spacing: -0.5px;
+}
+
+.updating-chip {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px 3px 6px;
+  border-radius: 20px;
+  background: var(--accent-light);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.updating-icon {
+  flex-shrink: 0;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .portfolio-change {

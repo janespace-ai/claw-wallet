@@ -187,7 +187,13 @@
         <!-- Portfolio section -->
         <div class="portfolio-section">
           <div class="portfolio-label" data-i18n="common.home.portfolioValue">Total Portfolio Value</div>
-          <div class="portfolio-value" id="portfolio-value">—</div>
+          <div class="portfolio-value-row">
+            <div class="portfolio-value" id="portfolio-value">—</div>
+            <div class="updating-chip" id="updating-chip" style="display:none">
+              <svg class="updating-icon" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+              <span data-i18n="common.home.updating">Updating</span>
+            </div>
+          </div>
           <div class="portfolio-change positive" id="portfolio-change" style="display:none"></div>
           <div class="portfolio-address" id="portfolio-address" style="display:none">
             <span class="portfolio-address-text" id="portfolio-address-text"></span>

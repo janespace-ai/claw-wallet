@@ -56,6 +56,7 @@
   },
   "home": {
     "portfolioValue": "Total Portfolio Value",
+    "updating": "Updating",
     "balances": "Balances",
     "allNetworks": "All Networks",
     "hideZero": "Hide zero balances",

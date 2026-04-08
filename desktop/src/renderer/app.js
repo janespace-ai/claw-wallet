@@ -196,6 +196,16 @@ function cachedEntryToBalance(entry) {
   };
 }
 
+function showUpdatingChip() {
+  const chip = document.getElementById("updating-chip");
+  if (chip) chip.style.display = "flex";
+}
+
+function hideUpdatingChip() {
+  const chip = document.getElementById("updating-chip");
+  if (chip) chip.style.display = "none";
+}
+
 async function loadWalletBalances(address) {
   if (!address) return;
 
@@ -219,6 +229,7 @@ async function loadWalletBalances(address) {
       if (portfolioChangeDisplay) portfolioChangeDisplay.style.display = "none";
       renderedFromCache = true;
       // Kick off background refresh — renderer will update via cache:assets-refreshed event
+      showUpdatingChip();
       wapi().startBackgroundRefresh(address).catch(() => {});
       return;
     }
@@ -249,7 +260,10 @@ async function loadWalletBalances(address) {
     const prices = await wapi().getTokenPrices(tokens);
     currentPrices = prices;
 
-    // Persist to SQLite cache (via main process after full fetch + prices)
+    // Persist balances + prices to SQLite cache so next open is instant
+    wapi().persistCachedAssets(address, balances, prices).catch(() => {});
+
+    hideUpdatingChip();
     renderBalances(balances, prices);
     const totalValue = calculateTotalValue(balances, prices);
     portfolioValueDisplay.textContent = `$${totalValue.toFixed(2)}`;
@@ -1097,6 +1111,7 @@ function setupEventListeners() {
   document.getElementById("btn-refresh-balances").onclick = async () => {
     const status = await wapi().getStatus();
     if (status.address) {
+      showUpdatingChip();
       loadWalletBalances(status.address);
     }
   };
@@ -1795,6 +1810,7 @@ function setupRealtimeEvents() {
     const prices = Object.fromEntries(assets.map(e => [e.symbol, e.price_usd]));
     currentBalances = balances;
     currentPrices = prices;
+    hideUpdatingChip();
     renderBalances(balances, prices);
     const totalValue = calculateTotalValue(balances, prices);
     const portfolioValueDisplay = document.getElementById("portfolio-value");

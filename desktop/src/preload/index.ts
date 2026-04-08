@@ -38,6 +38,8 @@ export interface WalletAPI {
   getCachedAssets: (address: string) => Promise<CachedAssetEntry[]>;
   /** Trigger two-phase background cache refresh (fire-and-forget). */
   startBackgroundRefresh: (address: string) => Promise<void>;
+  /** Persist balances + prices to SQLite cache after a full on-chain fetch. */
+  persistCachedAssets: (address: string, balances: TokenBalance[], prices: Record<string, number>) => Promise<void>;
   /** Subscribe to background refresh completion events. */
   onAssetsRefreshed: (callback: (payload: { address: string; assets: CachedAssetEntry[] }) => void) => () => void;
   /** Add user ERC-20 on a supported chain (saved to user config, clears balance cache). */
@@ -310,6 +312,7 @@ const api: WalletAPI = {
   getWalletBalances: (address) => ipcRenderer.invoke("wallet:get-wallet-balances", address),
   getCachedAssets: (address) => ipcRenderer.invoke("cache:get-cached-assets", address),
   startBackgroundRefresh: (address) => ipcRenderer.invoke("cache:start-background-refresh", address),
+  persistCachedAssets: (address, balances, prices) => ipcRenderer.invoke("cache:persist-assets", address, balances, prices),
   onAssetsRefreshed: (callback) => {
     const handler = (_: unknown, payload: { address: string; assets: CachedAssetEntry[] }) => callback(payload);
     ipcRenderer.on("cache:assets-refreshed", handler);

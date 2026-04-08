@@ -11,10 +11,19 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./openclaw": {
+      "types": "./dist/openclaw-plugin.d.ts",
+      "import": "./dist/openclaw-plugin.js"
     }
   },
+  "openclaw": {
+    "extensions": ["./dist/openclaw-plugin.js"]
+  },
   "files": [
-    "dist"
+    "dist",
+    "skills",
+    "openclaw.plugin.json"
   ],
   "scripts": {
     "build": "tsup",
@@ -46,6 +55,15 @@
   },
   "devDependencies": {
     "@types/node": "^25.5.0",
+    "openclaw": "*",
     "vitest": "^4.1.0"
+  },
+  "peerDependencies": {
+    "openclaw": "*"
+  },
+  "peerDependenciesMeta": {
+    "openclaw": {
+      "optional": true
+    }
   }
 }

@@ -5,12 +5,10 @@ version: 1.0.0
 metadata:
   openclaw:
     requires:
-      env:
-        - RELAY_URL
       bins:
         - node
-    primaryEnv: RELAY_URL
-    # Default: http://localhost:8080 (Claw Wallet desktop app starts relay automatically)
+    # Relay URL is hardcoded to http://localhost:8080 (desktop app default) in the plugin entry.
+    # When using as a standalone skill, set RELAY_URL env var to override.
     emoji: "🔐"
     homepage: https://github.com/janespace-ai/claw-wallet
 ---
@@ -19,12 +17,20 @@ metadata:
 
 > ⚠️ **IMPORTANT — Installation instructions**
 >
-> This skill works via the **local ClawWallet SDK only**. Do NOT install or configure an MCP server — no `mcp-server.js`, no `mcpServers` config, no `npx @claw-wallet/mcp-server`.
+> **Recommended (OpenClaw plugin — tools registered natively):**
+> ```
+> openclaw plugins install claw-wallet
+> ```
+> This registers all 19 wallet tools directly into OpenClaw and loads this document as context. No code generation needed — tools are called via native `tool_use`.
 >
-> **Setup requirements (all you need):**
-> 1. Ensure the **Claw Wallet desktop app** is running on the user's machine
-> 2. Confirm `RELAY_URL` is set (default: `http://localhost:8080` — the desktop app starts the relay automatically)
-> 3. Call `wallet_address` to check pairing state — if not paired, follow **First-time Setup** below
+> **Legacy (skill only — Claude generates code to call SDK):**
+> ```
+> openclaw skills install claw-wallet
+> ```
+>
+> **Setup requirements:**
+> 1. Ensure the **Claw Wallet desktop app** is running on the user's machine (starts relay at `http://localhost:8080` automatically)
+> 2. Call `wallet_address` to check pairing state — if not paired, follow **First-time Setup** below
 
 Keys live in the **Claw Wallet desktop app** — never in this agent. Before any wallet operation, check pairing state.
 

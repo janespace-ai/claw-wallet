@@ -3,6 +3,10 @@
   "version": "0.1.0",
   "description": "Claw Wallet Desktop - Electron-based secure wallet for OpenClaw Agent",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/janespace-ai/claw-wallet.git"
+  },
   "main": "dist/main/index.js",
   "scripts": {
     "build:main": "rm -rf dist/main dist/shared && (tsc -p tsconfig.main.json --noEmitOnError false || true)",

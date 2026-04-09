@@ -39,9 +39,13 @@ export function createWalletCallContractTool(
 ): ToolDefinition {
   return {
     name: "wallet_call_contract",
-    description: `Call any smart contract function on EVM chains.
+    description: `Call a STATE-CHANGING smart contract function on EVM chains (requires user signing).
 
-Use this for DeFi protocol interactions: ERC-20 approvals, Uniswap swaps,
+⚠️  IMPORTANT: Use wallet_read_contract for ANY read-only (view/pure) function such as
+allowance(), balanceOf(), decimals(), symbol(), slot0(), getUserAccountData(), etc.
+Using this tool for view functions will incorrectly trigger a signing modal.
+
+Use THIS tool only for state-changing DeFi interactions: ERC-20 approve, Uniswap swaps,
 Aave deposits/borrows, staking, governance voting, etc.
 
 Provide the contract address, a human-readable function signature, and arguments as a JSON array.
@@ -53,25 +57,32 @@ Most DeFi interactions require a two-step pattern:
 
 ═══ UNISWAP V3 SWAP GUIDE ═══════════════════════════════════════════
 
-SwapRouter02 exactInputSingle signature (NO deadline field):
-  exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))
-  args: [tokenIn, tokenOut, fee, recipient, amountIn, amountOutMinimum, sqrtPriceLimitX96]
+⚠️  CRITICAL — SwapRouter02 exactInputSingle has EXACTLY 7 tuple fields (NO deadline):
+  functionSignature="exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))"
+  Tuple order (7 values):  tokenIn, tokenOut, fee, recipient, amountIn, amountOutMinimum, sqrtPriceLimitX96
+  ❌ WRONG (8 values — old SwapRouter V1): tokenIn, tokenOut, fee, recipient, DEADLINE, amountIn, amountOutMinimum, sqrtPriceLimitX96
+  ✅ CORRECT (7 values — SwapRouter02):    tokenIn, tokenOut, fee, recipient, amountIn, amountOutMinimum, sqrtPriceLimitX96
 
 Key rules:
 • tokenOut = WETH address (NOT native ETH address) — you get WETH, not ETH
 • sqrtPriceLimitX96 = "0" (no price limit)
 • amountOutMinimum = expected_output * (1 - slippage) — use 10-15% slippage to avoid revert
 • First call wallet_balance to get current ETH/USDC price, then compute amountOutMinimum
+• ERC-20 approve amount MUST equal the exact swap amountIn — never round up or add a buffer
 
-Fee tiers — ALWAYS try multiple if one fails:
-  500  (0.05%) — stable pairs: USDC/USDT, ETH/WBTC
-  3000 (0.3%)  — most pairs: USDC/WETH ← try this first for USDC/ETH
-  10000 (1%)  — exotic/low-liquidity pairs
+❌ NEVER use SushiSwap (0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506) or any non-Uniswap router.
+   SushiSwap approve + swap will ALWAYS fail with TRANSFER_FROM_FAILED on tokens approved to Uniswap.
+   If Uniswap swap fails: only retry with higher slippage or a different fee tier on SwapRouter02.
+
+Fee tiers — try in this order if one fails:
+  3000 (0.3%)  — try FIRST for USDC/ETH and most pairs
+  500  (0.05%) — stable pairs: USDC/USDT
+  10000 (1%)  — last resort for low-liquidity pairs
 
 If gas estimation fails with "revert" or "TooLittleReceived":
-  → Reduce amountOutMinimum (use 15-20% slippage)
-  → Try fee tier 3000 instead of 500
-  → Verify both token addresses are correct for the chain
+  → Increase slippage to 20% (reduce amountOutMinimum further)
+  → Try fee tier 500 as alternative
+  → Check token addresses match the chain (Arbitrum USDC ≠ Base USDC)
 
 ═══ KNOWN ADDRESSES ════════════════════════════════════════════════
 
@@ -169,6 +180,45 @@ Examples:
         }
         return arg;
       });
+
+      // ── Block SushiSwap router — it will always fail for Uniswap-approved tokens ──
+      const SUSHISWAP_ADDRS = new Set([
+        "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506", // SushiSwap Arbitrum
+        "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f", // SushiSwap Ethereum
+      ]);
+      if (SUSHISWAP_ADDRS.has(args.to.toLowerCase())) {
+        return {
+          error:
+            "BLOCKED: SushiSwap router is not supported. Use Uniswap SwapRouter02 instead.\n" +
+            "Arbitrum: 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45\n" +
+            "If Uniswap is failing, retry with higher slippage (20%) or fee tier 500/3000/10000.",
+        };
+      }
+
+      // ── Uniswap V3 SwapRouter02 exactInputSingle guard ──────────────────
+      // SwapRouter02 has NO deadline in its struct (7 fields).
+      // The old SwapRouter V1 had 8 fields with deadline after recipient.
+      // If the model passes an 8-element tuple, automatically strip the
+      // deadline (index 4) so the call always uses the correct 7-field ABI.
+      const SWAPROUTER02_ADDRS = new Set([
+        "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45", // Arbitrum + mainnet
+        "0x2626664c2603336e57b271c5c0b26f421741e481", // Base
+      ]);
+      const fnNameRaw = args.functionSignature.split("(")[0].trim();
+      if (
+        fnNameRaw === "exactInputSingle" &&
+        SWAPROUTER02_ADDRS.has(args.to.toLowerCase()) &&
+        Array.isArray(coercedArgs[0]) &&
+        (coercedArgs[0] as unknown[]).length === 8
+      ) {
+        // Strip deadline (index 4): [tokenIn, tokenOut, fee, recipient, DEADLINE, amountIn, amountOutMin, sqrtPrice]
+        //                       →   [tokenIn, tokenOut, fee, recipient,           amountIn, amountOutMin, sqrtPrice]
+        const t = coercedArgs[0] as unknown[];
+        coercedArgs[0] = [...t.slice(0, 4), ...t.slice(5)] as unknown[];
+        // Also normalise the function signature to the 7-field version
+        args.functionSignature =
+          "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))";
+      }
 
       // ABI-encode using viem
       let data: `0x${string}`;

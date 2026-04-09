@@ -50,7 +50,7 @@ export function createAllTools(deps: ToolDependencies): ToolDefinition[] {
     ...createWalletApprovalTools(deps.policy),
     createWalletHistoryTool(deps.history),
     createWalletSignTypedDataTool(deps.walletConnection, deps.getAddress),
-    createWalletCallContractTool(deps.walletConnection, deps.getAddress, deps.defaultChain),
+    createWalletCallContractTool(deps.walletConnection, deps.chainAdapter, deps.contacts, deps.getAddress, deps.defaultChain),
   ];
 
   // Wrap all tools with logging

@@ -1,6 +1,8 @@
-import { encodeFunctionData, parseAbiItem, type Abi } from "viem";
+import { encodeFunctionData, parseAbiItem, type Abi, type Hex } from "viem";
 import type { Address } from "viem";
 import type { WalletConnection } from "../wallet-connection.js";
+import type { ChainAdapter } from "../chain.js";
+import type { ContactsManager } from "../contacts.js";
 import type { SupportedChain, ToolDefinition } from "../types.js";
 
 /**
@@ -11,6 +13,8 @@ import type { SupportedChain, ToolDefinition } from "../types.js";
  */
 export function createWalletCallContractTool(
   walletConnection: WalletConnection,
+  chainAdapter: ChainAdapter,
+  contacts: ContactsManager,
   getAddress: () => Address | null,
   defaultChain: SupportedChain,
 ): ToolDefinition {
@@ -127,17 +131,18 @@ Examples:
         };
       }
 
-      // Send via relay using sign_transaction path (same as wallet_send)
+      // Sign via relay, broadcast, then notify wallet of result
+      const chain = (args.chain ?? defaultChain) as SupportedChain;
+      let signResult: { signedTx: Hex; requestId: string; address: string };
       try {
-        const result = await walletConnection.sendToWallet("sign_transaction", {
+        signResult = await walletConnection.sendToWallet("sign_transaction", {
           to: args.to,
           data,
           value: args.value ?? "0",
-          chain: args.chain ?? defaultChain,
+          chain,
           token: "ETH",
           method: "wallet_call_contract",
-        });
-        return result;
+        }) as typeof signResult;
       } catch (err) {
         const msg = (err as Error).message ?? String(err);
         if (msg.includes("rejected by user") || msg.includes("USER_REJECTED")) {
@@ -148,6 +153,47 @@ Examples:
         }
         return { error: msg };
       }
+
+      // Broadcast the signed transaction
+      let receipt: Awaited<ReturnType<ChainAdapter["broadcastTransaction"]>>;
+      try {
+        receipt = await chainAdapter.broadcastTransaction(signResult.signedTx, chain);
+      } catch (err) {
+        const msg = (err as Error).message ?? String(err);
+        return { error: `BROADCAST_ERROR: 广播交易失败: ${msg}` };
+      }
+
+      const success = receipt.status === "success";
+
+      // Notify wallet so trust-after-success contact saving works
+      try {
+        const notifyRaw = await walletConnection.sendToWallet("wallet_notify_tx_result", {
+          requestId: signResult.requestId,
+          success,
+          txHash: receipt.transactionHash,
+          chain,
+        });
+        const notifyRes = notifyRaw as {
+          ok?: boolean;
+          newContact?: { name: string; address: string; chain: string; trusted: boolean };
+        };
+        if (notifyRes?.newContact?.trusted) {
+          const nc = notifyRes.newContact;
+          contacts.addContact(nc.name, { [nc.chain]: nc.address as Address });
+          contacts.setTrustedOnChain(nc.name, nc.chain as SupportedChain, true);
+          await contacts.save().catch(() => {});
+        }
+      } catch {
+        // Non-fatal: contact mirroring is best-effort
+      }
+
+      return {
+        hash: receipt.transactionHash,
+        status: success ? "confirmed" : "failed",
+        blockNumber: receipt.blockNumber?.toString(),
+        gasUsed: receipt.gasUsed?.toString(),
+        message: `Transaction ${success ? "confirmed" : "failed"}. Hash: ${receipt.transactionHash}`,
+      };
     },
   };
 }

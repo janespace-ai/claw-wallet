@@ -2720,6 +2720,7 @@ input[type="number"] { -moz-appearance: textfield; }
 .tx-auth-label { font-size: 12px; color: var(--text-secondary); }
 .tx-auth-amount { font-size: 26px; font-weight: 700; color: var(--text-primary); }
 .tx-auth-sub { font-size: 13px; color: #FB923C; font-weight: 500; }
+.tx-auth-sub--danger { font-size: 11px; color: #EF4444; margin-top: 2px; }
 
 .tx-warning-banner {
   display: flex; align-items: flex-start; gap: 8px;

@@ -20,7 +20,7 @@ import { KeyManager } from "./key-manager.js";
 import { SigningEngine } from "./signing-engine.js";
 import { SecurityMonitor } from "./security-monitor.js";
 import type { PriceService } from "./price-service.js";
-import { estimateSignTransactionUsd, getSignTransactionTransferDisplay } from "./tx-usd-estimate.js";
+import { estimateSignTransactionUsd, getSignTransactionTransferDisplay, getApproveDisplayAmount } from "./tx-usd-estimate.js";
 import { ContactConflictError, type WalletAuthorityStore } from "./wallet-authority-store.js";
 import type { SigningHistory } from "./signing-history.js";
 import type { TxSyncService } from "./tx-sync-service.js";
@@ -87,6 +87,8 @@ export interface TransactionRequestInfo {
   counterpartyContact?: { name: string; trusted: boolean } | null;
   /** e.g. "0.1 ETH" / "100 USDC" — same basis as policy estimate; null if unknown */
   transferDisplay: string | null;
+  /** True when approve amount is MaxUint256 (no spending limit). Only set for requestType=approval. */
+  isUnlimitedApproval?: boolean;
   /** Fiat estimate for approval (USDT ≈ 1 USD when price feed available) */
   estimatedUsd: number;
   /** False when calldata/price cannot support a reliable estimate */
@@ -764,6 +766,9 @@ export class RelayAccountChannel {
             allowSaveTrustedContact: isTypedData ? false : allowSaveTrustedContact,
             counterpartyContact: isTypedData ? null : counterpartyContact,
             transferDisplay: isTypedData ? null : transferDisplay,
+            isUnlimitedApproval: isApproval
+              ? (getApproveDisplayAmount(typeof params.data === "string" ? params.data : "")?.isUnlimited ?? false)
+              : undefined,
             estimatedUsd: pendingReq.estimatedUSD,
             priceAvailable,
             requestType,

@@ -1,9 +1,28 @@
 import { encodeFunctionData, parseAbiItem, type Abi, type Hex } from "viem";
+import { formatUnits } from "viem";
 import type { Address } from "viem";
 import type { WalletConnection } from "../wallet-connection.js";
 import type { ChainAdapter } from "../chain.js";
 import type { ContactsManager } from "../contacts.js";
 import type { SupportedChain, ToolDefinition } from "../types.js";
+
+/** Static map: lowercase contract address → { symbol, decimals } for known tokens across chains. */
+const KNOWN_TOKEN_CONTRACTS: Record<string, { symbol: string; decimals: number }> = {
+  // Arbitrum
+  "0xaf88d065e77c8cc2239327c5edb3a432268e5831": { symbol: "USDC", decimals: 6 },
+  "0x82af49447d8a07e3bd95bd0d56f35241523fbab1": { symbol: "WETH", decimals: 18 },
+  "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": { symbol: "USDT", decimals: 6 },
+  "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": { symbol: "DAI", decimals: 18 },
+  // Ethereum
+  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": { symbol: "USDC", decimals: 6 },
+  "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": { symbol: "WETH", decimals: 18 },
+  "0xdac17f958d2ee523a2206206994597c13d831ec7": { symbol: "USDT", decimals: 6 },
+  // Base
+  "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": { symbol: "USDC", decimals: 6 },
+  "0x4200000000000000000000000000000000000006": { symbol: "WETH", decimals: 18 },
+};
+
+const MAX_UINT256 = 2n ** 256n - 1n;
 
 /**
  * wallet_call_contract — Call any EVM smart contract function.
@@ -131,6 +150,20 @@ Examples:
         };
       }
 
+      // Detect ERC-20 approve and resolve the token symbol for proper display in signing UI
+      const isApprove = args.functionSignature.trim().startsWith("approve(") && parsedArgs.length >= 2;
+      const tokenInfo = KNOWN_TOKEN_CONTRACTS[args.to.toLowerCase()];
+      const effectiveToken = isApprove && tokenInfo ? tokenInfo.symbol : "ETH";
+
+      // For approve: compute human-readable amount for the activity record
+      let amountToken: string | undefined;
+      if (isApprove && tokenInfo) {
+        const rawAmount = typeof parsedArgs[1] === "bigint" ? parsedArgs[1] : BigInt(String(parsedArgs[1]));
+        amountToken = rawAmount >= MAX_UINT256
+          ? "Unlimited"
+          : parseFloat(formatUnits(rawAmount, tokenInfo.decimals)).toString();
+      }
+
       // Fetch chain metadata needed for a valid signed tx (nonce, chainId, gas)
       const chain = (args.chain ?? defaultChain) as SupportedChain;
       const walletAddress = getAddress()!;
@@ -174,7 +207,8 @@ Examples:
           nonce: nonce.toString(),
           chainId,
           chain,
-          token: "ETH",
+          token: effectiveToken,
+          ...(amountToken !== undefined ? { amount_token: amountToken } : {}),
           method: "wallet_call_contract",
           ...gasFeeFields,
         }) as typeof signResult;

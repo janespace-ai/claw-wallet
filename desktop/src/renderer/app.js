@@ -814,17 +814,28 @@ function showTxApprovalModal(req) {
     const bookLine = cc?.name
       ? `<p><strong>${contractLabel}:</strong> ${escapeHtml(cc.name)}</p>`
       : `<p><strong>${contractLabel}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>`;
-    const transferText =
-      req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
-        ? escapeHtml(req.transferDisplay)
-        : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+
+    // Unlimited approval (MaxUint256): emphasise the danger with "无消费限额"
+    // Limited approval: show the formatted amount + token symbol
+    const isUnlimited = req.isUnlimitedApproval === true;
+    const authAmountHtml = isUnlimited
+      ? `<div class="tx-auth-amount">${escapeHtml(tKey("modals.tx.noSpendingLimit"))}</div>`
+      : (() => {
+          const display = req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
+            ? escapeHtml(req.transferDisplay)
+            : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+          return `<div class="tx-auth-amount">${display}</div>`;
+        })();
+    const authSubHtml = isUnlimited
+      ? `<div class="tx-auth-sub tx-auth-sub--danger">${escapeHtml(tKey("modals.tx.noSpendingLimitWarning"))}</div>`
+      : "";
 
     details.innerHTML = `
       <div class="tx-auth-card">
         <div class="tx-auth-icon">🛡</div>
         <div class="tx-auth-label">${escapeHtml(tKey("modals.tx.authorizingAccess"))}</div>
-        <div class="tx-auth-amount">${transferText}</div>
-        <div class="tx-auth-sub">${escapeHtml(tKey("modals.tx.noSpendingLimit"))}</div>
+        ${authAmountHtml}
+        ${authSubHtml}
       </div>
       <div class="tx-warning-banner">
         <span class="tx-warning-icon">⚠</span>

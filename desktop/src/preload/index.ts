@@ -146,6 +146,7 @@ export interface TransactionRequest {
   allowSaveTrustedContact: boolean;
   counterpartyContact?: { name: string; trusted: boolean } | null;
   transferDisplay: string | null;
+  isUnlimitedApproval?: boolean;
   estimatedUsd: number;
   priceAvailable: boolean;
   fromAccountIndex?: number;

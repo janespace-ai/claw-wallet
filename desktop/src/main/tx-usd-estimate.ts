@@ -44,11 +44,26 @@ function decodeErc20ApproveAmount(dataHex: string): bigint | null {
   }
 }
 
-/** For ERC-20 approve, returns "Unlimited" for MaxUint256 or the raw amount for finite approvals. */
-export function getApproveDisplayAmount(dataHex: string): string | null {
+/**
+ * Decode and format the ERC-20 approve allowance for display.
+ * Returns isUnlimited=true for MaxUint256 approvals (no spending limit).
+ * When the token symbol is known, formats with proper decimals (e.g. 10000000 USDC → "10").
+ */
+export function getApproveDisplayAmount(
+  dataHex: string,
+  symbol?: string,
+): { display: string; isUnlimited: boolean } | null {
   const amount = decodeErc20ApproveAmount(dataHex);
   if (amount === null) return null;
-  return amount >= MAX_UINT256 ? "Unlimited" : amount.toString();
+  if (amount >= MAX_UINT256) return { display: "", isUnlimited: true };
+
+  const sym = symbol?.trim().toUpperCase();
+  const decimals = sym ? TOKEN_DECIMALS[sym] : undefined;
+  if (decimals !== undefined) {
+    const human = parseFloat(formatUnits(amount, decimals));
+    return { display: formatHumanCryptoAmount(human), isUnlimited: false };
+  }
+  return { display: amount.toString(), isUnlimited: false };
 }
 
 function formatHumanCryptoAmount(n: number): string {
@@ -101,13 +116,15 @@ export function getSignTransactionTransferDisplay(
   const symbol = tokenRaw.trim().toUpperCase();
   const data = typeof params.data === "string" ? params.data : "";
 
-  // ERC-20 approve: show "Unlimited" or the raw allowance amount (symbol left blank
-  // because the contract address is the token, not the params.token field)
+  // ERC-20 approve: decode allowance and format with symbol's decimals when known.
   const isApprove = data.length >= 10 && data.slice(0, 10).toLowerCase() === "0x095ea7b3";
   if (isApprove) {
-    const approveDisplay = getApproveDisplayAmount(data);
-    if (approveDisplay !== null) return { amount: approveDisplay, symbol: "" };
-    return null;
+    // symbol may be "ETH" (wallet_call_contract default) — treat that as unknown
+    const effectiveSymbol = symbol !== "ETH" ? symbol : undefined;
+    const parsed = getApproveDisplayAmount(data, effectiveSymbol);
+    if (parsed === null) return null;
+    if (parsed.isUnlimited) return { amount: "Unlimited", symbol: effectiveSymbol ?? "" };
+    return { amount: parsed.display, symbol: effectiveSymbol ?? "" };
   }
 
   const humanUnits = computeSignTxHumanUnits(params);

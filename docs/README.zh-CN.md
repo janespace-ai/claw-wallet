@@ -283,9 +283,9 @@ Agent 仅通过 Tool API 交互。没有任何工具会返回密钥材料。
 
 ### 🤖 方式一：Skills 安装（推荐，适合 AI Agent）
 
-**使用 OpenClaw？** 直接粘贴到对话，OpenClaw 自动完成安装，无需手动操作：
-```
-/plugins install claw-wallet
+**使用 OpenClaw？** 在终端运行以下命令安装插件：
+```bash
+openclaw plugins install @janespace-ai/claw-wallet
 ```
 
 **使用 Claude Code、Cline、Cursor 等其他 Agent？** 粘贴到 Agent 对话：

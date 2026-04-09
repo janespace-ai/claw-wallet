@@ -19,7 +19,7 @@ metadata:
 >
 > **Recommended (OpenClaw plugin — tools registered natively):**
 > ```
-> openclaw plugins install claw-wallet
+> openclaw plugins install @janespace-ai/claw-wallet
 > ```
 > This registers all 19 wallet tools directly into OpenClaw and loads this document as context. No code generation needed — tools are called via native `tool_use`.
 >

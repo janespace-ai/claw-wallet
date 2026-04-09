@@ -24,10 +24,10 @@ Download and launch the Claw Wallet desktop app. Create a wallet, set a password
 
 **Step 2 — Connect Your Agent**
 
-**Using OpenClaw?** Paste this into your OpenClaw chat — it installs the plugin automatically, no manual steps needed:
+**Using OpenClaw?** Run this in your terminal to install the plugin:
 
-```
-/plugins install claw-wallet
+```bash
+openclaw plugins install @janespace-ai/claw-wallet
 ```
 
 **Using Claude Code, Cline, Cursor, or any other agent?** Paste this into your agent chat:

@@ -1,5 +1,5 @@
 {
-  "name": "claw-wallet",
+  "name": "@janespace-ai/claw-wallet",
   "version": "0.1.0",
   "description": "Web3 wallet plugin for OpenClaw AI Agent framework",
   "type": "module",
@@ -42,6 +42,10 @@
     "evm"
   ],
   "license": "MIT",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "public"
+  },
   "engines": {
     "node": ">=18"
   },

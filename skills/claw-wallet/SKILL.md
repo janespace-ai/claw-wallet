@@ -2,19 +2,35 @@
 name: claw-wallet
 description: Manage a Web3 wallet through natural language — check balances, send tokens, manage contacts and security policies. Use when the user asks about their wallet, crypto balances, sending tokens, or managing contacts.
 version: 1.0.0
-primaryEnv: RELAY_URL
-# RELAY_URL default: https://wallet.janespace.xyz/relay
-# Open the Claw Wallet desktop app and the relay starts automatically.
 metadata:
   openclaw:
     requires:
       bins:
         - node
+    # Relay URL is hardcoded to http://localhost:8080 (desktop app default) in the plugin entry.
+    # When using as a standalone skill, set RELAY_URL env var to override.
     emoji: "🔐"
     homepage: https://github.com/janespace-ai/claw-wallet
 ---
 
 # Claw Wallet
+
+> ⚠️ **IMPORTANT — Installation instructions**
+>
+> **Recommended (OpenClaw plugin — tools registered natively):**
+> ```
+> openclaw plugins install claw-wallet
+> ```
+> This registers all 19 wallet tools directly into OpenClaw and loads this document as context. No code generation needed — tools are called via native `tool_use`.
+>
+> **Legacy (skill only — Claude generates code to call SDK):**
+> ```
+> openclaw skills install claw-wallet
+> ```
+>
+> **Setup requirements:**
+> 1. Ensure the **Claw Wallet desktop app** is running on the user's machine (starts relay at `http://localhost:8080` automatically)
+> 2. Call `wallet_address` to check pairing state — if not paired, follow **First-time Setup** below
 
 Keys live in the **Claw Wallet desktop app** — never in this agent. Before any wallet operation, check pairing state.
 
@@ -26,8 +42,8 @@ Call `wallet_address` silently before any wallet request. Based on the result:
 |--------|---------|----------------------|
 | Returns an address | ✅ Paired and ready | Proceed |
 | "No wallet paired" | ❌ Not paired | → see **First-time Setup** below |
-| "Desktop wallet offline" | ⚠️ App not running | "Please open the Claw Wallet desktop app first" |
-| "Wallet locked" | 🔒 Locked | "Please unlock your wallet in the desktop app" |
+| "Desktop wallet offline" | ⚠️ App not running | "请先打开 Claw Wallet 桌面应用" |
+| "Wallet locked" | 🔒 Locked | "请在桌面应用中解锁钱包" |
 
 ---
 
@@ -40,7 +56,7 @@ When not paired, guide the user through these steps in order:
 - Have a wallet elsewhere → `wallet_import` to import it
 
 **Step 2 — Generate a pairing code**
-> "Open the Claw Wallet desktop app → click 'Pair' → generate a pairing code, then share the code with me."
+> "请打开 Claw Wallet 桌面应用 → 点击「配对」→ 生成配对码，然后把配对码告诉我。"
 
 **Step 3 — Pair**
 ```
@@ -110,6 +126,8 @@ Use `wallet_call_contract` when you need to interact with any smart contract bey
 
 ### Two-step approve + swap (Uniswap example)
 
+Most DeFi protocols require approving token spending before calling the protocol:
+
 **Step 1 — Approve Uniswap Router to spend USDC:**
 ```
 wallet_call_contract {
@@ -130,11 +148,57 @@ wallet_call_contract {
 }
 ```
 
+### Known contract addresses (Arbitrum)
+
+| Protocol | Contract | Address |
+|----------|----------|---------|
+| USDC | Token | `0xaf88d065e77c8cC2239327C5EDb3A432268e5831` |
+| WETH | Token | `0x82aF49447D8a07e3bd95BD0d56f35241523fBab1` |
+| Uniswap V3 | SwapRouter | `0xE592427A0AEce92De3Edee1F18E0157C05861564` |
+| Uniswap V3 | SwapRouter02 | `0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45` |
+| Aave V3 | Pool | `0x794a61358D6845594F94dc1DB02A252b5b4814aD` |
+
 ---
 
 ## EIP-712 Typed Data Signing
 
-Use `wallet_sign_typed_data` when a protocol requires a **signed message** rather than an on-chain transaction (Hyperliquid, Permit2, CoW Protocol, 1inch Fusion, etc.).
+Use `wallet_sign_typed_data` when a protocol requires a **signed message** rather than an on-chain transaction. Common use cases:
+
+- **Hyperliquid**: order placement sends signed typed data to an HTTP API — no gas required
+- **Permit2**: gasless ERC-20 approvals bundled into a single signed message
+- **CoW Protocol / 1inch Fusion**: off-chain order intents signed and submitted to solvers
+
+### Hyperliquid limit order flow
+
+```
+1. wallet_sign_typed_data {
+     domain: { name: "Exchange", chainId: 42161, verifyingContract: "0x..." },
+     types:  { Order: [
+       { name: "asset", type: "uint32" },
+       { name: "isBuy", type: "bool" },
+       { name: "limitPx", type: "uint64" },
+       { name: "sz", type: "uint64" },
+       { name: "reduceOnly", type: "bool" },
+       { name: "cloid", type: "bytes16" }
+     ]},
+     value: { asset: 0, isBuy: true, limitPx: 96420, sz: 4000, reduceOnly: false, cloid: "0x..." }
+   }
+   → get signature
+
+2. POST https://api.hyperliquid.xyz/exchange
+   { action: { type: "order", ... }, signature: { r, s, v }, nonce: ... }
+```
+
+### Known EIP-712 domains
+
+| Protocol | domain.name | chainId | verifyingContract |
+|----------|-------------|---------|-------------------|
+| Hyperliquid | `"Exchange"` | 42161 | see HL docs |
+| Permit2 (Arbitrum) | `"Permit2"` | 42161 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
+| Permit2 (Base) | `"Permit2"` | 8453 | `0x000000000022D473030F116dDEE9F6B43aC78BA3` |
+
+⚠️ Always verify `domain.chainId` matches the chain where the protocol operates.
+⚠️ Do NOT include `EIP712Domain` in the `types` object — it is derived automatically.
 
 ---
 
@@ -151,14 +215,14 @@ Use `wallet_sign_typed_data` when a protocol requires a **signed message** rathe
 
 | Error | Tell the user |
 |-------|--------------|
-| No wallet paired | "You need to pair your wallet first. Open the desktop app → Pair → generate a pairing code and share it with me." |
-| Desktop offline | "The desktop app is not running. Please open Claw Wallet first." |
-| `WALLET_LOCKED` | "Your wallet is locked. Please unlock it in the desktop app." |
-| `USER_REJECTED` | "You rejected the operation in the desktop app." |
-| `APPROVAL_TIMEOUT` | "The operation timed out. Please retry and confirm promptly in the desktop app." |
-| `SESSION_FROZEN` | "Session frozen (security policy triggered). You need to re-pair." |
-| Relay unreachable | "Cannot connect to relay server. Check that RELAY_URL is correct (default: https://wallet.janespace.xyz/relay)." |
-| Policy limit exceeded | "Over the spending limit — transaction queued for approval (ID: `<id>`). Use wallet_approval_approve to approve." |
-| `ABI_ENCODE_ERROR` | "Contract parameter encoding failed. Check the functionSignature and args format." |
-| `CALL_EXCEPTION` | "Contract call failed (transaction reverted). Check your parameters." |
-| `INVALID_TYPED_DATA` | "Invalid EIP-712 data structure. Check the domain/types/value format." |
+| No wallet paired | "需要先配对钱包。请打开桌面应用 → 配对 → 生成配对码，把码告诉我。" |
+| Desktop offline | "桌面应用未运行，请先打开 Claw Wallet。" |
+| `WALLET_LOCKED` | "钱包已锁定，请在桌面应用中解锁。" |
+| `USER_REJECTED` | "您在桌面应用中拒绝了该操作。" |
+| `APPROVAL_TIMEOUT` | "操作超时，请重试并及时在桌面应用中确认。" |
+| `SESSION_FROZEN` | "会话已冻结（安全策略触发），需要重新配对。" |
+| Relay unreachable | "无法连接中继服务器，请检查 RELAY_URL 是否正确，默认值为 http://localhost:8080。" |
+| Policy limit exceeded | "超出限额，交易已进入审批队列（ID: `<id>`）。可用 wallet_approval_approve 审批。" |
+| `ABI_ENCODE_ERROR` | "合约参数编码失败，请检查 functionSignature 和 args 格式。" |
+| `CALL_EXCEPTION` | "合约调用失败（交易 reverted），请检查参数是否正确。" |
+| `INVALID_TYPED_DATA` | "EIP-712 数据结构无效，请检查 domain/types/value 格式。" |

@@ -65,7 +65,7 @@ export interface AppConfig {
 }
 
 const DEFAULTS: AppConfig = {
-  relayUrl: "ws://localhost:8080",
+  relayUrl: "wss://wallet.janespace.xyz/relay",
   ipChangePolicy: "warn",
   lockMode: "convenience",
   relay: {

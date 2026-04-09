@@ -1,0 +1,74 @@
+name: Build Desktop
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+
+      - name: Install dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - name: Generate icons (macOS)
+        if: matrix.os == 'macos-latest'
+        working-directory: desktop
+        run: |
+          brew install imagemagick
+          mkdir -p /tmp/icon.iconset
+          magick assets/icon.png -resize 1024x1024 /tmp/icon.iconset/icon_512x512@2x.png
+          magick assets/icon.png -resize 512x512   /tmp/icon.iconset/icon_512x512.png
+          magick assets/icon.png -resize 256x256   /tmp/icon.iconset/icon_256x256.png
+          magick assets/icon.png -resize 128x128   /tmp/icon.iconset/icon_128x128.png
+          magick assets/icon.png -resize 32x32     /tmp/icon.iconset/icon_32x32.png
+          magick assets/icon.png -resize 16x16     /tmp/icon.iconset/icon_16x16.png
+          iconutil -c icns /tmp/icon.iconset -o assets/icon.icns
+
+      - name: Generate icons (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: desktop
+        run: |
+          choco install imagemagick -y
+          magick assets/icon.png -resize 256x256 assets/icon.ico
+
+      - name: Build
+        working-directory: desktop
+        run: npm run build
+
+      - name: Package
+        working-directory: desktop
+        run: npm run package -- --${{ matrix.platform }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: claw-wallet-${{ matrix.platform }}
+          path: |
+            desktop/release/*.dmg
+            desktop/release/*.zip
+            desktop/release/*.exe
+            desktop/release/*.msi
+          if-no-files-found: error

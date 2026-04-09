@@ -22,21 +22,25 @@ Download and launch the Claw Wallet desktop app. Create a wallet, set a password
 
 <img src="docs/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
 
-**Step 2 — Install the Skill**
+**Step 2 — Connect Your Agent**
 
-One command gives your AI agent full wallet capabilities:
+**Using OpenClaw?** Paste this into your OpenClaw chat — it installs the plugin automatically, no manual steps needed:
 
-```bash
-npx skills add janespace-ai/claw-wallet
+```
+/plugins install claw-wallet
 ```
 
-Or paste directly into your agent chat (OpenClaw, Claude Code, etc.):
+**Using Claude Code, Cline, Cursor, or any other agent?** Paste this into your agent chat:
 
 ```
 Install Claw Wallet: https://github.com/janespace-ai/claw-wallet
 ```
 
-Works with OpenClaw, Claude Code, Cline, Cursor, and any `npx skills`-compatible agent.
+Or install via CLI:
+
+```bash
+npx skills add janespace-ai/claw-wallet
+```
 
 **Step 3 — Generate a Pairing Code**
 

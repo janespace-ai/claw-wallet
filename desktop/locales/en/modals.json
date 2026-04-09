@@ -24,6 +24,10 @@
     "sign": "Sign",
     "authTitle": "Authorization Request",
     "authorize": "Authorize",
+    "authorizingAccess": "You are authorizing access to",
+    "noSpendingLimit": "No spending limit",
+    "contractWarning": "This contract can spend all your tokens at any time. Only approve if you trust this contract.",
+    "contract": "Contract",
     "fromAccountLabel": "Signing account",
     "fromAccountFallback": "Account {index}",
     "switchAndView": "Switch & View"

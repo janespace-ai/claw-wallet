@@ -810,9 +810,10 @@ function showTxApprovalModal(req) {
     }
 
     const cc = req.counterpartyContact;
+    const contractLabel = escapeHtml(tKey("modals.tx.contract"));
     const bookLine = cc?.name
-      ? `<p><strong>Contract:</strong> ${escapeHtml(cc.name)}</p>`
-      : `<p><strong>Contract:</strong> <span class="address">${escapeHtml(req.to)}</span></p>`;
+      ? `<p><strong>${contractLabel}:</strong> ${escapeHtml(cc.name)}</p>`
+      : `<p><strong>${contractLabel}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>`;
     const transferText =
       req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
         ? escapeHtml(req.transferDisplay)
@@ -821,13 +822,13 @@ function showTxApprovalModal(req) {
     details.innerHTML = `
       <div class="tx-auth-card">
         <div class="tx-auth-icon">🛡</div>
-        <div class="tx-auth-label">You are authorizing access to</div>
+        <div class="tx-auth-label">${escapeHtml(tKey("modals.tx.authorizingAccess"))}</div>
         <div class="tx-auth-amount">${transferText}</div>
-        <div class="tx-auth-sub">No spending limit</div>
+        <div class="tx-auth-sub">${escapeHtml(tKey("modals.tx.noSpendingLimit"))}</div>
       </div>
       <div class="tx-warning-banner">
         <span class="tx-warning-icon">⚠</span>
-        <span>This contract can spend all your tokens at any time. Only approve if you trust this contract.</span>
+        <span>${escapeHtml(tKey("modals.tx.contractWarning"))}</span>
       </div>
       ${bookLine}
       <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>

@@ -131,17 +131,52 @@ Examples:
         };
       }
 
-      // Sign via relay, broadcast, then notify wallet of result
+      // Fetch chain metadata needed for a valid signed tx (nonce, chainId, gas)
       const chain = (args.chain ?? defaultChain) as SupportedChain;
+      const walletAddress = getAddress()!;
+      const valueWei = BigInt(args.value ?? "0");
+
+      let nonce: number, chainId: number;
+      let gasEstimate: Awaited<ReturnType<ChainAdapter["estimateGas"]>>;
+      try {
+        [nonce, chainId, gasEstimate] = await Promise.all([
+          chainAdapter.getNonce(walletAddress, chain),
+          chainAdapter.getChainId(chain),
+          chainAdapter.estimateGas(
+            { from: walletAddress, to: args.to as Address, value: valueWei, data },
+            chain,
+          ),
+        ]);
+      } catch (err) {
+        const msg = (err as Error).message ?? String(err);
+        return { error: `GAS_ESTIMATE_ERROR: 预估 gas 失败，请检查合约地址和参数是否正确: ${msg}` };
+      }
+
+      const gasFeeFields = gasEstimate.maxFeePerGas
+        ? {
+            type: 2,
+            maxFeePerGas: gasEstimate.maxFeePerGas.toString(),
+            maxPriorityFeePerGas: gasEstimate.maxPriorityFeePerGas!.toString(),
+          }
+        : {
+            type: 0,
+            gasPrice: gasEstimate.gasPrice.toString(),
+          };
+
+      // Sign via relay, broadcast, then notify wallet of result
       let signResult: { signedTx: Hex; requestId: string; address: string };
       try {
         signResult = await walletConnection.sendToWallet("sign_transaction", {
           to: args.to,
           data,
-          value: args.value ?? "0",
+          value: valueWei.toString(),
+          gas: gasEstimate.gas.toString(),
+          nonce: nonce.toString(),
+          chainId,
           chain,
           token: "ETH",
           method: "wallet_call_contract",
+          ...gasFeeFields,
         }) as typeof signResult;
       } catch (err) {
         const msg = (err as Error).message ?? String(err);

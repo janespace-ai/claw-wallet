@@ -41,28 +41,62 @@ export function createWalletCallContractTool(
     name: "wallet_call_contract",
     description: `Call any smart contract function on EVM chains.
 
-Use this for DeFi protocol interactions beyond simple token transfers:
-token approvals (ERC-20 approve), Uniswap swaps, Aave deposits/borrows,
-staking, governance voting, or any on-chain contract interaction.
+Use this for DeFi protocol interactions: ERC-20 approvals, Uniswap swaps,
+Aave deposits/borrows, staking, governance voting, etc.
 
 Provide the contract address, a human-readable function signature, and arguments as a JSON array.
-Use decimal strings for uint256 values to avoid overflow (e.g. "10000000" not 10000000).
+Use decimal strings for uint256 values (e.g. "10000000" not 10000000).
 
 Most DeFi interactions require a two-step pattern:
 1. Approve the protocol to spend your tokens (ERC-20 approve)
 2. Call the protocol method (swap, deposit, stake...)
 
-Known Arbitrum addresses:
-- USDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
-- WETH: 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1
-- Uniswap V3 SwapRouter: 0xE592427A0AEce92De3Edee1F18E0157C05861564
-- Uniswap V3 SwapRouter02: 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45
-- Aave V3 Pool: 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+═══ UNISWAP V3 SWAP GUIDE ═══════════════════════════════════════════
+
+SwapRouter02 exactInputSingle signature (NO deadline field):
+  exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))
+  args: [tokenIn, tokenOut, fee, recipient, amountIn, amountOutMinimum, sqrtPriceLimitX96]
+
+Key rules:
+• tokenOut = WETH address (NOT native ETH address) — you get WETH, not ETH
+• sqrtPriceLimitX96 = "0" (no price limit)
+• amountOutMinimum = expected_output * (1 - slippage) — use 10-15% slippage to avoid revert
+• First call wallet_balance to get current ETH/USDC price, then compute amountOutMinimum
+
+Fee tiers — ALWAYS try multiple if one fails:
+  500  (0.05%) — stable pairs: USDC/USDT, ETH/WBTC
+  3000 (0.3%)  — most pairs: USDC/WETH ← try this first for USDC/ETH
+  10000 (1%)  — exotic/low-liquidity pairs
+
+If gas estimation fails with "revert" or "TooLittleReceived":
+  → Reduce amountOutMinimum (use 15-20% slippage)
+  → Try fee tier 3000 instead of 500
+  → Verify both token addresses are correct for the chain
+
+═══ KNOWN ADDRESSES ════════════════════════════════════════════════
+
+Arbitrum:
+- USDC:              0xaf88d065e77c8cC2239327C5EDb3A432268e5831
+- WETH:              0x82aF49447D8a07e3bd95BD0d56f35241523fBab1
+- USDT:              0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
+- Uniswap SwapRouter02: 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45
+- Aave V3 Pool:      0x794a61358D6845594F94dc1DB02A252b5b4814aD
+
+Base:
+- USDC:              0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+- WETH:              0x4200000000000000000000000000000000000006
+- Uniswap SwapRouter02: 0x2626664c2603336E57B271c5C0b26F421741e481
+
+Ethereum:
+- USDC:              0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+- WETH:              0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
 
 Examples:
 - ERC-20 approve: functionSignature="approve(address,uint256)", args='["0xRouter...", "10000000"]'
-- Uniswap swap:   functionSignature="exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))"
-- Stake tokens:   functionSignature="stake(uint256)", args='["1000000000000000000"]'`,
+- Uniswap USDC→WETH (Arbitrum, fee=3000, 15% slippage):
+    to=0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45
+    functionSignature="exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))"
+    args='[["0xaf88d065e77c8cC2239327C5EDb3A432268e5831","0x82aF49447D8a07e3bd95BD0d56f35241523fBab1","3000","<recipient>","10000000","<minOut>","0"]]'`,
 
     parameters: {
       type: "object",
@@ -203,7 +237,7 @@ Examples:
           to: args.to,
           data,
           value: valueWei.toString(),
-          gas: gasEstimate.gas.toString(),
+          gas: ((gasEstimate.gas * 120n) / 100n).toString(), // +20% buffer for DeFi contract complexity
           nonce: nonce.toString(),
           chainId,
           chain,

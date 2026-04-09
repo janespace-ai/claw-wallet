@@ -325,7 +325,7 @@ The policy engine runs **before** any signing and cannot be bypassed through pro
 - **Balance monitoring** — Background polling for incoming transfers
 - **Transaction history** — Local cache with full records
 - **Containerized Relay** — Go Relay Server with Docker support (Hertz framework)
-- **17 wallet tools** — Ready-to-use tool definitions, installable via `npx skills add janespace-ai/claw-wallet`
+- **17 wallet tools** — Published to npm as [`@janespace-ai/claw-wallet`](https://www.npmjs.com/package/@janespace-ai/claw-wallet), installable via `npm install @janespace-ai/claw-wallet` or `npx skills add janespace-ai/claw-wallet`
 - **Internationalization (i18n)** — Desktop app supports English and Simplified Chinese with runtime language switching
 
 ---

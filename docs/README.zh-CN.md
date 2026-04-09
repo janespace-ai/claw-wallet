@@ -275,7 +275,7 @@ Agent 仅通过 Tool API 交互。没有任何工具会返回密钥材料。
 - **余额监控** — 后台轮询检测入账转账
 - **交易历史** — 本地缓存完整记录
 - **容器化中继** — Go 中继服务器支持 Docker 部署（Hertz 框架）
-- **17 个钱包工具** — 一行命令安装，`npx skills add janespace-ai/claw-wallet`
+- **17 个钱包工具** — 已发布到 npm [`@janespace-ai/claw-wallet`](https://www.npmjs.com/package/@janespace-ai/claw-wallet)，支持 `npm install @janespace-ai/claw-wallet` 或 `npx skills add janespace-ai/claw-wallet` 安装
 
 ---
 
@@ -283,19 +283,20 @@ Agent 仅通过 Tool API 交互。没有任何工具会返回密钥材料。
 
 ### 🤖 方式一：Skills 安装（推荐，适合 AI Agent）
 
-一行命令，让 AI Agent 获得完整的钱包能力。支持 OpenClaw、Claude Code、Cline、Cursor 等任何兼容 `npx skills` 的 Agent。
+**使用 OpenClaw？** 直接粘贴到对话，OpenClaw 自动完成安装，无需手动操作：
+```
+/plugins install claw-wallet
+```
 
-**通过 CLI 安装：**
+**使用 Claude Code、Cline、Cursor 等其他 Agent？** 粘贴到 Agent 对话：
+```
+Install Claw Wallet: https://github.com/janespace-ai/claw-wallet
+```
+
+或通过 CLI 安装：
 ```bash
 npx skills add janespace-ai/claw-wallet
 ```
-
-**或直接粘贴到 Agent 对话（OpenClaw）：**
-```
-帮我安装 Claw Wallet: https://github.com/janespace-ai/claw-wallet
-```
-
-安装后设置 `RELAY_URL=http://localhost:8080`（默认值——打开 Claw Wallet 桌面 app 后中继服务自动启动）。
 
 然后配对一次：
 ```
@@ -309,14 +310,14 @@ npx skills add janespace-ai/claw-wallet
 在 Node.js 应用中直接安装使用：
 
 ```bash
-npm install claw-wallet
+npm install @janespace-ai/claw-wallet
 ```
 
 ```typescript
-import { ClawWallet } from 'claw-wallet';
+import { ClawWallet } from '@janespace-ai/claw-wallet';
 
 const wallet = new ClawWallet({
-  relayUrl: 'http://localhost:8080',
+  relayUrl: 'https://wallet.janespace.xyz/relay',
   defaultChain: 'base',
 });
 await wallet.initialize();

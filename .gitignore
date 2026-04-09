@@ -3,7 +3,7 @@ node_modules/
 
 # Build output
 dist/
-
+release/
 # Environment
 .env
 .env.local

@@ -360,17 +360,31 @@ export class SigningEngine {
 
       // Record signing decision
       if (this.signingHistory && requestId) {
+        // For ERC-20 approve, derive a meaningful display amount and clear the token symbol
+        // (params.token is "ETH" for contract calls but is misleading for approvals)
+        let historyToken = (params.token as string) || "ETH";
+        let historyAmountToken = (params.amount_token as string) || undefined;
+        const dataStr = typeof params.data === "string" ? params.data : "";
+        if (!historyAmountToken && dataStr.toLowerCase().startsWith("0x095ea7b3") && dataStr.length >= 138) {
+          const amountHex = dataStr.slice(2 + 8 + 64, 2 + 8 + 128); // selector + spender padding
+          try {
+            const approveAmount = BigInt("0x" + amountHex);
+            const MAX_UINT256 = (BigInt(1) << BigInt(256)) - BigInt(1);
+            historyAmountToken = approveAmount >= MAX_UINT256 ? "Unlimited" : approveAmount.toString();
+            historyToken = ""; // suppress "ETH" suffix — the approve amount is not in ETH
+          } catch { /* leave defaults */ }
+        }
         this.signingHistory.addRecord({
           requestId,
           type: isAutoApproved ? "auto" : "manual",
           method,
           to: extractRecipientForTrust(params) || (params.to as string) || "",
           value: (params.value as string) || "0",
-          token: (params.token as string) || "ETH",
+          token: historyToken,
           chain: (params.chain as string) || "unknown",
           estimatedUSD,
           accountIndex: signingAccountIndex ?? 0,
-          amountToken: (params.amount_token as string) || undefined,
+          amountToken: historyAmountToken,
         });
       }
 

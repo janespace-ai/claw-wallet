@@ -77,7 +77,7 @@ export class DatabaseService {
    * Copy DB file before upgrading schema (existing wallets only).
    */
   private backupDatabaseBeforeMigration(fromVersion: number): void {
-    const latestKnown = 5;
+    const latestKnown = 7;
     if (fromVersion <= 0 || fromVersion >= latestKnown) return;
     try {
       this.db.pragma("wal_checkpoint(FULL)");
@@ -148,6 +148,41 @@ export class DatabaseService {
       this.db.pragma("user_version = 6");
       console.log("[DatabaseService] Migration v6 complete");
     }
+
+    const versionAfterV6 = this.db.pragma("user_version", { simple: true }) as number;
+    if (versionAfterV6 < 7) {
+      console.log("[DatabaseService] Running migration v7 (create asset_cache table)...");
+      this.migrateToV7();
+      this.db.pragma("user_version = 7");
+      console.log("[DatabaseService] Migration v7 complete");
+    }
+  }
+
+  /**
+   * Migration v7: Create asset_cache table for persistent cross-session balance caching.
+   * Keyed by (address, symbol, chain_id) — address is the exact wallet address, not account_index,
+   * to prevent stale data if the same account slot is ever assigned a different address.
+   */
+  private migrateToV7(): void {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS asset_cache (
+        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+        address    TEXT    NOT NULL,
+        symbol     TEXT    NOT NULL,
+        token      TEXT    NOT NULL,
+        chain_id   INTEGER NOT NULL,
+        chain_name TEXT    NOT NULL,
+        decimals   INTEGER NOT NULL,
+        amount     TEXT    NOT NULL,
+        raw_amount TEXT    NOT NULL,
+        price_usd  REAL    NOT NULL DEFAULT 0,
+        updated_at INTEGER NOT NULL,
+        UNIQUE(address, symbol, chain_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_asset_cache_address ON asset_cache(address);
+      CREATE INDEX IF NOT EXISTS idx_asset_cache_updated ON asset_cache(updated_at DESC);
+    `);
   }
 
   /**

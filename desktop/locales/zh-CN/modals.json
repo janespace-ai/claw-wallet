@@ -24,6 +24,11 @@
     "sign": "签名",
     "authTitle": "授权请求",
     "authorize": "授权",
+    "authorizingAccess": "您正在授权访问",
+    "noSpendingLimit": "无消费限额",
+    "noSpendingLimitWarning": "此授权无金额上限，合约可随时取走所有代币",
+    "contractWarning": "该合约可随时花费您的所有代币，请仅在信任该合约的情况下批准。",
+    "contract": "合约",
     "fromAccountLabel": "签名账户",
     "fromAccountFallback": "账户 {index}",
     "switchAndView": "切换并查看"

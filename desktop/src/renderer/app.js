@@ -180,21 +180,73 @@ let currentPairCode = null;
 // an account switch.
 let pairCodeUserInitiated = false;
 
+/**
+ * Convert a CachedAssetEntry (SQLite row shape) to the TokenBalance shape used
+ * by renderBalances / calculateTotalValue so both paths share the same renderer.
+ */
+function cachedEntryToBalance(entry) {
+  return {
+    token: entry.token,
+    symbol: entry.symbol,
+    amount: entry.amount,
+    rawAmount: entry.raw_amount,
+    chainId: entry.chain_id,
+    chainName: entry.chain_name,
+    decimals: entry.decimals,
+  };
+}
+
+function showUpdatingChip() {
+  const chip = document.getElementById("updating-chip");
+  if (chip) chip.style.display = "flex";
+}
+
+function hideUpdatingChip() {
+  const chip = document.getElementById("updating-chip");
+  if (chip) chip.style.display = "none";
+}
+
 async function loadWalletBalances(address) {
   if (!address) return;
 
   currentAddress = address;
   const balancesList = document.getElementById("balances-list");
   const portfolioValueDisplay = document.getElementById("portfolio-value");
-
-  balancesList.innerHTML = buildBalanceSkeleton();
-  portfolioValueDisplay.innerHTML = '<span class="sk" style="display:inline-block;width:140px;height:36px;border-radius:8px;vertical-align:middle;"></span>';
   const portfolioChangeDisplay = document.getElementById("portfolio-change");
-  if (portfolioChangeDisplay) portfolioChangeDisplay.style.display = "none";
+
+  // ── Phase 0: read SQLite cache and render immediately if available ────────
+  let renderedFromCache = false;
+  try {
+    const cached = await wapi().getCachedAssets(address);
+    if (cached && cached.length > 0) {
+      const balances = cached.map(cachedEntryToBalance);
+      const prices = Object.fromEntries(cached.map(e => [e.symbol, e.price_usd]));
+      currentBalances = balances;
+      currentPrices = prices;
+      renderBalances(balances, prices);
+      const totalValue = calculateTotalValue(balances, prices);
+      portfolioValueDisplay.textContent = `$${totalValue.toFixed(2)}`;
+      if (portfolioChangeDisplay) portfolioChangeDisplay.style.display = "none";
+      renderedFromCache = true;
+      // Kick off background refresh — renderer will update via cache:assets-refreshed event
+      showUpdatingChip();
+      wapi().startBackgroundRefresh(address).catch(() => {});
+      return;
+    }
+  } catch (err) {
+    console.warn("[loadWalletBalances] Cache read failed, falling back to on-chain fetch:", err);
+  }
+
+  // ── Fallback (no cache): full on-chain load ───────────────────────────────
+  if (!renderedFromCache) {
+    balancesList.innerHTML = buildBalanceSkeleton();
+    portfolioValueDisplay.innerHTML = '<span class="sk" style="display:inline-block;width:140px;height:36px;border-radius:8px;vertical-align:middle;"></span>';
+    if (portfolioChangeDisplay) portfolioChangeDisplay.style.display = "none";
+  }
 
   try {
     const balances = await wapi().getWalletBalances(address);
-    
+
     if (!balances || balances.length === 0) {
       balancesList.innerHTML = buildBalanceEmptyState();
       portfolioValueDisplay.textContent = "$0.00";
@@ -208,6 +260,10 @@ async function loadWalletBalances(address) {
     const prices = await wapi().getTokenPrices(tokens);
     currentPrices = prices;
 
+    // Persist balances + prices to SQLite cache so next open is instant
+    wapi().persistCachedAssets(address, balances, prices).catch(() => {});
+
+    hideUpdatingChip();
     renderBalances(balances, prices);
     const totalValue = calculateTotalValue(balances, prices);
     portfolioValueDisplay.textContent = `$${totalValue.toFixed(2)}`;
@@ -754,24 +810,36 @@ function showTxApprovalModal(req) {
     }
 
     const cc = req.counterpartyContact;
+    const contractLabel = escapeHtml(tKey("modals.tx.contract"));
     const bookLine = cc?.name
-      ? `<p><strong>Contract:</strong> ${escapeHtml(cc.name)}</p>`
-      : `<p><strong>Contract:</strong> <span class="address">${escapeHtml(req.to)}</span></p>`;
-    const transferText =
-      req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
-        ? escapeHtml(req.transferDisplay)
-        : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+      ? `<p><strong>${contractLabel}:</strong> ${escapeHtml(cc.name)}</p>`
+      : `<p><strong>${contractLabel}:</strong> <span class="address">${escapeHtml(req.to)}</span></p>`;
+
+    // Unlimited approval (MaxUint256): emphasise the danger with "无消费限额"
+    // Limited approval: show the formatted amount + token symbol
+    const isUnlimited = req.isUnlimitedApproval === true;
+    const authAmountHtml = isUnlimited
+      ? `<div class="tx-auth-amount">${escapeHtml(tKey("modals.tx.noSpendingLimit"))}</div>`
+      : (() => {
+          const display = req.transferDisplay != null && String(req.transferDisplay).trim() !== ""
+            ? escapeHtml(req.transferDisplay)
+            : `${formatTokenAmount(req.value, req.token)} ${escapeHtml(req.token)}`;
+          return `<div class="tx-auth-amount">${display}</div>`;
+        })();
+    const authSubHtml = isUnlimited
+      ? `<div class="tx-auth-sub tx-auth-sub--danger">${escapeHtml(tKey("modals.tx.noSpendingLimitWarning"))}</div>`
+      : "";
 
     details.innerHTML = `
       <div class="tx-auth-card">
         <div class="tx-auth-icon">🛡</div>
-        <div class="tx-auth-label">You are authorizing access to</div>
-        <div class="tx-auth-amount">${transferText}</div>
-        <div class="tx-auth-sub">No spending limit</div>
+        <div class="tx-auth-label">${escapeHtml(tKey("modals.tx.authorizingAccess"))}</div>
+        ${authAmountHtml}
+        ${authSubHtml}
       </div>
       <div class="tx-warning-banner">
         <span class="tx-warning-icon">⚠</span>
-        <span>This contract can spend all your tokens at any time. Only approve if you trust this contract.</span>
+        <span>${escapeHtml(tKey("modals.tx.contractWarning"))}</span>
       </div>
       ${bookLine}
       <p><strong>${escapeHtml(tKey("modals.tx.chain"))}:</strong> ${networkBadge}</p>
@@ -1055,6 +1123,7 @@ function setupEventListeners() {
   document.getElementById("btn-refresh-balances").onclick = async () => {
     const status = await wapi().getStatus();
     if (status.address) {
+      showUpdatingChip();
       loadWalletBalances(status.address);
     }
   };
@@ -1744,6 +1813,20 @@ function setupRealtimeEvents() {
       tKey("common.biometric.enableConfirm", { name });
     modal._pendingPassword = password;
     modal.classList.add("active");
+  });
+
+  // Background refresh completion: merge updated assets into the live view
+  wapi().onAssetsRefreshed(({ address, assets }) => {
+    if (address !== currentAddress || !assets || assets.length === 0) return;
+    const balances = assets.map(cachedEntryToBalance);
+    const prices = Object.fromEntries(assets.map(e => [e.symbol, e.price_usd]));
+    currentBalances = balances;
+    currentPrices = prices;
+    hideUpdatingChip();
+    renderBalances(balances, prices);
+    const totalValue = calculateTotalValue(balances, prices);
+    const portfolioValueDisplay = document.getElementById("portfolio-value");
+    if (portfolioValueDisplay) portfolioValueDisplay.textContent = `$${totalValue.toFixed(2)}`;
   });
 }
 

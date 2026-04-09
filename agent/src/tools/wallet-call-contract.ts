@@ -1,7 +1,28 @@
-import { encodeFunctionData, parseAbiItem, type Abi } from "viem";
+import { encodeFunctionData, parseAbiItem, type Abi, type Hex } from "viem";
+import { formatUnits } from "viem";
 import type { Address } from "viem";
 import type { WalletConnection } from "../wallet-connection.js";
+import type { ChainAdapter } from "../chain.js";
+import type { ContactsManager } from "../contacts.js";
 import type { SupportedChain, ToolDefinition } from "../types.js";
+
+/** Static map: lowercase contract address → { symbol, decimals } for known tokens across chains. */
+const KNOWN_TOKEN_CONTRACTS: Record<string, { symbol: string; decimals: number }> = {
+  // Arbitrum
+  "0xaf88d065e77c8cc2239327c5edb3a432268e5831": { symbol: "USDC", decimals: 6 },
+  "0x82af49447d8a07e3bd95bd0d56f35241523fbab1": { symbol: "WETH", decimals: 18 },
+  "0xfd086bc7cd5c481dcc9c85ebe478a1c0b69fcbb9": { symbol: "USDT", decimals: 6 },
+  "0xda10009cbd5d07dd0cecc66161fc93d7c9000da1": { symbol: "DAI", decimals: 18 },
+  // Ethereum
+  "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48": { symbol: "USDC", decimals: 6 },
+  "0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2": { symbol: "WETH", decimals: 18 },
+  "0xdac17f958d2ee523a2206206994597c13d831ec7": { symbol: "USDT", decimals: 6 },
+  // Base
+  "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913": { symbol: "USDC", decimals: 6 },
+  "0x4200000000000000000000000000000000000006": { symbol: "WETH", decimals: 18 },
+};
+
+const MAX_UINT256 = 2n ** 256n - 1n;
 
 /**
  * wallet_call_contract — Call any EVM smart contract function.
@@ -11,35 +32,82 @@ import type { SupportedChain, ToolDefinition } from "../types.js";
  */
 export function createWalletCallContractTool(
   walletConnection: WalletConnection,
+  chainAdapter: ChainAdapter,
+  contacts: ContactsManager,
   getAddress: () => Address | null,
   defaultChain: SupportedChain,
 ): ToolDefinition {
   return {
     name: "wallet_call_contract",
-    description: `Call any smart contract function on EVM chains.
+    description: `Call a STATE-CHANGING smart contract function on EVM chains (requires user signing).
 
-Use this for DeFi protocol interactions beyond simple token transfers:
-token approvals (ERC-20 approve), Uniswap swaps, Aave deposits/borrows,
-staking, governance voting, or any on-chain contract interaction.
+⚠️  IMPORTANT: Use wallet_read_contract for ANY read-only (view/pure) function such as
+allowance(), balanceOf(), decimals(), symbol(), slot0(), getUserAccountData(), etc.
+Using this tool for view functions will incorrectly trigger a signing modal.
+
+Use THIS tool only for state-changing DeFi interactions: ERC-20 approve, Uniswap swaps,
+Aave deposits/borrows, staking, governance voting, etc.
 
 Provide the contract address, a human-readable function signature, and arguments as a JSON array.
-Use decimal strings for uint256 values to avoid overflow (e.g. "10000000" not 10000000).
+Use decimal strings for uint256 values (e.g. "10000000" not 10000000).
 
 Most DeFi interactions require a two-step pattern:
 1. Approve the protocol to spend your tokens (ERC-20 approve)
 2. Call the protocol method (swap, deposit, stake...)
 
-Known Arbitrum addresses:
-- USDC: 0xaf88d065e77c8cC2239327C5EDb3A432268e5831
-- WETH: 0x82aF49447D8a07e3bd95BD0d56f35241523fBab1
-- Uniswap V3 SwapRouter: 0xE592427A0AEce92De3Edee1F18E0157C05861564
-- Uniswap V3 SwapRouter02: 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45
-- Aave V3 Pool: 0x794a61358D6845594F94dc1DB02A252b5b4814aD
+═══ UNISWAP V3 SWAP GUIDE ═══════════════════════════════════════════
+
+⚠️  CRITICAL — SwapRouter02 exactInputSingle has EXACTLY 7 tuple fields (NO deadline):
+  functionSignature="exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))"
+  Tuple order (7 values):  tokenIn, tokenOut, fee, recipient, amountIn, amountOutMinimum, sqrtPriceLimitX96
+  ❌ WRONG (8 values — old SwapRouter V1): tokenIn, tokenOut, fee, recipient, DEADLINE, amountIn, amountOutMinimum, sqrtPriceLimitX96
+  ✅ CORRECT (7 values — SwapRouter02):    tokenIn, tokenOut, fee, recipient, amountIn, amountOutMinimum, sqrtPriceLimitX96
+
+Key rules:
+• tokenOut = WETH address (NOT native ETH address) — you get WETH, not ETH
+• sqrtPriceLimitX96 = "0" (no price limit)
+• amountOutMinimum = expected_output * (1 - slippage) — use 10-15% slippage to avoid revert
+• First call wallet_balance to get current ETH/USDC price, then compute amountOutMinimum
+• ERC-20 approve amount MUST equal the exact swap amountIn — never round up or add a buffer
+
+❌ NEVER use SushiSwap (0x1b02dA8Cb0d097eB8D57A175b88c7D8b47997506) or any non-Uniswap router.
+   SushiSwap approve + swap will ALWAYS fail with TRANSFER_FROM_FAILED on tokens approved to Uniswap.
+   If Uniswap swap fails: only retry with higher slippage or a different fee tier on SwapRouter02.
+
+Fee tiers — try in this order if one fails:
+  3000 (0.3%)  — try FIRST for USDC/ETH and most pairs
+  500  (0.05%) — stable pairs: USDC/USDT
+  10000 (1%)  — last resort for low-liquidity pairs
+
+If gas estimation fails with "revert" or "TooLittleReceived":
+  → Increase slippage to 20% (reduce amountOutMinimum further)
+  → Try fee tier 500 as alternative
+  → Check token addresses match the chain (Arbitrum USDC ≠ Base USDC)
+
+═══ KNOWN ADDRESSES ════════════════════════════════════════════════
+
+Arbitrum:
+- USDC:              0xaf88d065e77c8cC2239327C5EDb3A432268e5831
+- WETH:              0x82aF49447D8a07e3bd95BD0d56f35241523fBab1
+- USDT:              0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9
+- Uniswap SwapRouter02: 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45
+- Aave V3 Pool:      0x794a61358D6845594F94dc1DB02A252b5b4814aD
+
+Base:
+- USDC:              0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913
+- WETH:              0x4200000000000000000000000000000000000006
+- Uniswap SwapRouter02: 0x2626664c2603336E57B271c5C0b26F421741e481
+
+Ethereum:
+- USDC:              0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48
+- WETH:              0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
 
 Examples:
 - ERC-20 approve: functionSignature="approve(address,uint256)", args='["0xRouter...", "10000000"]'
-- Uniswap swap:   functionSignature="exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))"
-- Stake tokens:   functionSignature="stake(uint256)", args='["1000000000000000000"]'`,
+- Uniswap USDC→WETH (Arbitrum, fee=3000, 15% slippage):
+    to=0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45
+    functionSignature="exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))"
+    args='[["0xaf88d065e77c8cC2239327C5EDb3A432268e5831","0x82aF49447D8a07e3bd95BD0d56f35241523fBab1","3000","<recipient>","10000000","<minOut>","0"]]'`,
 
     parameters: {
       type: "object",
@@ -113,6 +181,45 @@ Examples:
         return arg;
       });
 
+      // ── Block SushiSwap router — it will always fail for Uniswap-approved tokens ──
+      const SUSHISWAP_ADDRS = new Set([
+        "0x1b02da8cb0d097eb8d57a175b88c7d8b47997506", // SushiSwap Arbitrum
+        "0xd9e1ce17f2641f24ae83637ab66a2cca9c378b9f", // SushiSwap Ethereum
+      ]);
+      if (SUSHISWAP_ADDRS.has(args.to.toLowerCase())) {
+        return {
+          error:
+            "BLOCKED: SushiSwap router is not supported. Use Uniswap SwapRouter02 instead.\n" +
+            "Arbitrum: 0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45\n" +
+            "If Uniswap is failing, retry with higher slippage (20%) or fee tier 500/3000/10000.",
+        };
+      }
+
+      // ── Uniswap V3 SwapRouter02 exactInputSingle guard ──────────────────
+      // SwapRouter02 has NO deadline in its struct (7 fields).
+      // The old SwapRouter V1 had 8 fields with deadline after recipient.
+      // If the model passes an 8-element tuple, automatically strip the
+      // deadline (index 4) so the call always uses the correct 7-field ABI.
+      const SWAPROUTER02_ADDRS = new Set([
+        "0x68b3465833fb72a70ecdf485e0e4c7bd8665fc45", // Arbitrum + mainnet
+        "0x2626664c2603336e57b271c5c0b26f421741e481", // Base
+      ]);
+      const fnNameRaw = args.functionSignature.split("(")[0].trim();
+      if (
+        fnNameRaw === "exactInputSingle" &&
+        SWAPROUTER02_ADDRS.has(args.to.toLowerCase()) &&
+        Array.isArray(coercedArgs[0]) &&
+        (coercedArgs[0] as unknown[]).length === 8
+      ) {
+        // Strip deadline (index 4): [tokenIn, tokenOut, fee, recipient, DEADLINE, amountIn, amountOutMin, sqrtPrice]
+        //                       →   [tokenIn, tokenOut, fee, recipient,           amountIn, amountOutMin, sqrtPrice]
+        const t = coercedArgs[0] as unknown[];
+        coercedArgs[0] = [...t.slice(0, 4), ...t.slice(5)] as unknown[];
+        // Also normalise the function signature to the 7-field version
+        args.functionSignature =
+          "exactInputSingle((address,address,uint24,address,uint256,uint256,uint160))";
+      }
+
       // ABI-encode using viem
       let data: `0x${string}`;
       try {
@@ -127,17 +234,68 @@ Examples:
         };
       }
 
-      // Send via relay using sign_transaction path (same as wallet_send)
+      // Detect ERC-20 approve and resolve the token symbol for proper display in signing UI
+      const isApprove = args.functionSignature.trim().startsWith("approve(") && parsedArgs.length >= 2;
+      const tokenInfo = KNOWN_TOKEN_CONTRACTS[args.to.toLowerCase()];
+      const effectiveToken = isApprove && tokenInfo ? tokenInfo.symbol : "ETH";
+
+      // For approve: compute human-readable amount for the activity record
+      let amountToken: string | undefined;
+      if (isApprove && tokenInfo) {
+        const rawAmount = typeof parsedArgs[1] === "bigint" ? parsedArgs[1] : BigInt(String(parsedArgs[1]));
+        amountToken = rawAmount >= MAX_UINT256
+          ? "Unlimited"
+          : parseFloat(formatUnits(rawAmount, tokenInfo.decimals)).toString();
+      }
+
+      // Fetch chain metadata needed for a valid signed tx (nonce, chainId, gas)
+      const chain = (args.chain ?? defaultChain) as SupportedChain;
+      const walletAddress = getAddress()!;
+      const valueWei = BigInt(args.value ?? "0");
+
+      let nonce: number, chainId: number;
+      let gasEstimate: Awaited<ReturnType<ChainAdapter["estimateGas"]>>;
       try {
-        const result = await walletConnection.sendToWallet("sign_transaction", {
+        [nonce, chainId, gasEstimate] = await Promise.all([
+          chainAdapter.getNonce(walletAddress, chain),
+          chainAdapter.getChainId(chain),
+          chainAdapter.estimateGas(
+            { from: walletAddress, to: args.to as Address, value: valueWei, data },
+            chain,
+          ),
+        ]);
+      } catch (err) {
+        const msg = (err as Error).message ?? String(err);
+        return { error: `GAS_ESTIMATE_ERROR: 预估 gas 失败，请检查合约地址和参数是否正确: ${msg}` };
+      }
+
+      const gasFeeFields = gasEstimate.maxFeePerGas
+        ? {
+            type: 2,
+            maxFeePerGas: gasEstimate.maxFeePerGas.toString(),
+            maxPriorityFeePerGas: gasEstimate.maxPriorityFeePerGas!.toString(),
+          }
+        : {
+            type: 0,
+            gasPrice: gasEstimate.gasPrice.toString(),
+          };
+
+      // Sign via relay, broadcast, then notify wallet of result
+      let signResult: { signedTx: Hex; requestId: string; address: string };
+      try {
+        signResult = await walletConnection.sendToWallet("sign_transaction", {
           to: args.to,
           data,
-          value: args.value ?? "0",
-          chain: args.chain ?? defaultChain,
-          token: "ETH",
+          value: valueWei.toString(),
+          gas: ((gasEstimate.gas * 120n) / 100n).toString(), // +20% buffer for DeFi contract complexity
+          nonce: nonce.toString(),
+          chainId,
+          chain,
+          token: effectiveToken,
+          ...(amountToken !== undefined ? { amount_token: amountToken } : {}),
           method: "wallet_call_contract",
-        });
-        return result;
+          ...gasFeeFields,
+        }) as typeof signResult;
       } catch (err) {
         const msg = (err as Error).message ?? String(err);
         if (msg.includes("rejected by user") || msg.includes("USER_REJECTED")) {
@@ -148,6 +306,47 @@ Examples:
         }
         return { error: msg };
       }
+
+      // Broadcast the signed transaction
+      let receipt: Awaited<ReturnType<ChainAdapter["broadcastTransaction"]>>;
+      try {
+        receipt = await chainAdapter.broadcastTransaction(signResult.signedTx, chain);
+      } catch (err) {
+        const msg = (err as Error).message ?? String(err);
+        return { error: `BROADCAST_ERROR: 广播交易失败: ${msg}` };
+      }
+
+      const success = receipt.status === "success";
+
+      // Notify wallet so trust-after-success contact saving works
+      try {
+        const notifyRaw = await walletConnection.sendToWallet("wallet_notify_tx_result", {
+          requestId: signResult.requestId,
+          success,
+          txHash: receipt.transactionHash,
+          chain,
+        });
+        const notifyRes = notifyRaw as {
+          ok?: boolean;
+          newContact?: { name: string; address: string; chain: string; trusted: boolean };
+        };
+        if (notifyRes?.newContact?.trusted) {
+          const nc = notifyRes.newContact;
+          contacts.addContact(nc.name, { [nc.chain]: nc.address as Address });
+          contacts.setTrustedOnChain(nc.name, nc.chain as SupportedChain, true);
+          await contacts.save().catch(() => {});
+        }
+      } catch {
+        // Non-fatal: contact mirroring is best-effort
+      }
+
+      return {
+        hash: receipt.transactionHash,
+        status: success ? "confirmed" : "failed",
+        blockNumber: receipt.blockNumber?.toString(),
+        gasUsed: receipt.gasUsed?.toString(),
+        message: `Transaction ${success ? "confirmed" : "failed"}. Hash: ${receipt.transactionHash}`,
+      };
     },
   };
 }

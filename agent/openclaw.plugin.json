@@ -1,0 +1,10 @@
+{
+  "id": "claw-wallet",
+  "enabledByDefault": true,
+  "skills": ["./skills/claw-wallet"],
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}

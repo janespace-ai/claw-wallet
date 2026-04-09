@@ -43,8 +43,8 @@
                   "type": "frame",
                   "id": "M87kS",
                   "name": "logo-bg",
-                  "width": 36,
-                  "height": 36,
+                  "width": 48,
+                  "height": 48,
                   "fill": "#6D6BF8",
                   "cornerRadius": 8,
                   "justifyContent": "center",
@@ -54,8 +54,8 @@
                       "type": "icon_font",
                       "id": "7QVQy",
                       "name": "logoPaw",
-                      "width": 22,
-                      "height": 22,
+                      "width": 34,
+                      "height": 34,
                       "iconFontName": "paw-print",
                       "iconFontFamily": "lucide",
                       "fill": "#FFFFFF"
@@ -197,7 +197,7 @@
                   "id": "hyGmo",
                   "name": "heroHeadline",
                   "layout": "vertical",
-                  "gap": 4,
+                  "gap": 16,
                   "children": [
                     {
                       "type": "text",
@@ -327,10 +327,15 @@
                   "children": [
                     {
                       "type": "rectangle",
-                      "cornerRadius": 20,
+                      "cornerRadius": 16,
                       "id": "c1V8J",
                       "name": "phone-screenshot-placeholder",
-                      "fill": "#1E2130",
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "../../../janespace-ai.github.io/assets/screenshots/home-dark.png",
+                        "mode": "fit"
+                      },
                       "width": 280,
                       "height": 504
                     }
@@ -418,6 +423,7 @@
                   "type": "frame",
                   "id": "AHcQ4",
                   "name": "Step 1",
+                  "clip": true,
                   "width": "fill_container",
                   "fill": "#161824",
                   "cornerRadius": 16,
@@ -428,107 +434,99 @@
                   },
                   "layout": "vertical",
                   "gap": 16,
-                  "padding": 24,
                   "children": [
                     {
                       "type": "frame",
-                      "id": "FWskr",
-                      "name": "s1header",
-                      "gap": 10,
-                      "alignItems": "center",
+                      "id": "m3pw6",
+                      "name": "s1-content",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "padding": [
+                        24,
+                        24,
+                        20,
+                        24
+                      ],
                       "children": [
                         {
                           "type": "frame",
-                          "id": "Clki5",
-                          "name": "s1num",
-                          "width": 28,
-                          "height": 28,
-                          "fill": "#6D6BF8",
-                          "cornerRadius": 9999,
-                          "justifyContent": "center",
+                          "id": "FWskr",
+                          "name": "s1header",
+                          "gap": 10,
                           "alignItems": "center",
                           "children": [
                             {
+                              "type": "frame",
+                              "id": "Clki5",
+                              "name": "s1num",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "#6D6BF8",
+                              "cornerRadius": 9999,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "VewdS",
+                                  "name": "s1numTxt",
+                                  "fill": "#FFFFFF",
+                                  "content": "1",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
                               "type": "text",
-                              "id": "VewdS",
-                              "name": "s1numTxt",
-                              "fill": "#FFFFFF",
-                              "content": "1",
-                              "fontFamily": "Geist",
-                              "fontSize": 12,
-                              "fontWeight": "700"
+                              "id": "qZ5uA",
+                              "name": "s1icon",
+                              "content": "⬇️",
+                              "fontFamily": "Inter",
+                              "fontSize": 18,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
                         {
                           "type": "text",
-                          "id": "qZ5uA",
-                          "name": "s1icon",
-                          "content": "⬇️",
-                          "fontFamily": "Inter",
-                          "fontSize": 18,
+                          "id": "rUwFJ",
+                          "name": "s1Title",
+                          "fill": "#F0F0F5",
+                          "content": "Install Desktop App",
+                          "fontFamily": "Geist",
+                          "fontSize": 15,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "3I1hx",
+                          "name": "s1Desc",
+                          "fill": "#8B8BA7",
+                          "content": "Download the desktop app. Your private keys live here — isolated from the AI model.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "Geist",
+                          "fontSize": 13,
                           "fontWeight": "normal"
                         }
                       ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "rUwFJ",
-                      "name": "s1Title",
-                      "fill": "#F0F0F5",
-                      "content": "Install Desktop App",
-                      "fontFamily": "Geist",
-                      "fontSize": 15,
-                      "fontWeight": "600"
-                    },
-                    {
-                      "type": "text",
-                      "id": "3I1hx",
-                      "name": "s1Desc",
-                      "fill": "#8B8BA7",
-                      "content": "Download the desktop app. Your private keys live here — isolated from the AI model.",
-                      "lineHeight": 1.5,
-                      "fontFamily": "Geist",
-                      "fontSize": 13,
-                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
                       "id": "ZUU3G",
                       "name": "s1imgNote",
                       "width": "fill_container",
-                      "height": 300,
-                      "fill": "#1A2240",
+                      "height": 460,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "../../../janespace-ai.github.io/assets/screenshots/welcome-dark.png",
+                        "mode": "fit"
+                      },
                       "cornerRadius": 12,
-                      "layout": "vertical",
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "YAkBE",
-                          "name": "s1imgLabel",
-                          "fill": "#8B8BA7",
-                          "content": "welcome-dark.png\n180px wide · 8x export\nmt-4 (fixed gap, not mt-auto)",
-                          "lineHeight": 1.6,
-                          "textAlign": "center",
-                          "fontFamily": "Geist Mono",
-                          "fontSize": 11,
-                          "fontWeight": "normal"
-                        },
-                        {
-                          "type": "text",
-                          "id": "hBH4p",
-                          "name": "s1note",
-                          "fill": "#34D399",
-                          "content": "← FIXED: link is NOT mt-auto\n   screenshot is mt-4 below link",
-                          "lineHeight": 1.6,
-                          "textAlign": "center",
-                          "fontFamily": "Geist Mono",
-                          "fontSize": 10,
-                          "fontWeight": "normal"
-                        }
-                      ]
+                      "layout": "vertical"
                     }
                   ]
                 },
@@ -643,6 +641,7 @@
                   "type": "frame",
                   "id": "BU0lO",
                   "name": "Step 3",
+                  "clip": true,
                   "width": "fill_container",
                   "fill": "#161824",
                   "cornerRadius": 16,
@@ -653,95 +652,99 @@
                   },
                   "layout": "vertical",
                   "gap": 16,
-                  "padding": 24,
                   "children": [
                     {
                       "type": "frame",
-                      "id": "z4OVP",
-                      "name": "s3header",
-                      "gap": 10,
-                      "alignItems": "center",
+                      "id": "ChhRT",
+                      "name": "s3-content",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "padding": [
+                        24,
+                        24,
+                        20,
+                        24
+                      ],
                       "children": [
                         {
                           "type": "frame",
-                          "id": "j9IIE",
-                          "name": "s3num",
-                          "width": 28,
-                          "height": 28,
-                          "fill": "#6D6BF8",
-                          "cornerRadius": 9999,
-                          "justifyContent": "center",
+                          "id": "z4OVP",
+                          "name": "s3header",
+                          "gap": 10,
                           "alignItems": "center",
                           "children": [
                             {
+                              "type": "frame",
+                              "id": "j9IIE",
+                              "name": "s3num",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "#6D6BF8",
+                              "cornerRadius": 9999,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "Xzt4m",
+                                  "name": "s3numTxt",
+                                  "fill": "#FFFFFF",
+                                  "content": "3",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
                               "type": "text",
-                              "id": "Xzt4m",
-                              "name": "s3numTxt",
-                              "fill": "#FFFFFF",
-                              "content": "3",
-                              "fontFamily": "Geist",
-                              "fontSize": 12,
-                              "fontWeight": "700"
+                              "id": "JLv1V",
+                              "name": "s3icon",
+                              "content": "🔗",
+                              "fontFamily": "Inter",
+                              "fontSize": 18,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
                         {
                           "type": "text",
-                          "id": "JLv1V",
-                          "name": "s3icon",
-                          "content": "🔗",
-                          "fontFamily": "Inter",
-                          "fontSize": 18,
+                          "id": "8rd2J",
+                          "name": "s3Title",
+                          "fill": "#F0F0F5",
+                          "content": "Generate Pairing Code",
+                          "fontFamily": "Geist",
+                          "fontSize": 15,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "4hXXu",
+                          "name": "s3Desc",
+                          "fill": "#8B8BA7",
+                          "content": "In the desktop app tap Pair → Generate Code. Share the 8-character code with your agent.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "Geist",
+                          "fontSize": 13,
                           "fontWeight": "normal"
                         }
                       ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "8rd2J",
-                      "name": "s3Title",
-                      "fill": "#F0F0F5",
-                      "content": "Generate Pairing Code",
-                      "fontFamily": "Geist",
-                      "fontSize": 15,
-                      "fontWeight": "600"
-                    },
-                    {
-                      "type": "text",
-                      "id": "4hXXu",
-                      "name": "s3Desc",
-                      "fill": "#8B8BA7",
-                      "content": "In the desktop app tap Pair → Generate Code. Share the 8-character code with your agent.",
-                      "lineHeight": 1.5,
-                      "fontFamily": "Geist",
-                      "fontSize": 13,
-                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
                       "id": "6ZzZW",
                       "name": "s3imgNote",
                       "width": "fill_container",
-                      "height": 300,
-                      "fill": "#1A2240",
+                      "height": 460,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "../../../janespace-ai.github.io/assets/screenshots/pair-code-dark.png",
+                        "mode": "fit"
+                      },
                       "cornerRadius": 12,
-                      "layout": "vertical",
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "2aUCn",
-                          "name": "s3imgLabel",
-                          "fill": "#8B8BA7",
-                          "content": "pair-code-dark.png\n180px wide · 8x export\nmt-4 (fixed, not mt-auto)",
-                          "lineHeight": 1.6,
-                          "textAlign": "center",
-                          "fontFamily": "Geist Mono",
-                          "fontSize": 11,
-                          "fontWeight": "normal"
-                        }
-                      ]
+                      "layout": "vertical"
                     }
                   ]
                 },
@@ -749,6 +752,7 @@
                   "type": "frame",
                   "id": "rZtrl",
                   "name": "Step 4",
+                  "clip": true,
                   "width": "fill_container",
                   "fill": "#161824",
                   "cornerRadius": 16,
@@ -759,95 +763,99 @@
                   },
                   "layout": "vertical",
                   "gap": 16,
-                  "padding": 24,
                   "children": [
                     {
                       "type": "frame",
-                      "id": "QkyRs",
-                      "name": "s4header",
-                      "gap": 10,
-                      "alignItems": "center",
+                      "id": "5w4Pe",
+                      "name": "s4-content",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 16,
+                      "padding": [
+                        24,
+                        24,
+                        20,
+                        24
+                      ],
                       "children": [
                         {
                           "type": "frame",
-                          "id": "zh8ku",
-                          "name": "s4num",
-                          "width": 28,
-                          "height": 28,
-                          "fill": "#6D6BF8",
-                          "cornerRadius": 9999,
-                          "justifyContent": "center",
+                          "id": "QkyRs",
+                          "name": "s4header",
+                          "gap": 10,
                           "alignItems": "center",
                           "children": [
                             {
+                              "type": "frame",
+                              "id": "zh8ku",
+                              "name": "s4num",
+                              "width": 28,
+                              "height": 28,
+                              "fill": "#6D6BF8",
+                              "cornerRadius": 9999,
+                              "justifyContent": "center",
+                              "alignItems": "center",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n5on6",
+                                  "name": "s4numTxt",
+                                  "fill": "#FFFFFF",
+                                  "content": "4",
+                                  "fontFamily": "Geist",
+                                  "fontSize": 12,
+                                  "fontWeight": "700"
+                                }
+                              ]
+                            },
+                            {
                               "type": "text",
-                              "id": "n5on6",
-                              "name": "s4numTxt",
-                              "fill": "#FFFFFF",
-                              "content": "4",
-                              "fontFamily": "Geist",
-                              "fontSize": 12,
-                              "fontWeight": "700"
+                              "id": "KF7BE",
+                              "name": "s4icon",
+                              "content": "✨",
+                              "fontFamily": "Inter",
+                              "fontSize": 18,
+                              "fontWeight": "normal"
                             }
                           ]
                         },
                         {
                           "type": "text",
-                          "id": "KF7BE",
-                          "name": "s4icon",
-                          "content": "✨",
-                          "fontFamily": "Inter",
-                          "fontSize": 18,
+                          "id": "0j5M6",
+                          "name": "s4Title",
+                          "fill": "#F0F0F5",
+                          "content": "Start Using",
+                          "fontFamily": "Geist",
+                          "fontSize": 15,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "text",
+                          "id": "S7eKl",
+                          "name": "s4Desc",
+                          "fill": "#8B8BA7",
+                          "content": "Ask your agent to send tokens, swap on Uniswap, or interact with any DeFi protocol. You approve every transaction on desktop.",
+                          "lineHeight": 1.5,
+                          "fontFamily": "Geist",
+                          "fontSize": 13,
                           "fontWeight": "normal"
                         }
                       ]
-                    },
-                    {
-                      "type": "text",
-                      "id": "0j5M6",
-                      "name": "s4Title",
-                      "fill": "#F0F0F5",
-                      "content": "Start Using",
-                      "fontFamily": "Geist",
-                      "fontSize": 15,
-                      "fontWeight": "600"
-                    },
-                    {
-                      "type": "text",
-                      "id": "S7eKl",
-                      "name": "s4Desc",
-                      "fill": "#8B8BA7",
-                      "content": "Ask your agent to send tokens, swap on Uniswap, or interact with any DeFi protocol. You approve every transaction on desktop.",
-                      "lineHeight": 1.5,
-                      "fontFamily": "Geist",
-                      "fontSize": 13,
-                      "fontWeight": "normal"
                     },
                     {
                       "type": "frame",
                       "id": "86fVE",
                       "name": "s4imgNote",
                       "width": "fill_container",
-                      "height": 300,
-                      "fill": "#1A2240",
+                      "height": 460,
+                      "fill": {
+                        "type": "image",
+                        "enabled": true,
+                        "url": "../../../janespace-ai.github.io/assets/screenshots/approve-dark.png",
+                        "mode": "fit"
+                      },
                       "cornerRadius": 12,
-                      "layout": "vertical",
-                      "justifyContent": "center",
-                      "alignItems": "center",
-                      "children": [
-                        {
-                          "type": "text",
-                          "id": "YgNQx",
-                          "name": "s4imgLabel",
-                          "fill": "#8B8BA7",
-                          "content": "approve-dark.png (DgDgi)\n180px wide · 8x export\nReplaces tx-approval (had long black header)\nmt-4 (fixed, not mt-auto)",
-                          "lineHeight": 1.6,
-                          "textAlign": "center",
-                          "fontFamily": "Geist Mono",
-                          "fontSize": 11,
-                          "fontWeight": "normal"
-                        }
-                      ]
+                      "layout": "vertical"
                     }
                   ]
                 }
@@ -863,10 +871,467 @@
       "x": 0,
       "y": 1840,
       "name": "03 Features",
+      "enabled": false,
       "width": 1440,
       "height": "fit_content(0)",
       "fill": "#0D0F17",
       "layout": "vertical"
+    },
+    {
+      "type": "frame",
+      "id": "Dx0HJ",
+      "x": 0,
+      "y": 1840,
+      "name": "04 Security",
+      "width": 1440,
+      "fill": "#0D0F17",
+      "layout": "vertical",
+      "gap": 64,
+      "padding": 80,
+      "alignItems": "center",
+      "children": [
+        {
+          "type": "frame",
+          "id": "HaPFX",
+          "name": "sec-header",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 16,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "QBoUV",
+              "name": "secTitle",
+              "fill": "#F0F0F5",
+              "content": "End-to-End Encrypted",
+              "fontFamily": "Geist",
+              "fontSize": 40,
+              "fontWeight": "700"
+            },
+            {
+              "type": "text",
+              "id": "WLLSR",
+              "name": "secSubtitle",
+              "fill": "#8B8BA7",
+              "textGrowth": "fixed-width",
+              "width": 640,
+              "content": "Three-component design. Even if the AI model is fully compromised, the attacker gains zero key material.",
+              "lineHeight": 1.6,
+              "textAlign": "center",
+              "fontFamily": "Geist",
+              "fontSize": 18,
+              "fontWeight": "normal"
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "jB0xo",
+          "name": "arch-row",
+          "width": "fill_container",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "fnoKx",
+              "name": "card-ai-agent",
+              "width": "fill_container",
+              "fill": "#161824",
+              "cornerRadius": 20,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#2A2D40"
+              },
+              "layout": "vertical",
+              "gap": 20,
+              "padding": 32,
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "BVIAb",
+                  "name": "card1-icon",
+                  "width": 40,
+                  "height": 40,
+                  "iconFontName": "bot",
+                  "iconFontFamily": "lucide",
+                  "fill": "#6D6BF8"
+                },
+                {
+                  "type": "frame",
+                  "id": "wiAe4",
+                  "name": "card1-txt",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "gV3aV",
+                      "name": "card1-title",
+                      "fill": "#F0F0F5",
+                      "content": "AI Agent",
+                      "fontFamily": "Geist",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "rL7cf",
+                      "name": "card1-role",
+                      "fill": "#8B8BA7",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Your Claude / OpenClaw / Cursor agent",
+                      "lineHeight": 1.5,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "OwPvd",
+                  "name": "card1-badge",
+                  "fill": "#1A1A2E",
+                  "cornerRadius": 9999,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#FF6B6B"
+                  },
+                  "gap": 8,
+                  "padding": [
+                    8,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "rDLQx",
+                      "width": 14,
+                      "height": 14,
+                      "iconFontName": "key-round",
+                      "iconFontFamily": "lucide",
+                      "fill": "#FF6B6B"
+                    },
+                    {
+                      "type": "text",
+                      "id": "hu4ed",
+                      "fill": "#FF6B6B",
+                      "content": "Zero key access",
+                      "fontFamily": "Geist",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "ueQkx",
+              "name": "arrow1",
+              "width": 100,
+              "layout": "vertical",
+              "gap": 8,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "DhTwe",
+                  "name": "arrow1-label",
+                  "fill": "#6D6BF8",
+                  "content": "E2EE",
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "icon_font",
+                  "id": "mpsFS",
+                  "width": 32,
+                  "height": 32,
+                  "iconFontName": "arrow-right",
+                  "iconFontFamily": "lucide",
+                  "fill": "#6D6BF8"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "I2Ocf",
+              "name": "card-relay",
+              "width": "fill_container",
+              "fill": "#161824",
+              "cornerRadius": 20,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#2A2D40"
+              },
+              "layout": "vertical",
+              "gap": 20,
+              "padding": 32,
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "irhSv",
+                  "name": "card2-icon",
+                  "width": 40,
+                  "height": 40,
+                  "iconFontName": "server",
+                  "iconFontFamily": "lucide",
+                  "fill": "#6D6BF8"
+                },
+                {
+                  "type": "frame",
+                  "id": "dfAfQ",
+                  "name": "card2-txt",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "NORsp",
+                      "name": "card2-title",
+                      "fill": "#F0F0F5",
+                      "content": "Relay Server",
+                      "fontFamily": "Geist",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "w1FlD",
+                      "name": "card2-role",
+                      "fill": "#8B8BA7",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Routes encrypted messages between agent and wallet",
+                      "lineHeight": 1.5,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "0jVkq",
+                  "name": "card2-badge",
+                  "fill": "#1A1A2E",
+                  "cornerRadius": 9999,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#8B8BA7"
+                  },
+                  "gap": 8,
+                  "padding": [
+                    8,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "GwGak",
+                      "width": 14,
+                      "height": 14,
+                      "iconFontName": "eye-off",
+                      "iconFontFamily": "lucide",
+                      "fill": "#8B8BA7"
+                    },
+                    {
+                      "type": "text",
+                      "id": "OUmP4",
+                      "fill": "#8B8BA7",
+                      "content": "Sees ciphertext only",
+                      "fontFamily": "Geist",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "FQyo1",
+              "name": "arrow2",
+              "width": 100,
+              "layout": "vertical",
+              "gap": 8,
+              "justifyContent": "center",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "9dOkB",
+                  "name": "arrow2-label",
+                  "fill": "#6D6BF8",
+                  "content": "E2EE",
+                  "fontFamily": "Geist Mono",
+                  "fontSize": 11,
+                  "fontWeight": "700"
+                },
+                {
+                  "type": "icon_font",
+                  "id": "tsccd",
+                  "width": 32,
+                  "height": 32,
+                  "iconFontName": "arrow-right",
+                  "iconFontFamily": "lucide",
+                  "fill": "#6D6BF8"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "AKgL2",
+              "name": "card-wallet",
+              "width": "fill_container",
+              "fill": "#161824",
+              "cornerRadius": 20,
+              "stroke": {
+                "align": "inside",
+                "thickness": 1,
+                "fill": "#2A2D40"
+              },
+              "layout": "vertical",
+              "gap": 20,
+              "padding": 32,
+              "children": [
+                {
+                  "type": "icon_font",
+                  "id": "UXUos",
+                  "name": "card3-icon",
+                  "width": 40,
+                  "height": 40,
+                  "iconFontName": "shield-check",
+                  "iconFontFamily": "lucide",
+                  "fill": "#34D399"
+                },
+                {
+                  "type": "frame",
+                  "id": "0bBhv",
+                  "name": "card3-txt",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 8,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "FTHlE",
+                      "name": "card3-title",
+                      "fill": "#F0F0F5",
+                      "content": "Desktop Wallet",
+                      "fontFamily": "Geist",
+                      "fontSize": 22,
+                      "fontWeight": "700"
+                    },
+                    {
+                      "type": "text",
+                      "id": "wpm7Z",
+                      "name": "card3-role",
+                      "fill": "#8B8BA7",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "Your local app — holds keys, shows approvals, signs transactions",
+                      "lineHeight": 1.5,
+                      "fontFamily": "Geist",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "1N2Tu",
+                  "name": "card3-badge",
+                  "fill": "#0D2818",
+                  "cornerRadius": 9999,
+                  "stroke": {
+                    "align": "inside",
+                    "thickness": 1,
+                    "fill": "#34D399"
+                  },
+                  "gap": 8,
+                  "padding": [
+                    8,
+                    14
+                  ],
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "icon_font",
+                      "id": "ogPmJ",
+                      "width": 14,
+                      "height": 14,
+                      "iconFontName": "lock",
+                      "iconFontFamily": "lucide",
+                      "fill": "#34D399"
+                    },
+                    {
+                      "type": "text",
+                      "id": "fsslI",
+                      "fill": "#34D399",
+                      "content": "Holds all keys",
+                      "fontFamily": "Geist",
+                      "fontSize": 13,
+                      "fontWeight": "600"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Hm41g",
+          "name": "guarantee-box",
+          "fill": "#0D2818",
+          "cornerRadius": 16,
+          "stroke": {
+            "align": "inside",
+            "thickness": 1,
+            "fill": "#34D399"
+          },
+          "gap": 12,
+          "padding": [
+            20,
+            32
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "icon_font",
+              "id": "HEVSj",
+              "width": 20,
+              "height": 20,
+              "iconFontName": "shield",
+              "iconFontFamily": "lucide",
+              "fill": "#34D399"
+            },
+            {
+              "type": "text",
+              "id": "rAuRp",
+              "fill": "#34D399",
+              "content": "Even if the AI model is fully compromised, the attacker gains zero key material.",
+              "fontFamily": "Geist",
+              "fontSize": 15,
+              "fontWeight": "500"
+            }
+          ]
+        }
+      ]
     }
   ]
 }

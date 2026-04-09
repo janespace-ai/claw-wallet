@@ -156,12 +156,32 @@ export class ChainAdapter {
   }> {
     const client = this.getClient(chainName);
 
-    const gas = await client.estimateGas({
-      account: tx.from,
-      to: tx.to,
-      value: tx.value,
-      data: tx.data,
-    });
+    let gas: bigint;
+    try {
+      gas = await client.estimateGas({
+        account: tx.from,
+        to: tx.to,
+        value: tx.value,
+        data: tx.data,
+      });
+    } catch (estimateErr) {
+      // estimateGas failing = the transaction would revert. Try eth_call to extract revert reason.
+      let revertReason = (estimateErr as Error).message ?? String(estimateErr);
+      try {
+        await client.call({ account: tx.from, to: tx.to, value: tx.value, data: tx.data });
+      } catch (callErr) {
+        const callMsg = (callErr as Error).message ?? String(callErr);
+        // viem includes the reason string in messages like: 'reverted with reason string "Too little received"'
+        const reasonMatch = callMsg.match(/reason string[:\s]+"([^"]+)"/i)
+          ?? callMsg.match(/reverted(?:\s+with)?\s+([^(]+)\(/i);
+        if (reasonMatch?.[1]) {
+          revertReason = `Transaction reverted: ${reasonMatch[1].trim()}`;
+        } else if (callMsg.length < 300) {
+          revertReason = callMsg;
+        }
+      }
+      throw new Error(revertReason);
+    }
 
     if (gas === 0n) throw new Error("Invalid gas estimate: 0");
     const GAS_LIMIT_MAX = 30_000_000n;

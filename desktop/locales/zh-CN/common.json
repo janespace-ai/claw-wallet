@@ -56,6 +56,7 @@
   },
   "home": {
     "portfolioValue": "总资产价值",
+    "updating": "更新中",
     "balances": "余额",
     "allNetworks": "所有网络",
     "hideZero": "隐藏零余额",

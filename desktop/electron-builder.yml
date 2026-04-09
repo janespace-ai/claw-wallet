@@ -12,6 +12,7 @@ files:
 
 mac:
   category: public.app-category.finance
+  icon: assets/icon.icns
   target:
     - dmg
     - zip
@@ -20,6 +21,7 @@ mac:
   entitlementsInherit: assets/entitlements.mac.plist
 
 win:
+  icon: assets/icon.ico
   target:
     - nsis
 

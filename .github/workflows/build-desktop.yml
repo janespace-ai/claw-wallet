@@ -5,6 +5,11 @@ on:
     tags:
       - "v*"
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to attach artifacts to (e.g. v0.1.0)"
+        required: true
+        default: "v0.1.0"
 
 jobs:
   build:
@@ -67,15 +72,15 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload to GitHub Release (macOS)
-        if: matrix.os == 'macos-latest' && startsWith(github.ref, 'refs/tags/')
+        if: matrix.os == 'macos-latest'
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            desktop/release/*.dmg
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: desktop/release/*.dmg
 
       - name: Upload to GitHub Release (Windows)
-        if: matrix.os == 'windows-latest' && startsWith(github.ref, 'refs/tags/')
+        if: matrix.os == 'windows-latest'
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            desktop/release/*.exe
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+          files: desktop/release/*.exe

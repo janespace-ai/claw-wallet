@@ -22,21 +22,25 @@ Download and launch the Claw Wallet desktop app. Create a wallet, set a password
 
 <img src="docs/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
 
-**Step 2 — Install the Skill**
+**Step 2 — Connect Your Agent**
 
-One command gives your AI agent full wallet capabilities:
+**Using OpenClaw?** Run this in your terminal to install the plugin:
 
 ```bash
-npx skills add janespace-ai/claw-wallet
+openclaw plugins install @janespace-ai/claw-wallet
 ```
 
-Or paste directly into your agent chat (OpenClaw, Claude Code, etc.):
+**Using Claude Code, Cline, Cursor, or any other agent?** Paste this into your agent chat:
 
 ```
 Install Claw Wallet: https://github.com/janespace-ai/claw-wallet
 ```
 
-Works with OpenClaw, Claude Code, Cline, Cursor, and any `npx skills`-compatible agent.
+Or install via CLI:
+
+```bash
+npx skills add janespace-ai/claw-wallet
+```
 
 **Step 3 — Generate a Pairing Code**
 
@@ -321,7 +325,7 @@ The policy engine runs **before** any signing and cannot be bypassed through pro
 - **Balance monitoring** — Background polling for incoming transfers
 - **Transaction history** — Local cache with full records
 - **Containerized Relay** — Go Relay Server with Docker support (Hertz framework)
-- **17 wallet tools** — Ready-to-use tool definitions, installable via `npx skills add janespace-ai/claw-wallet`
+- **17 wallet tools** — Published to npm as [`@janespace-ai/claw-wallet`](https://www.npmjs.com/package/@janespace-ai/claw-wallet), installable via `npm install @janespace-ai/claw-wallet` or `npx skills add janespace-ai/claw-wallet`
 - **Internationalization (i18n)** — Desktop app supports English and Simplified Chinese with runtime language switching
 
 ---

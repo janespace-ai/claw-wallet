@@ -50,7 +50,7 @@ export class ClawWallet {
       agentConfig.relayUrl ||
       process.env.RELAY_URL ||
       readRelayUrlFromCwdConfig() ||
-      "http://localhost:8080";
+      "https://wallet.janespace.xyz/relay";
       
     logger.log("ClawWallet", "Initializing", { 
       dataDir: this.dataDir, 

@@ -78,19 +78,44 @@ jobs:
         working-directory: desktop
         run: npm run build
 
-      - name: Package (macOS)
+      - name: Package (macOS) — sign only, no notarize
         if: matrix.os == 'macos-latest'
-        timeout-minutes: 30
+        timeout-minutes: 15
         working-directory: desktop
         run: npm run package -- --mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_KEYCHAIN: ${{ runner.temp }}/app-signing.keychain-db
           CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          APPLE_TEAM_ID: 5YVNPMDSC4
-          DEBUG: electron-builder
+          CSC_FOR_PULL_REQUEST: true
+          ELECTRON_BUILDER_DISABLE_NOTARIZATION: true
+
+      - name: Notarize (macOS)
+        if: matrix.os == 'macos-latest'
+        timeout-minutes: 30
+        run: |
+          echo "Zipping app for notarization..."
+          ditto -c -k --keepParent \
+            "desktop/release/mac-arm64/Claw Wallet.app" \
+            /tmp/claw-wallet-notarize.zip
+
+          echo "Submitting to Apple notarytool..."
+          xcrun notarytool submit /tmp/claw-wallet-notarize.zip \
+            --apple-id "${{ secrets.APPLE_ID }}" \
+            --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
+            --team-id "5YVNPMDSC4" \
+            --wait \
+            --verbose
+
+          echo "Stapling notarization ticket..."
+          xcrun stapler staple "desktop/release/mac-arm64/Claw Wallet.app"
+
+          echo "Rebuilding DMG with notarized app..."
+          cd desktop && npm run package -- --mac dmg
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_KEYCHAIN: ${{ runner.temp }}/app-signing.keychain-db
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
 
       - name: Package (Windows)
         if: matrix.os == 'windows-latest'

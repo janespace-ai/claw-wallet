@@ -92,7 +92,7 @@ jobs:
 
       - name: Notarize (macOS)
         if: matrix.os == 'macos-latest'
-        timeout-minutes: 30
+        timeout-minutes: 60
         run: |
           echo "Zipping app for notarization..."
           ditto -c -k --keepParent \

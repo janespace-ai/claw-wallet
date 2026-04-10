@@ -61,13 +61,36 @@ jobs:
           choco install imagemagick -y
           magick assets/icon.png -resize 256x256 assets/icon.ico
 
+      - name: Import certificate (macOS)
+        if: matrix.os == 'macos-latest'
+        run: |
+          KEYCHAIN_PATH=$RUNNER_TEMP/app-signing.keychain-db
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          echo "${{ secrets.APPLE_CERTIFICATE }}" | base64 --decode > $RUNNER_TEMP/cert.p12
+          security create-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security set-keychain-settings -lut 21600 $KEYCHAIN_PATH
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" $KEYCHAIN_PATH
+          security import $RUNNER_TEMP/cert.p12 -P "${{ secrets.APPLE_CERTIFICATE_PASSWORD }}" -A -t cert -f pkcs12 -k $KEYCHAIN_PATH
+          security list-keychain -d user -s $KEYCHAIN_PATH
+          security find-identity -v $KEYCHAIN_PATH
+
       - name: Build
         working-directory: desktop
         run: npm run build
 
-      - name: Package
+      - name: Package (macOS)
+        if: matrix.os == 'macos-latest'
         working-directory: desktop
-        run: npm run package -- --${{ matrix.platform }}
+        run: npm run package -- --mac
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_KEYCHAIN: ${{ runner.temp }}/app-signing.keychain-db
+          CSC_KEY_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+
+      - name: Package (Windows)
+        if: matrix.os == 'windows-latest'
+        working-directory: desktop
+        run: npm run package -- --win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

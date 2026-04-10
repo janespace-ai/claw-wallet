@@ -2,6 +2,7 @@
   "name": "claw-wallet-desktop",
   "version": "0.1.0",
   "description": "Claw Wallet Desktop - Electron-based secure wallet for OpenClaw Agent",
+  "author": "janespace-ai",
   "private": true,
   "repository": {
     "type": "git",

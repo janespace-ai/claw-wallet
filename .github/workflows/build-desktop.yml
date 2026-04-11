@@ -94,21 +94,13 @@ jobs:
         if: matrix.os == 'macos-latest'
         timeout-minutes: 60
         run: |
-          echo "Zipping app for notarization..."
-          ditto -c -k --keepParent \
-            "desktop/release/mac-arm64/Claw Wallet.app" \
-            /tmp/claw-wallet-notarize.zip
-
-          echo "Submitting to Apple notarytool..."
-          xcrun notarytool submit /tmp/claw-wallet-notarize.zip \
+          echo "Submitting DMG to Apple notarytool..."
+          xcrun notarytool submit "desktop/release/Claw Wallet-0.1.0-arm64.dmg" \
             --apple-id "${{ secrets.APPLE_ID }}" \
             --password "${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}" \
             --team-id "5YVNPMDSC4" \
             --wait \
             --verbose
-
-          echo "Stapling notarization ticket to app..."
-          xcrun stapler staple "desktop/release/mac-arm64/Claw Wallet.app"
 
           echo "Stapling notarization ticket to DMG..."
           xcrun stapler staple "desktop/release/Claw Wallet-0.1.0-arm64.dmg"

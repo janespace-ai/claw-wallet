@@ -296,9 +296,11 @@ export class KeyManager {
   }
 
   isBiometricAvailable(): boolean {
-    return getBiometricType() !== "none"
-      && safeStorage.isEncryptionAvailable()
-      && this.biometricEnabled;
+    // Do NOT call safeStorage.isEncryptionAvailable() here — on macOS it
+    // triggers a Keychain access dialog on every app launch.
+    // The credential file only exists when the user previously successfully
+    // encrypted with safeStorage, so its presence is sufficient proof.
+    return getBiometricType() !== "none" && this.biometricEnabled;
   }
 
   getBiometricLabel(): string | null {
@@ -309,7 +311,11 @@ export class KeyManager {
   }
 
   canEnableBiometric(): boolean {
-    return getBiometricType() !== "none" && safeStorage.isEncryptionAvailable();
+    // Only check the platform — avoid calling safeStorage.isEncryptionAvailable()
+    // at startup because it triggers a macOS Keychain access dialog.
+    // If safeStorage is truly unavailable, encryptString() will throw when the
+    // user explicitly enables biometric, and we surface that error then.
+    return getBiometricType() !== "none";
   }
 
   async setBiometricEnabled(enabled: boolean, password?: string): Promise<void> {

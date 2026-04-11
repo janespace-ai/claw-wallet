@@ -10,6 +10,10 @@ files:
   - "!src/renderer/*.ts"
   - node_modules/**/*
 
+extraResources:
+  - from: network-config.json
+    to: network-config.json
+
 mac:
   category: public.app-category.finance
   icon: assets/icon.icns

@@ -9,33 +9,33 @@
   <a href="https://github.com/janespace-ai/claw-wallet/commits/main"><img src="https://img.shields.io/github/last-commit/janespace-ai/claw-wallet?style=flat-square" alt="Last Commit"></a>
 </p>
 
-<h1 align="center">🦾 Claw‑Wallet</h1>
+<h1 align="center">Claw‑Wallet</h1>
 
 <p align="center">
   <b>Let your AI Agent hold a real wallet — securely.</b><br>
   <i>A non‑custodial crypto wallet with full key isolation for AI Agents</i>
 </p>
 
-> 👤 **Not a developer?** Visit **[janespace-ai.github.io](https://janespace-ai.github.io)** for the user guide — installation, pairing, and getting started in minutes.
+> **Not a developer?** Visit **[janespace-ai.github.io](https://janespace-ai.github.io)** for the user guide — installation, pairing, and getting started in minutes.
 
 **Claw‑Wallet** is a secure, non‑custodial crypto wallet designed specifically for AI Agents like OpenClaw, Claude Code, Cursor, and more. Private keys are stored in a separate **Electron Desktop Wallet**, completely isolated from the AI model. The Agent and Desktop communicate through an **E2EE (End‑to‑End Encrypted)** channel via a **Go Relay Server** — the relay only forwards ciphertext and can never read or tamper with messages.
 
-> 🔐 **Core Security Promise**: Private keys never touch the AI model. Not on the same machine, not in the same process, not in memory. The Agent only sees wallet addresses and transaction hashes.
+> **Core Security Promise**: Private keys never touch the AI model. Not on the same machine, not in the same process, not in memory. The Agent only sees wallet addresses and transaction hashes.
 
-## ✨ Key Features
+## Key Features
 
-| | Feature | Description |
-|-|---------|-------------|
-| 🔐 | **Full Key Isolation** | Keys stay in Desktop Wallet; Agent sees only addresses & hashes |
-| 🔗 | **Multi‑Chain Support** | Ethereum, Base, Arbitrum, Optimism, Polygon, Linea, BSC, Sei |
-| 🤖 | **AI‑Agent Native** | Built‑in tools for OpenClaw, Claude Code, Cursor, Codex, etc. |
-| ⚡ | **E2EE Communication** | X25519 + AES‑256‑GCM encryption; relay sees only ciphertext |
-| 🔄 | **Auto‑Reconnection** | Pair once, reconnect automatically after restarts |
-| 🛡️ | **Policy Engine** | Per‑transaction & daily limits, address whitelists, approval queues |
-| 📱 | **Desktop + CLI** | Electron desktop app for key management + CLI tools for Agents |
-| 🌐 | **Open Source** | MIT licensed — inspect, modify, and contribute |
+| Feature | Description |
+|---------|-------------|
+| **Full Key Isolation** | Keys stay in Desktop Wallet; Agent sees only addresses & hashes |
+| **Multi‑Chain Support** | Ethereum, Base, Arbitrum, Optimism, Polygon, Linea, BSC, Sei |
+| **AI‑Agent Native** | Built‑in tools for OpenClaw, Claude Code, Cursor, Codex, etc. |
+| **E2EE Communication** | X25519 + AES‑256‑GCM encryption; relay sees only ciphertext |
+| **Auto‑Reconnection** | Pair once, reconnect automatically after restarts |
+| **Policy Engine** | Per‑transaction & daily limits, address whitelists, approval queues |
+| **Desktop + CLI** | Electron desktop app for key management + CLI tools for Agents |
+| **Open Source** | MIT licensed — inspect, modify, and contribute |
 
-## 🚀 Get Started in 4 Steps
+## Get Started in 4 Steps
 
 **Step 1 — Install the Desktop Wallet**
 
@@ -43,8 +43,8 @@ Download the latest release and launch the app. Create a wallet, set a password,
 
 | Platform | Download |
 |----------|----------|
-| 🍎 macOS (Apple Silicon) | [**Claw.Wallet-0.1.0-arm64.dmg**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet-0.1.0-arm64.dmg) |
-| 🪟 Windows | [**Claw.Wallet.Setup.0.1.0.exe**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet.Setup.0.1.0.exe) |
+| macOS (Apple Silicon) | [**Claw.Wallet-0.1.0-arm64.dmg**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet-0.1.0-arm64.dmg) |
+| Windows | [**Claw.Wallet.Setup.0.1.0.exe**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet.Setup.0.1.0.exe) |
 
 > All releases: [github.com/janespace-ai/claw-wallet/releases](https://github.com/janespace-ai/claw-wallet/releases)
 
@@ -707,7 +707,7 @@ const msg = i18next.t('common.contacts.removeConfirm', { name: 'Bob' });
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 We welcome contributions! Here's how you can help:
 
@@ -758,6 +758,6 @@ npm test
 
 ---
 
-## 📄 License
+## License
 
 MIT © [janespace‑ai](https://github.com/janespace-ai)

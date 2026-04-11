@@ -50,23 +50,6 @@ Download the latest release and launch the app. Create a wallet, set a password,
 
 <img src="docs/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
 
----
-
-## Get Started in 4 Steps
-
-**Step 1 — Install the Desktop Wallet**
-
-Download the latest release and launch the app. Create a wallet, set a password, and back up your mnemonic.
-
-| Platform | Download |
-|----------|----------|
-| 🍎 macOS (Apple Silicon) | [**Claw.Wallet-0.1.0-arm64.dmg**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet-0.1.0-arm64.dmg) |
-| 🪟 Windows | [**Claw.Wallet.Setup.0.1.0.exe**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet.Setup.0.1.0.exe) |
-
-> All releases: [github.com/janespace-ai/claw-wallet/releases](https://github.com/janespace-ai/claw-wallet/releases)
-
-<img src="docs/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
-
 **Step 2 — Connect Your Agent**
 
 **Using OpenClaw?** Tell OpenClaw directly in chat:

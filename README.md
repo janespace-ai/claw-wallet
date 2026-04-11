@@ -1,16 +1,54 @@
 <p align="center">
-  <b>English</b> | <a href="docs/README.zh-CN.md">简体中文</a> | <a href="docs/README.zh-TW.md">繁體中文</a> | <a href="docs/README.ja.md">日本語</a> | <a href="docs/README.ko.md">한국어</a> | <a href="docs/README.es.md">Español</a> | <a href="docs/README.fr.md">Français</a> | <a href="docs/README.de.md">Deutsch</a> | <a href="docs/README.pt.md">Português</a>
+  <a href="#readme"><b>English</b></a> | <a href="docs/README.zh-CN.md">简体中文</a> | <a href="docs/README.zh-TW.md">繁體中文</a> | <a href="docs/README.ja.md">日本語</a> | <a href="docs/README.ko.md">한국어</a> | <a href="docs/README.es.md">Español</a> | <a href="docs/README.fr.md">Français</a> | <a href="docs/README.de.md">Deutsch</a> | <a href="docs/README.pt.md">Português</a>
 </p>
 
-# claw-wallet
+<p align="center">
+  <a href="https://github.com/janespace-ai/claw-wallet"><img src="https://img.shields.io/github/stars/janespace-ai/claw-wallet?style=flat-square&logo=github" alt="GitHub Stars"></a>
+  <a href="https://github.com/janespace-ai/claw-wallet/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License"></a>
+  <a href="https://github.com/janespace-ai/claw-wallet/releases"><img src="https://img.shields.io/github/v/release/janespace-ai/claw-wallet?style=flat-square" alt="Release"></a>
+  <a href="https://github.com/janespace-ai/claw-wallet/commits/main"><img src="https://img.shields.io/github/last-commit/janespace-ai/claw-wallet?style=flat-square" alt="Last Commit"></a>
+</p>
+
+<h1 align="center">🦾 Claw‑Wallet</h1>
+
+<p align="center">
+  <b>Let your AI Agent hold a real wallet — securely.</b><br>
+  <i>A non‑custodial crypto wallet with full key isolation for AI Agents</i>
+</p>
 
 > 👤 **Not a developer?** Visit **[janespace-ai.github.io](https://janespace-ai.github.io)** for the user guide — installation, pairing, and getting started in minutes.
 
-**Let your AI Agent hold a real wallet — securely.**
+**Claw‑Wallet** is a secure, non‑custodial crypto wallet designed specifically for AI Agents like OpenClaw, Claude Code, Cursor, and more. Private keys are stored in a separate **Electron Desktop Wallet**, completely isolated from the AI model. The Agent and Desktop communicate through an **E2EE (End‑to‑End Encrypted)** channel via a **Go Relay Server** — the relay only forwards ciphertext and can never read or tamper with messages.
 
-A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Private keys live in a separate **Electron Desktop Wallet**, completely isolated from the AI model. The Agent and Desktop communicate through an **E2EE (End-to-End Encrypted)** channel via a **Go Relay Server** — the relay only forwards ciphertext and can never read or tamper with messages.
+> 🔐 **Core Security Promise**: Private keys never touch the AI model. Not on the same machine, not in the same process, not in memory. The Agent only sees wallet addresses and transaction hashes.
 
-> Private keys never touch the AI model. Not on the same machine, not in the same process, not in memory. The Agent only sees wallet addresses and transaction hashes.
+## ✨ Key Features
+
+| | Feature | Description |
+|-|---------|-------------|
+| 🔐 | **Full Key Isolation** | Keys stay in Desktop Wallet; Agent sees only addresses & hashes |
+| 🔗 | **Multi‑Chain Support** | Ethereum, Base, Arbitrum, Optimism, Polygon, Linea, BSC, Sei |
+| 🤖 | **AI‑Agent Native** | Built‑in tools for OpenClaw, Claude Code, Cursor, Codex, etc. |
+| ⚡ | **E2EE Communication** | X25519 + AES‑256‑GCM encryption; relay sees only ciphertext |
+| 🔄 | **Auto‑Reconnection** | Pair once, reconnect automatically after restarts |
+| 🛡️ | **Policy Engine** | Per‑transaction & daily limits, address whitelists, approval queues |
+| 📱 | **Desktop + CLI** | Electron desktop app for key management + CLI tools for Agents |
+| 🌐 | **Open Source** | MIT licensed — inspect, modify, and contribute |
+
+## 🚀 Get Started in 4 Steps
+
+**Step 1 — Install the Desktop Wallet**
+
+Download the latest release and launch the app. Create a wallet, set a password, and back up your mnemonic.
+
+| Platform | Download |
+|----------|----------|
+| 🍎 macOS (Apple Silicon) | [**Claw.Wallet-0.1.0-arm64.dmg**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet-0.1.0-arm64.dmg) |
+| 🪟 Windows | [**Claw.Wallet.Setup.0.1.0.exe**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet.Setup.0.1.0.exe) |
+
+> All releases: [github.com/janespace-ai/claw-wallet/releases](https://github.com/janespace-ai/claw-wallet/releases)
+
+<img src="docs/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
 
 ---
 
@@ -18,7 +56,14 @@ A non-custodial crypto wallet for [OpenClaw](https://getclaw.sh) AI Agents. Priv
 
 **Step 1 — Install the Desktop Wallet**
 
-Download and launch the Claw Wallet desktop app. Create a wallet, set a password, and back up your mnemonic.
+Download the latest release and launch the app. Create a wallet, set a password, and back up your mnemonic.
+
+| Platform | Download |
+|----------|----------|
+| 🍎 macOS (Apple Silicon) | [**Claw.Wallet-0.1.0-arm64.dmg**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet-0.1.0-arm64.dmg) |
+| 🪟 Windows | [**Claw.Wallet.Setup.0.1.0.exe**](https://github.com/janespace-ai/claw-wallet/releases/download/v0.1.0/Claw.Wallet.Setup.0.1.0.exe) |
+
+> All releases: [github.com/janespace-ai/claw-wallet/releases](https://github.com/janespace-ai/claw-wallet/releases)
 
 <img src="docs/screenshots/welcome-dark.png" width="320" alt="Welcome screen" />
 
@@ -679,6 +724,57 @@ const msg = i18next.t('common.contacts.removeConfirm', { name: 'Bob' });
 
 ---
 
-## License
+## 🤝 Contributing
 
-MIT
+We welcome contributions! Here's how you can help:
+
+### Report Issues
+- **Bug reports**: Use the [GitHub Issues](https://github.com/janespace-ai/claw-wallet/issues) page
+- **Feature requests**: Suggest new features or improvements
+- **Security vulnerabilities**: Please report privately via email (see GitHub profile)
+
+### Submit Pull Requests
+1. **Fork** the repository
+2. **Create a branch**: `git checkout -b feature/your-feature`
+3. **Commit changes**: `git commit -m 'Add some feature'`
+4. **Push**: `git push origin feature/your-feature`
+5. **Open a Pull Request**
+
+### Development Setup
+```bash
+# Clone the repository
+git clone https://github.com/janespace-ai/claw-wallet.git
+cd claw-wallet
+
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Run tests
+npm test
+```
+
+### Areas Needing Help
+- **Documentation**: Improve guides, add tutorials, translate to more languages
+- **New chains**: Add support for additional EVM or non‑EVM chains
+- **UI/UX improvements**: Enhance the desktop wallet interface
+- **Testing**: Write unit/integration tests, improve test coverage
+
+### Code Style
+- Use **TypeScript** with strict type checking
+- Follow **Prettier** formatting (configured in `.prettierrc`)
+- Write meaningful commit messages
+- Add tests for new functionality
+
+### Join the Community
+- **Discord**: [Join our server](https://discord.gg/clawd) (coming soon)
+- **Twitter**: Follow [@janespace_ai](https://twitter.com/janespace_ai) for updates
+- **GitHub Discussions**: Start a discussion for questions or ideas
+
+---
+
+## 📄 License
+
+MIT © [janespace‑ai](https://github.com/janespace-ai)

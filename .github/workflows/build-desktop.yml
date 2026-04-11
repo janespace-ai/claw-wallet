@@ -107,11 +107,14 @@ jobs:
             --wait \
             --verbose
 
-          echo "Stapling notarization ticket..."
+          echo "Stapling notarization ticket to app..."
           xcrun stapler staple "desktop/release/mac-arm64/Claw Wallet.app"
 
-          echo "Rebuilding DMG with notarized app..."
-          cd desktop && npm run package -- --mac dmg
+          echo "Stapling notarization ticket to DMG..."
+          xcrun stapler staple "desktop/release/Claw Wallet-0.1.0-arm64.dmg"
+
+          echo "Verifying staple..."
+          xcrun stapler validate "desktop/release/Claw Wallet-0.1.0-arm64.dmg"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_KEYCHAIN: ${{ runner.temp }}/app-signing.keychain-db
